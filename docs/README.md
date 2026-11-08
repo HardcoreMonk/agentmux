@@ -18,6 +18,7 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `PROJECT-DESIGN.md` | 제품/아키텍처 설계 요약과 주요 구성 |
 | `WINDOWS-ONLY-GAP-AUDIT.md` | ADR-023 기간의 Windows 전환 gap과 release 증거 보존 |
 | `PURPLEMUX-ADOPTION-AUDIT.md` | Purplemux 계보, 보안/구조 차이, 선택 이식 우선순위 |
+| `HERDR-ADOPTION-AUDIT.md` | Herdr 기능 인벤토리, codexmux 대비 비교, 차용 후보와 제외 범위 |
 | `ARCHITECTURE-LOGIC.md` | Linux engine, runtime worker, Session Catalog, Project Governance와 API 흐름 |
 | `RUNTIME-V2-CUTOVER.md` | runtime v2 production 전환 단계와 rollback 기준 |
 | `RUNTIME-V2-PARITY.md` | runtime v2 surface별 parity와 증거 |
