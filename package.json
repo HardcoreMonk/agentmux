@@ -48,6 +48,7 @@
     "build:server": "tsup",
     "verify:runtime-native": "node scripts/verify-runtime-native-bindings.mjs",
     "audit:windows-platform": "node scripts/windows-platform-blockers.mjs",
+    "check:product-name": "node scripts/check-product-name.mjs",
     "check:project-design": "node scripts/project-design-governance-check.mjs",
     "check:smoke-artifacts": "node scripts/check-smoke-artifacts.mjs",
     "build:electron:main": "tsup --config electron/tsup.config.ts",
