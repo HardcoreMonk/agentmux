@@ -59,6 +59,31 @@ Windows에서는 process inspector adapter가 PID, command line, child/descendan
 
 Permission/input prompt는 JSONL marker가 늦거나 없을 수 있으므로 live pane capture를 함께 봅니다.
 
+## Workspace 목록의 작업 유무
+
+Desktop workspace 목록과 mobile navigation sheet의 각 workspace는 기존 탭 아이콘과
+대표 상태 문구를 함께 표시합니다. Mobile에서 workspace를 펼쳐도 문구를 유지합니다.
+
+| 대표 문구 | 기준 |
+| --- | --- |
+| 상태 확인 중 | status WebSocket 연결 전/끊김 또는 현재 연결의 첫 전체 sync 이전 |
+| 입력 대기 | Codex 탭 중 `needs-input` 존재 |
+| 작업 중 | 입력 대기가 없고 Codex 탭 중 `busy` 존재 |
+| 확인 필요 | 위 상태가 없고 Codex 탭 중 `ready-for-review` 존재 |
+| 상태 미확인 | 위 상태가 없고 Codex 탭 중 `unknown` 또는 알려진 layout 탭의 상태 누락 존재 |
+| 작업 없음 | 동기화 후 Codex 탭이 없거나 모두 `idle`/`inactive` 등 비활성 상태 |
+
+이 문구는 현재 Codex 작업의 projection입니다. 과거 대화 유무나 일반 terminal의
+server/running 상태, browser와 diff panel을 작업으로 세지 않습니다. 복수 상태가
+섞이면 표의 순서로 대표 문구를 고르고 기존 탭별 아이콘도 함께 유지합니다.
+
+`getWorkspaceActivityStatus`는 indicator가 선택한 해당 workspace의 탭만 받아 판정합니다.
+`use-tab-store.statusSynced`는 client 전용 전체 snapshot 수신 여부이며, 기존
+`statusWsConnected`와 구분합니다. 새 연결 시작/open, 연결 종료와 hook cleanup에서
+초기화하고 `syncAllFromServer` 처리와 함께 완료합니다. Incremental update만으로는
+완료하지 않으므로 재연결 중 이전 snapshot으로 작업 없음을 단정하지 않습니다.
+새 polling, 서버 상태, API나 영속 필드는 추가하지 않습니다.
+
 ## Hook event 경로
 
 Codex tab launch/resume은 `hooks={path="~/.codexmux/hooks.json"}`를 사용하지 않습니다. Browser는 workspace/pane/tab과 action만 server에 보내고, `agent-launch-service`가 현재 layout ownership, panel type, terminal process, Codex `0.144.1+` compatibility를 확인합니다. 검증된 server provider만 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override를 만들어 `~/.codexmux/status-hook.cjs`를 호출합니다.
