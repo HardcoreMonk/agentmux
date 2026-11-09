@@ -115,8 +115,13 @@
 - `smoke:android:foreground` 통과(`ok: true`, foreground 2회, blocking console/logcat 0건, WebView title
   `agentmux`). `smoke:android:recovery`는 잘못된 서버 주소로 이동하는 시나리오라 저장된 서버 주소를
   건드릴 수 있어 실행하지 않았다.
-- 폰의 앱이 debug 서명이므로 앞으로 release 서명으로 바꾸려면 앱을 지웠다 다시 설치해야 하고, 이때 저장된
-  서버 주소와 로그인 상태가 사라진다.
+- 사용자 결정으로 release 서명으로 전환했다. Debug 앱을 지우고 signed release APK를 설치했다(인증서
+  SHA-256 `3a096977…`, debuggable flag 없음). 저장된 서버 주소와 로그인은 초기화되었다. 앱은 crash 없이
+  기본 서버의 로그인 화면까지 열렸다. Release build는 WebView devtools가 꺼져 있어 CDP 기반
+  `smoke:android:*`는 release 앱에 쓸 수 없다.
+- 새로 발견한 결함: 웹 UI logo `src/components/layout/app-logo.tsx`가 `codex`와 `mux`를 별도 span으로
+  그려 header, sidebar, login, onboarding, tools-required 화면에 옛 이름이 보인다. 단어가 나뉘어 있어
+  product name gate가 잡지 못했다. 고치면 live 서버 재배포가 필요하다.
 - 이 변경은 아직 commit하지 않았다.
 
 ## Current Lifecycle Stage
@@ -135,5 +140,5 @@
 
 - Multi-agent 설계 문서 작성과 승인, 이어서 `superpowers:writing-plans`.
 - 3번 프로젝트(위임 자동화와 agent split)를 2번에 합칠지 결정.
-- Android: debug 서명 유지 또는 release 서명 전환(재설치 필요) 결정.
+- 웹 UI logo(`app-logo.tsx`)의 옛 이름 수정과 live 재배포.
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.
