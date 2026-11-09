@@ -1,25 +1,25 @@
 ---
 title: Tailscale 접속
-description: Tailscale Serve로 휴대폰에서도 HTTPS로 codexmux에 접근합니다 — 포트 포워딩도, 인증서 고민도 없이.
+description: Tailscale Serve로 휴대폰에서도 HTTPS로 agentmux에 접근합니다 — 포트 포워딩도, 인증서 고민도 없이.
 eyebrow: 모바일 & 원격
 permalink: /es/docs/tailscale/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-기본적으로 codexmux는 로컬에서만 listen 합니다. 다른 기기에서 안전하게 접근하기에 가장 깔끔한 방법은 Tailscale Serve입니다 — WireGuard 암호화, Let's Encrypt 인증서 자동 발급, 방화벽 변경 불필요.
+기본적으로 agentmux는 로컬에서만 listen 합니다. 다른 기기에서 안전하게 접근하기에 가장 깔끔한 방법은 Tailscale Serve입니다 — WireGuard 암호화, Let's Encrypt 인증서 자동 발급, 방화벽 변경 불필요.
 
 ## 왜 Tailscale인가
 
 - **WireGuard** — 모든 연결이 기기 대 기기로 암호화됩니다.
 - **자동 HTTPS** — Tailscale이 `*.<tailnet>.ts.net`에 대한 실제 인증서를 발급해줍니다.
 - **포트 포워딩 불필요** — 머신이 공개 인터넷에 포트를 열지 않습니다.
-- **iOS는 HTTPS 필수** — PWA 설치와 Web Push 모두 HTTPS 없이는 거부됩니다. [PWA 설정](/codexmux/es/docs/pwa-setup/), [웹 푸시](/codexmux/es/docs/web-push/) 참고.
+- **iOS는 HTTPS 필수** — PWA 설치와 Web Push 모두 HTTPS 없이는 거부됩니다. [PWA 설정](/agentmux/es/docs/pwa-setup/), [웹 푸시](/agentmux/es/docs/web-push/) 참고.
 
 ## 사전 준비
 
-- Tailscale 계정과, codexmux 실행 머신에 설치/로그인된 `tailscale` 데몬
+- Tailscale 계정과, agentmux 실행 머신에 설치/로그인된 `tailscale` 데몬
 - 테일넷 HTTPS 활성화 (Admin console → DNS → HTTPS Certificates, 이미 켜져 있으면 패스)
-- codexmux가 기본 포트 `8122` (또는 `PORT`로 지정한 포트)에서 실행 중
+- agentmux가 기본 포트 `8122` (또는 `PORT`로 지정한 포트)에서 실행 중
 
 ## 실행
 
@@ -45,17 +45,17 @@ tailscale serve reset
 
 ## 동작 후 할 일
 
-- 휴대폰에서 URL을 열고 **공유 → 홈 화면에 추가** — [PWA 설정](/codexmux/es/docs/pwa-setup/) 참고
-- Standalone PWA 창 안에서 푸시 활성화 — [웹 푸시](/codexmux/es/docs/web-push/)
+- 휴대폰에서 URL을 열고 **공유 → 홈 화면에 추가** — [PWA 설정](/agentmux/es/docs/pwa-setup/) 참고
+- Standalone PWA 창 안에서 푸시 활성화 — [웹 푸시](/agentmux/es/docs/web-push/)
 - 태블릿, 노트북, 다른 데스크탑에서도 같은 대시보드에 접속 — 워크스페이스 상태가 실시간으로 동기화됩니다
 
 {% call callout('tip', 'Funnel vs Serve') %}
-`tailscale serve`는 codexmux를 테일넷 내부에만 노출합니다 — 거의 모든 경우 이쪽이 정답입니다. `tailscale funnel`은 공개 인터넷에 노출하는 옵션이며, 개인용 멀티플렉서로는 과하고 위험합니다.
+`tailscale serve`는 agentmux를 테일넷 내부에만 노출합니다 — 거의 모든 경우 이쪽이 정답입니다. `tailscale funnel`은 공개 인터넷에 노출하는 옵션이며, 개인용 멀티플렉서로는 과하고 위험합니다.
 {% endcall %}
 
 ## 리버스 프록시 대안
 
-Tailscale을 쓰기 어렵다면, 실제 TLS 인증서를 가진 리버스 프록시 중 어느 것이든 사용 가능합니다. 반드시 챙겨야 할 한 가지는 **WebSocket 업그레이드** — codexmux의 터미널 I/O, 상태 동기화, 라이브 타임라인이 모두 WebSocket을 사용합니다.
+Tailscale을 쓰기 어렵다면, 실제 TLS 인증서를 가진 리버스 프록시 중 어느 것이든 사용 가능합니다. 반드시 챙겨야 할 한 가지는 **WebSocket 업그레이드** — agentmux의 터미널 I/O, 상태 동기화, 라이브 타임라인이 모두 WebSocket을 사용합니다.
 
 Nginx 예시:
 
@@ -83,6 +83,6 @@ Caddy는 더 간단합니다 — `reverse_proxy 127.0.0.1:8122`만 써도 업그
 
 ## 다음으로
 
-- **[PWA 설정](/codexmux/es/docs/pwa-setup/)** — HTTPS 확보 후 홈 화면에 설치
-- **[웹 푸시 알림](/codexmux/es/docs/web-push/)** — 백그라운드 알림 켜기
-- **[보안과 인증](/codexmux/es/docs/security-auth/)** — 비밀번호, 해싱, 그리고 테일넷 노출이 의미하는 것
+- **[PWA 설정](/agentmux/es/docs/pwa-setup/)** — HTTPS 확보 후 홈 화면에 설치
+- **[웹 푸시 알림](/agentmux/es/docs/web-push/)** — 백그라운드 알림 켜기
+- **[보안과 인증](/agentmux/es/docs/security-auth/)** — 비밀번호, 해싱, 그리고 테일넷 노출이 의미하는 것

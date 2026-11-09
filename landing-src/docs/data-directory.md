@@ -1,19 +1,19 @@
 ---
 title: 데이터 디렉터리
-description: ~/.codexmux/ 아래에 저장되는 파일과 삭제 기준.
+description: ~/.agentmux/ 아래에 저장되는 파일과 삭제 기준.
 eyebrow: 레퍼런스
 permalink: /docs/data-directory/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux의 영속 상태는 `~/.codexmux/` 아래에 저장됩니다. `~`는 active Linux service
+agentmux의 영속 상태는 `~/.agentmux/` 아래에 저장됩니다. `~`는 active Linux service
 user의 Node.js `os.homedir()`입니다. Codex CLI의 원본 session JSONL은
-`~/.codex/sessions/`에 있으며 codexmux는 읽기 전용으로만 접근합니다.
+`~/.codex/sessions/`에 있으며 agentmux는 읽기 전용으로만 접근합니다.
 
 ## 구조
 
 ```text
-~/.codexmux/
+~/.agentmux/
 ├── config.json
 ├── workspaces.json
 ├── workspaces/{wsId}/layout.json
@@ -87,15 +87,15 @@ External upload ingress는 `uploads/<workspace-id>/<tab-id>/` 아래에만 씁�
 - transaction failure: stage unlink를 시도하고, 남은 reserved stage는 최소 30분 후 cleanup
 - committed artifact: 기본 24시간 TTL cleanup 대상
 
-`CODEXMUX_UPLOADS_DISABLED=1`은 새 upload만 `503`으로 막고 기존 tree는 삭제하지 않습니다.
+`AGENTMUX_UPLOADS_DISABLED=1`은 새 upload만 `503`으로 막고 기존 tree는 삭제하지 않습니다.
 
 ## 백업
 
 ```bash
-tar czf codexmux-backup.tgz -C $HOME .codexmux
+tar czf agentmux-backup.tgz -C $HOME .agentmux
 ```
 
-복원 전에는 codexmux를 종료하고 같은 위치에 풀어 넣습니다.
+복원 전에는 agentmux를 종료하고 같은 위치에 풀어 넣습니다.
 
 ## reset 기준
 
@@ -108,8 +108,8 @@ tar czf codexmux-backup.tgz -C $HOME .codexmux
 - 통계 재계산: `stats/` 삭제.
 - session list index 재생성: `session-index.json` 삭제.
 - 첨부 삭제: server를 멈춘 뒤 `uploads/` 삭제.
-- 전체 초기화: `~/.codexmux/` 삭제.
+- 전체 초기화: `~/.agentmux/` 삭제.
 
 비밀번호는 평문이 아니라 scrypt 해시로 저장되므로 잊어버렸다면 복구가 아니라 재설정해야 합니다. `config.json` 전체를 삭제하면 네트워크 접근, 테마, Codex 옵션도 초기화되므로 필요한 경우 먼저 백업하세요.
 
-`~/.codex/`는 Codex CLI의 auth와 session history를 포함하므로 일반적인 codexmux reset에서는 삭제하지 않습니다. 이전 빌드에서 남은 원격 복사본 디렉터리는 현재 앱에서 읽지 않으며 필요하면 수동으로 삭제합니다.
+`~/.codex/`는 Codex CLI의 auth와 session history를 포함하므로 일반적인 agentmux reset에서는 삭제하지 않습니다. 이전 빌드에서 남은 원격 복사본 디렉터리는 현재 앱에서 읽지 않으며 필요하면 수동으로 삭제합니다.

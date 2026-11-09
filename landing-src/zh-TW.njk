@@ -1,10 +1,10 @@
 ---
 layout: layouts/base.njk
 lang: zh-TW
-title: "codexmux — 為 Codex 打造的 Web 原生終端多工器"
+title: "agentmux — 為 Codex 打造的 Web 原生終端多工器"
 description: "在一個儀表板中執行多個 Codex 工作階段。以 tmux 為基礎、Web 原生、行動裝置適配。MIT 開源。"
-canonical: https://hardcoremonk.github.io/codexmux/zh-TW/
-ogUrl: https://hardcoremonk.github.io/codexmux/zh-TW/
+canonical: https://hardcoremonk.github.io/agentmux/zh-TW/
+ogUrl: https://hardcoremonk.github.io/agentmux/zh-TW/
 ogLocale: zh_TW
 ogLocaleAlternate: en_US
 permalink: /zh-TW/index.html
@@ -14,7 +14,7 @@ isRoot: false
   <nav class="nav" data-ph-capture-attribute-location="nav">
     <a href="#top" class="nav-brand is-hidden">
       <svg class="brand-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
-      <span class="wordmark"><strong>codex</strong>mux</span>
+      <span class="wordmark"><strong>agent</strong>mux</span>
     </a>
     <div class="nav-links">
       <a href="#mobile">行動裝置</a>
@@ -26,7 +26,7 @@ isRoot: false
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-spacer"></div>
-    <a href="/codexmux/zh-TW/docs/" class="nav-docs">Docs</a>
+    <a href="/agentmux/zh-TW/docs/" class="nav-docs">Docs</a>
     <details class="nav-lang">
       <summary aria-label="選擇語言">
         <span class="lang-current">ZH-TW</span>
@@ -46,7 +46,7 @@ isRoot: false
         <a href="../tr/" class="lang-opt" lang="tr" hreflang="tr">Türkçe</a>
       </div>
     </details>
-    <a href="https://github.com/HardcoreMonk/codexmux" class="nav-github" data-ph-capture-attribute-cta="github" target="_blank" rel="noopener" aria-label="GitHub">
+    <a href="https://github.com/HardcoreMonk/agentmux" class="nav-github" data-ph-capture-attribute-cta="github" target="_blank" rel="noopener" aria-label="GitHub">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
         <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.09-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.58.23 2.75.11 3.04.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.26 5.68.41.35.78 1.05.78 2.12 0 1.53-.01 2.77-.01 3.15 0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/>
       </svg>
@@ -62,7 +62,7 @@ isRoot: false
         <div class="hero-text">
           <div class="hero-eyebrow">
             <svg class="brand-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
-            <span class="eyebrow-mark"><strong>codex</strong>mux</span>
+            <span class="eyebrow-mark"><strong>agent</strong>mux</span>
             <span class="eyebrow-sep">/</span>
             <span class="eyebrow-sub">for Codex</span>
           </div>
@@ -81,10 +81,10 @@ isRoot: false
           <div class="install-block">
             <div class="install-cmd">
               <span class="prompt">$</span>
-              <span>npx --yes codexmux@latest</span>
-              <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="複製" onclick="(function(b){navigator.clipboard.writeText('npx --yes codexmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
+              <span>npx --yes @hardcoremonk/agentmux@latest</span>
+              <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="複製" onclick="(function(b){navigator.clipboard.writeText('npx --yes @hardcoremonk/agentmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
             </div>
-            <a href="https://github.com/HardcoreMonk/codexmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
+            <a href="https://github.com/HardcoreMonk/agentmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
               下載 Windows 安裝程式
             </a>
           </div>
@@ -107,7 +107,7 @@ isRoot: false
             <div class="stack-card-inner">
               <header class="card-head">
                 <span class="card-dot busy"></span>
-                <span class="card-name">codexmux</span>
+                <span class="card-name">agentmux</span>
                 <span class="card-time">02:14</span>
               </header>
               <div class="card-body">
@@ -164,7 +164,7 @@ isRoot: false
         <div class="shot shot--desktop preview-desktop">
           <div class="swiper">
             <div class="swiper-wrapper">
-              <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-busy.webp" type="image/webp" /><img src="../images/screenshot-desktop-busy.png" alt="codexmux 桌面儀表板" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
+              <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-busy.webp" type="image/webp" /><img src="../images/screenshot-desktop-busy.png" alt="agentmux 桌面儀表板" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-diff.webp" type="image/webp" /><img src="../images/screenshot-desktop-diff.png" alt="" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-codex.webp" type="image/webp" /><img src="../images/screenshot-desktop-codex.png" alt="" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
             </div>
@@ -174,7 +174,7 @@ isRoot: false
         <div class="shot shot--mobile preview-mobile">
           <div class="swiper">
             <div class="swiper-wrapper">
-              <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-push.webp" type="image/webp" /><img src="../images/screenshot-mobile-push.png" alt="codexmux 行動版畫面" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
+              <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-push.webp" type="image/webp" /><img src="../images/screenshot-mobile-push.png" alt="agentmux 行動版畫面" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-done.webp" type="image/webp" /><img src="../images/screenshot-mobile-done.png" alt="" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-new-tab.webp" type="image/webp" /><img src="../images/screenshot-mobile-new-tab.png" alt="" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-input.webp" type="image/webp" /><img src="../images/screenshot-mobile-input.png" alt="" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
@@ -188,11 +188,11 @@ isRoot: false
 
     <!-- ── Why ── -->
     <section id="why">
-      <div class="eyebrow">為何選 codexmux</div>
+      <div class="eyebrow">為何選 agentmux</div>
       <h2>所有工作階段,一個儀表板。</h2>
       <p class="lead">
         工作階段越多,狀態越難追蹤。<br />
-        codexmux 把所有工作階段集中到一個畫面,讓你一眼看見 <strong>目前正在進行什麼、哪裡需要輸入</strong>。
+        agentmux 把所有工作階段集中到一個畫面,讓你一眼看見 <strong>目前正在進行什麼、哪裡需要輸入</strong>。
       </p>
 
       <div class="pain-highlight">
@@ -231,7 +231,7 @@ isRoot: false
             在等下一次重設之前,工作只能停在那裡。
           </p>
           <p>
-            codexmux 將 5 小時與 7 天額度固定顯示在側邊欄。
+            agentmux 將 5 小時與 7 天額度固定顯示在側邊欄。
             到 <span class="hl amber">50%</span> 和 <span class="hl red">80%</span> 時顏色會切換,讓你在撞牆前先調整節奏。
           </p>
         </div>
@@ -243,7 +243,7 @@ isRoot: false
             <div class="mockup mockup-dashboard">
               <div class="tile">
                 <span class="indicator busy"></span>
-                <div class="meta"><span class="name">codexmux</span><span class="sub">in progress</span></div>
+                <div class="meta"><span class="name">agentmux</span><span class="sub">in progress</span></div>
               </div>
               <div class="tile">
                 <span class="indicator input"></span>
@@ -381,7 +381,7 @@ isRoot: false
         <div class="mobile-showcase">
           <picture class="shot shot--mobile">
             <source srcset="../images/mobile-push.webp" type="image/webp" />
-            <img src="../images/mobile-push.png" alt="codexmux 行動裝置推播通知" width="1206" height="2622" loading="lazy" decoding="async" />
+            <img src="../images/mobile-push.png" alt="agentmux 行動裝置推播通知" width="1206" height="2622" loading="lazy" decoding="async" />
           </picture>
         </div>
 
@@ -490,7 +490,7 @@ isRoot: false
       <div class="stats-showcase">
         <picture class="stats-screen">
           <source srcset="../images/stat.webp" type="image/webp" />
-          <img src="../images/stat.png" alt="codexmux 使用量統計儀表板" width="2068" height="1682" loading="lazy" decoding="async" />
+          <img src="../images/stat.png" alt="agentmux 使用量統計儀表板" width="2068" height="1682" loading="lazy" decoding="async" />
         </picture>
 
         <div class="stats-callout" style="--x:22%; --y:20%">
@@ -544,11 +544,11 @@ isRoot: false
           </div>
           <div class="notes-mockup-body">
             <div class="md-brief">
-              撰寫 codexmux 著陸頁初稿,將行動 / PWA 區塊與統計儀表板串起來。把文案統一為 Apple 調性,全面替換 feature 卡片 mockup。
+              撰寫 agentmux 著陸頁初稿,將行動 / PWA 區塊與統計儀表板串起來。把文案統一為 Apple 調性,全面替換 feature 卡片 mockup。
             </div>
             <div class="md-collapse">∧ Collapse</div>
 
-            <div class="md-project">codexmux</div>
+            <div class="md-project">agentmux</div>
 
             <div class="md-h3">著陸頁初稿</div>
             <ul class="md-ul">
@@ -673,7 +673,7 @@ isRoot: false
       <div class="eyebrow coral">架構</div>
       <h2>瀏覽器 ↔ Node.js ↔ tmux · Codex.</h2>
       <p class="lead">
-        xterm.js 透過 WebSocket 連接 node-pty,node-pty 接到專用 <code>codexmux</code> socket 的 tmux 工作階段。
+        xterm.js 透過 WebSocket 連接 node-pty,node-pty 接到專用 <code>agentmux</code> socket 的 tmux 工作階段。
         State is tracked by process detection and Codex JSONL watchers.
       </p>
 
@@ -751,14 +751,14 @@ isRoot: false
           </div>
           <div class="arch-split">
             <div class="arch-group">
-              <div class="arch-group-label">tmux · codexmux socket</div>
+              <div class="arch-group-label">tmux · agentmux socket</div>
               <div class="arch-mini-row">
                 <span class="arch-mini">session 1</span>
                 <span class="arch-mini">session 2</span>
                 <span class="arch-mini">…</span>
               </div>
               <div class="arch-highlights arch-highlights--inline">
-                <span class="arch-hl">獨立的 codexmux socket</span>
+                <span class="arch-hl">獨立的 agentmux socket</span>
                 <span class="arch-hl">重新啟動後並行還原</span>
               </div>
             </div>
@@ -780,7 +780,7 @@ isRoot: false
       <h2>超越遠端控制,走向整合工作區。</h2>
       <p class="lead">
         官方 Remote Control 是一款<em>在其他裝置上繼續 Codex 工作階段</em>的遠端存取工具。
-        codexmux 在其基礎上加上 <em>多工作階段儀表板、終端擴充、使用量分析</em>,形成一套自架的營運環境。
+        agentmux 在其基礎上加上 <em>多工作階段儀表板、終端擴充、使用量分析</em>,形成一套自架的營運環境。
       </p>
 
       <table class="compare">
@@ -788,7 +788,7 @@ isRoot: false
           <tr>
             <th>項目</th>
             <th>官方 Remote Control</th>
-            <th>codexmux</th>
+            <th>agentmux</th>
           </tr>
         </thead>
         <tbody>
@@ -845,7 +845,7 @@ isRoot: false
           <div class="step-body">
             <h3>執行舊版 Web 伺服器</h3>
             <p>在具備 Node.js 20+ 與 tmux 的 macOS/Linux 上直接執行已發布的套件。</p>
-<pre class="code"><span class="c">$</span> npx --yes codexmux@latest</pre>
+<pre class="code"><span class="c">$</span> npx --yes @hardcoremonk/agentmux@latest</pre>
           </div>
         </div>
 
@@ -872,7 +872,7 @@ isRoot: false
           <div class="step-body">
             <h3>Windows 安裝程式（主要路徑）</h3>
             <p>Windows 請使用 Electron 安裝程式。npm 指令不會安裝 Windows 桌面應用程式。</p>
-            <a href="https://github.com/HardcoreMonk/codexmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" style="margin-top:0.5rem" data-ph-capture-attribute-cta="download">
+            <a href="https://github.com/HardcoreMonk/agentmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" style="margin-top:0.5rem" data-ph-capture-attribute-cta="download">
               下載 Windows 安裝程式 →
             </a>
           </div>
@@ -894,20 +894,20 @@ isRoot: false
 
         <details>
           <summary>權限提示能從手機批准嗎?</summary>
-          <p>可以。codexmux 會從終端攔截 Codex 的權限對話框,並推送到儀表板和行動通知。
+          <p>可以。agentmux 會從終端攔截 Codex 的權限對話框,並推送到儀表板和行動通知。
             隨時隨地都能批准,任務不會被擱置。</p>
         </details>
 
         <details>
           <summary>系統當機會丟失工作階段嗎?</summary>
           <p>關閉瀏覽器或斷線都沒問題 — tmux 會保留工作階段。
-            整機重新啟動後,codexmux 也會掃描工作區佈局,<strong>並行還原先前的 Codex 工作階段</strong>。
+            整機重新啟動後,agentmux 也會掃描工作區佈局,<strong>並行還原先前的 Codex 工作階段</strong>。
             無需手動還原。</p>
         </details>
 
         <details>
           <summary>資料保存在哪裡?</summary>
-          <p>所有設定與工作階段資料都儲存在本地的 <code>~/.codexmux/</code> 目錄。
+          <p>所有設定與工作階段資料都儲存在本地的 <code>~/.agentmux/</code> 目錄。
             不會向外部伺服器發送任何內容。認證以 scrypt 雜湊存於 <code>config.json</code>。</p>
         </details>
 
@@ -918,7 +918,7 @@ isRoot: false
 
         <details>
           <summary>會和現有的 tmux 工作階段衝突嗎?</summary>
-          <p>codexmux 會在專用的 <code>codexmux</code> socket 啟動獨立的 tmux 實例。
+          <p>agentmux 會在專用的 <code>agentmux</code> socket 啟動獨立的 tmux 實例。
             與現有的 tmux 工作階段和 <code>~/.tmux.conf</code> 完全獨立。</p>
         </details>
 
@@ -930,7 +930,7 @@ isRoot: false
 
         <details>
           <summary>要付費嗎?</summary>
-          <p>codexmux 本身為 MIT 授權開源軟體,免費。Codex 的使用費用另計。</p>
+          <p>agentmux 本身為 MIT 授權開源軟體,免費。Codex 的使用費用另計。</p>
         </details>
 
         <details>
@@ -957,10 +957,10 @@ isRoot: false
         <div class="install-block cta-install">
           <div class="install-cmd">
             <span class="prompt">$</span>
-            <span>npx --yes codexmux@latest</span>
-            <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="複製" onclick="(function(b){navigator.clipboard.writeText('npx --yes codexmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
+            <span>npx --yes @hardcoremonk/agentmux@latest</span>
+            <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="複製" onclick="(function(b){navigator.clipboard.writeText('npx --yes @hardcoremonk/agentmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
           </div>
-          <a href="https://github.com/HardcoreMonk/codexmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
+          <a href="https://github.com/HardcoreMonk/agentmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
             下載 Windows 安裝程式
           </a>
         </div>
@@ -974,8 +974,8 @@ isRoot: false
           <div class="eyebrow amber">自架 · 開源</div>
           <h2>在你的機器,屬於你。</h2>
           <p class="lead">
-            codexmux 是一款在本地執行的自架工具。
-            工作階段資料、設定、歷史都只保存在 <code>~/.codexmux/</code>,不會離開你的機器。
+            agentmux 是一款在本地執行的自架工具。
+            工作階段資料、設定、歷史都只保存在 <code>~/.agentmux/</code>,不會離開你的機器。
             全部原始碼以 MIT 開源 — 可以閱讀、修改、貢獻。
           </p>
           <div class="selfhost-badges">
@@ -987,7 +987,7 @@ isRoot: false
         <div class="selfhost-visual">
           <div class="mockup mockup-selfhost">
             <div class="tree">
-              <div class="tline root">~/.codexmux/</div>
+              <div class="tline root">~/.agentmux/</div>
               <div class="tline sub">├─ config.json</div>
               <div class="tline sub">├─ workspaces.json</div>
               <div class="tline sub">└─ sessions/</div>

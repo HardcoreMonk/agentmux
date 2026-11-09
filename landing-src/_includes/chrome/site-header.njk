@@ -1,13 +1,13 @@
 {%- set shellEnglish = shellLocale == 'en' %}
 {%- set shellEnglishLabels = shellLocale != 'ko' %}
-{%- set shellDocsPrefix = '/codexmux/docs/' if shellEnglish else '/codexmux/' + shellLocale + '/docs/' %}
-{%- set shellCoreDocsPrefix = shellDocsPrefix if shellLocale == 'en' or shellLocale == 'ko' else '/codexmux/docs/' %}
-{%- set shellHomeHref = '/codexmux/' if shellEnglish else '/codexmux/' + shellLocale + '/' %}
+{%- set shellDocsPrefix = '/agentmux/docs/' if shellEnglish else '/agentmux/' + shellLocale + '/docs/' %}
+{%- set shellCoreDocsPrefix = shellDocsPrefix if shellLocale == 'en' or shellLocale == 'ko' else '/agentmux/docs/' %}
+{%- set shellHomeHref = '/agentmux/' if shellEnglish else '/agentmux/' + shellLocale + '/' %}
 <header class="site-header-wrap" data-site-header>
   <div class="site-header">
-    <a href="{{ shellHomeHref }}" class="site-brand" aria-label="codexmux home">
+    <a href="{{ shellHomeHref }}" class="site-brand" aria-label="agentmux home">
       <svg class="site-brand-icon" viewBox="0 0 24 24" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
-      <span><strong>codex</strong>mux</span>
+      <span><strong>agent</strong>mux</span>
     </a>
 
     <nav class="site-desktop-nav" aria-label="{% if shellEnglishLabels %}Primary navigation{% else %}주 메뉴{% endif %}">
@@ -45,7 +45,7 @@
         <span class="site-search-label">{% if shellEnglishLabels %}Search{% else %}검색{% endif %}</span>
         <kbd>⌘K</kbd>
       </button>
-      <a href="https://github.com/HardcoreMonk/codexmux" class="site-action site-github-action" target="_blank" rel="noopener" aria-label="GitHub">
+      <a href="https://github.com/HardcoreMonk/agentmux" class="site-action site-github-action" target="_blank" rel="noopener" aria-label="GitHub">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.09-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.58.23 2.75.11 3.04.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.26 5.68.41.35.78 1.05.78 2.12 0 1.53-.01 2.77-.01 3.15 0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
       </a>
       <button type="button" class="site-action site-theme-action" data-theme-cycle data-auto-label="{% if shellEnglishLabels %}Auto{% else %}자동{% endif %}" data-light-label="{% if shellEnglishLabels %}Light{% else %}라이트{% endif %}" data-dark-label="{% if shellEnglishLabels %}Dark{% else %}다크{% endif %}" data-theme-name="{% if shellEnglishLabels %}Theme{% else %}테마{% endif %}">
@@ -62,8 +62,8 @@
 {%- endif %}
 {%- endfor %}
 {%- else %}
-          <a href="/codexmux/" lang="en"{% if shellEnglish %} aria-current="page"{% endif %}>English</a>
-          <a href="/codexmux/ko/" lang="ko"{% if shellLocale == 'ko' %} aria-current="page"{% endif %}>한국어</a>
+          <a href="/agentmux/" lang="en"{% if shellEnglish %} aria-current="page"{% endif %}>English</a>
+          <a href="/agentmux/ko/" lang="ko"{% if shellLocale == 'ko' %} aria-current="page"{% endif %}>한국어</a>
 {%- endif %}
         </div>
       </details>
@@ -77,7 +77,7 @@
     <nav aria-label="{% if shellEnglishLabels %}Mobile navigation{% else %}모바일 메뉴{% endif %}">
       <div><strong>{% if shellEnglishLabels %}Getting Started{% else %}시작하기{% endif %}</strong><a href="{{ shellDocsPrefix }}quickstart/">{% if shellEnglishLabels %}Quickstart{% else %}빠른 시작{% endif %}</a><a href="{{ shellDocsPrefix }}installation/">{% if shellEnglishLabels %}Installation{% else %}설치{% endif %}</a></div>
       <div><strong>{% if shellEnglishLabels %}Operations{% else %}운영{% endif %}</strong><a href="{{ shellCoreDocsPrefix }}session-operations/">{% if shellEnglishLabels %}Session Operations{% else %}세션 운영{% endif %}</a><a href="{{ shellDocsPrefix }}live-session-view/">{% if shellEnglishLabels %}Live Sessions{% else %}실시간 세션{% endif %}</a><a href="{{ shellCoreDocsPrefix }}project-governance/">Project Governance</a><a href="{{ shellCoreDocsPrefix }}linux-service/">Runtime Operations</a></div>
-      <div><strong>{% if shellEnglishLabels %}Reference{% else %}레퍼런스{% endif %}</strong><a href="{{ shellDocsPrefix }}architecture/">{% if shellEnglishLabels %}Architecture{% else %}아키텍처{% endif %}</a><a href="{{ shellDocsPrefix }}security-auth/">{% if shellEnglishLabels %}Security{% else %}보안{% endif %}</a><a href="https://github.com/HardcoreMonk/codexmux">GitHub</a></div>
+      <div><strong>{% if shellEnglishLabels %}Reference{% else %}레퍼런스{% endif %}</strong><a href="{{ shellDocsPrefix }}architecture/">{% if shellEnglishLabels %}Architecture{% else %}아키텍처{% endif %}</a><a href="{{ shellDocsPrefix }}security-auth/">{% if shellEnglishLabels %}Security{% else %}보안{% endif %}</a><a href="https://github.com/HardcoreMonk/agentmux">GitHub</a></div>
     </nav>
     <div class="site-mobile-preferences">
       <button type="button" class="site-mobile-theme" data-theme-cycle data-auto-label="{% if shellEnglishLabels %}Auto{% else %}자동{% endif %}" data-light-label="{% if shellEnglishLabels %}Light{% else %}라이트{% endif %}" data-dark-label="{% if shellEnglishLabels %}Dark{% else %}다크{% endif %}" data-theme-name="{% if shellEnglishLabels %}Theme{% else %}테마{% endif %}"><span>{% if shellEnglishLabels %}Theme{% else %}테마{% endif %}</span><strong data-theme-label>{% if shellEnglishLabels %}Auto{% else %}자동{% endif %}</strong></button>

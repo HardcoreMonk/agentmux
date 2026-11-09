@@ -16,7 +16,7 @@ permalink: /zh-TW/docs/workspaces-groups/index.html
 - **탭과 pane** — 터미널, Codex 세션, diff 패널, 웹 브라우저 패널
 - **레이아웃** — 분할 비율, 포커스, 각 pane의 활성 탭
 
-모든 정보가 `~/.codexmux/workspaces.json`에 저장됩니다. 워크스페이스는 codexmux가 저장하고 복원하는 단위입니다. 브라우저를 닫아도 워크스페이스가 사라지지 않고, tmux가 쉘을 살려두며 레이아웃도 그대로 유지됩니다.
+모든 정보가 `~/.agentmux/workspaces.json`에 저장됩니다. 워크스페이스는 agentmux가 저장하고 복원하는 단위입니다. 브라우저를 닫아도 워크스페이스가 사라지지 않고, tmux가 쉘을 살려두며 레이아웃도 그대로 유지됩니다.
 
 ## 워크스페이스 만들기
 
@@ -65,10 +65,10 @@ permalink: /zh-TW/docs/workspaces-groups/index.html
 
 ## 디스크에 저장되는 위치
 
-모든 변경은 즉시 `~/.codexmux/workspaces.json`에 반영됩니다. 직접 열어 백업할 수도 있습니다 — 전체 파일 구조는 [데이터 디렉토리](/codexmux/zh-TW/docs/data-directory/) 참고. 서버 실행 중에 이 파일을 지우면 codexmux는 빈 워크스페이스로 폴백해 처음부터 다시 시작합니다.
+모든 변경은 즉시 `~/.agentmux/workspaces.json`에 반영됩니다. 직접 열어 백업할 수도 있습니다 — 전체 파일 구조는 [데이터 디렉토리](/agentmux/zh-TW/docs/data-directory/) 참고. 서버 실행 중에 이 파일을 지우면 agentmux는 빈 워크스페이스로 폴백해 처음부터 다시 시작합니다.
 
 ## 다음으로
 
-- **[탭 & 창](/codexmux/zh-TW/docs/tabs-panes/)** — 워크스페이스 안에서 분할, 순서 변경, 포커스 이동
-- **[레이아웃 저장 & 복원](/codexmux/zh-TW/docs/save-restore/)** — 브라우저 종료와 서버 재부팅에서 워크스페이스가 살아남는 방식
-- **[키보드 단축키](/codexmux/zh-TW/docs/keyboard-shortcuts/)** — 전체 바인딩 테이블
+- **[탭 & 창](/agentmux/zh-TW/docs/tabs-panes/)** — 워크스페이스 안에서 분할, 순서 변경, 포커스 이동
+- **[레이아웃 저장 & 복원](/agentmux/zh-TW/docs/save-restore/)** — 브라우저 종료와 서버 재부팅에서 워크스페이스가 살아남는 방식
+- **[키보드 단축키](/agentmux/zh-TW/docs/keyboard-shortcuts/)** — 전체 바인딩 테이블

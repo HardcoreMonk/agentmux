@@ -43,7 +43,7 @@ module.exports = function (eleventyConfig) {
   };
 
   const docsUrlFor = (locale, tail) => {
-    const prefix = locale === 'en' ? '/codexmux/docs/' : `/codexmux/${locale}/docs/`;
+    const prefix = locale === 'en' ? '/agentmux/docs/' : `/agentmux/${locale}/docs/`;
     return prefix + tail;
   };
 
@@ -95,7 +95,7 @@ module.exports = function (eleventyConfig) {
       includes: '_includes',
       data: '_data',
     },
-    pathPrefix: '/codexmux/',
+    pathPrefix: '/agentmux/',
     markdownTemplateEngine: 'njk',
     htmlTemplateEngine: 'njk',
     templateFormats: ['njk', 'html', 'md'],

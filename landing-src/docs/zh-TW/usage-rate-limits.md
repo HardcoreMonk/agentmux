@@ -6,7 +6,7 @@ permalink: /zh-TW/docs/usage-rate-limits/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux는 Codex quota와 사용량 통계를 sidebar와 dashboard에 표시합니다. live quota는 statusline payload가 있을 때 사용하고, 과거 통계는 Codex JSONL에서 계산합니다.
+agentmux는 Codex quota와 사용량 통계를 sidebar와 dashboard에 표시합니다. live quota는 statusline payload가 있을 때 사용하고, 과거 통계는 Codex JSONL에서 계산합니다.
 
 ## sidebar widget
 
@@ -30,7 +30,7 @@ Dashboard는 다음 정보를 제공합니다.
 
 ## 데이터 출처
 
-모든 dashboard 값은 `~/.codex/sessions/` 아래 JSONL에서 로컬로 계산됩니다. cache는 `~/.codexmux/stats/`에 저장되며 외부로 전송되지 않습니다. cold start에서 여러 stats endpoint가 동시에 들어와도 cache build는 하나의 in-flight 작업을 공유합니다. cache file이 이미 있으면 초기 상태 확인에서는 전체 JSONL 파일 수 scan을 생략합니다.
+모든 dashboard 값은 `~/.codex/sessions/` 아래 JSONL에서 로컬로 계산됩니다. cache는 `~/.agentmux/stats/`에 저장되며 외부로 전송되지 않습니다. cold start에서 여러 stats endpoint가 동시에 들어와도 cache build는 하나의 in-flight 작업을 공유합니다. cache file이 이미 있으면 초기 상태 확인에서는 전체 JSONL 파일 수 scan을 생략합니다.
 
 ## reset 동작
 
@@ -38,6 +38,6 @@ Dashboard는 다음 정보를 제공합니다.
 
 ## 다음 단계
 
-- **[세션 상태](/codexmux/zh-TW/docs/session-status/)**
-- **[데일리 리포트](/codexmux/zh-TW/docs/notes-daily-report/)**
-- **[데이터 디렉터리](/codexmux/zh-TW/docs/data-directory/)**
+- **[세션 상태](/agentmux/zh-TW/docs/session-status/)**
+- **[데일리 리포트](/agentmux/zh-TW/docs/notes-daily-report/)**
+- **[데이터 디렉터리](/agentmux/zh-TW/docs/data-directory/)**

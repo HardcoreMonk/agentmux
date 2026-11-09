@@ -6,7 +6,7 @@ permalink: /zh-CN/docs/save-restore/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux는 "브라우저 탭을 닫는 것이 세션을 끝내는 것이어선 안 된다"는 전제로 설계됐습니다. 두 축이 함께 동작합니다 — tmux가 쉘을 살려두고, `~/.codexmux/workspaces.json`이 레이아웃을 기억합니다.
+agentmux는 "브라우저 탭을 닫는 것이 세션을 끝내는 것이어선 안 된다"는 전제로 설계됐습니다. 두 축이 함께 동작합니다 — tmux가 쉘을 살려두고, `~/.agentmux/workspaces.json`이 레이아웃을 기억합니다.
 
 ## 저장되는 것
 
@@ -18,13 +18,13 @@ codexmux는 "브라우저 탭을 닫는 것이 세션을 끝내는 것이어선 
 - 모든 쉘의 작업 디렉토리
 - 워크스페이스 그룹, 이름, 순서
 
-`workspaces.json`은 레이아웃 변경 때마다 트랜잭션 단위로 업데이트되므로 파일은 항상 현재 상태를 반영합니다. 디스크 파일 구조는 [데이터 디렉토리](/codexmux/zh-CN/docs/data-directory/)를 참고하세요.
+`workspaces.json`은 레이아웃 변경 때마다 트랜잭션 단위로 업데이트되므로 파일은 항상 현재 상태를 반영합니다. 디스크 파일 구조는 [데이터 디렉토리](/agentmux/zh-CN/docs/data-directory/)를 참고하세요.
 
 ## 브라우저 닫기
 
 탭을 닫든, 새로고침하든, 노트북을 덮든 — 세션이 끝나지 않습니다.
 
-모든 쉘은 전용 `codexmux` 소켓의 tmux 세션 안에 살아있습니다. 사용자의 `~/.tmux.conf`와 완전히 격리됩니다. 한 시간 뒤에 `http://localhost:8122`를 다시 열면 WebSocket이 동일한 tmux 세션에 재연결되고, 스크롤백을 재생한 뒤 살아있는 PTY를 xterm.js로 넘겨줍니다.
+모든 쉘은 전용 `-L codexmux` 소켓의 tmux 세션 안에 살아있습니다. 사용자의 `~/.tmux.conf`와 완전히 격리됩니다. 한 시간 뒤에 `http://localhost:8122`를 다시 열면 WebSocket이 동일한 tmux 세션에 재연결되고, 스크롤백을 재생한 뒤 살아있는 PTY를 xterm.js로 넘겨줍니다.
 
 복원이 아니라 재연결입니다.
 
@@ -34,7 +34,7 @@ codexmux는 "브라우저 탭을 닫는 것이 세션을 끝내는 것이어선 
 
 ## 서버 재부팅 후 복구
 
-재부팅은 tmux 프로세스를 종료시킵니다 — 결국은 OS 프로세스니까요. codexmux는 다음 시작 시 이 상황을 처리합니다.
+재부팅은 tmux 프로세스를 종료시킵니다 — 결국은 OS 프로세스니까요. agentmux는 다음 시작 시 이 상황을 처리합니다.
 
 1. **레이아웃 읽기** — `workspaces.json`이 모든 워크스페이스, 창, 탭을 기술합니다.
 2. **세션 병렬 재생성** — 각 탭마다 저장된 작업 디렉토리에서 새 tmux 세션이 생성됩니다.
@@ -60,10 +60,10 @@ codexmux는 "브라우저 탭을 닫는 것이 세션을 끝내는 것이어선 
 - 세션 이름 형식은 `pt-{workspaceId}-{paneId}-{tabId}`입니다.
 - 서버 실행 중에 `workspaces.json`을 직접 편집하는 것은 안전하지 않습니다 — 서버가 파일을 잡고 있고 변경을 즉시 써내려갑니다.
 
-이진 프로토콜, 백프레셔, JSONL 워처 같은 더 깊은 이야기는 랜딩의 [동작 방식](/codexmux/zh-CN/#how) 섹션을 참고하세요.
+이진 프로토콜, 백프레셔, JSONL 워처 같은 더 깊은 이야기는 랜딩의 [동작 방식](/agentmux/zh-CN/#how) 섹션을 참고하세요.
 
 ## 다음으로
 
-- **[워크스페이스와 그룹](/codexmux/zh-CN/docs/workspaces-groups/)** — 워크스페이스 단위로 저장되는 것
-- **[탭 & 창](/codexmux/zh-CN/docs/tabs-panes/)** — 탭 단위로 저장되는 것
-- **[브라우저 지원](/codexmux/zh-CN/docs/browser-support/)** — 모바일 백그라운드 탭과 재연결의 알려진 이슈
+- **[워크스페이스와 그룹](/agentmux/zh-CN/docs/workspaces-groups/)** — 워크스페이스 단위로 저장되는 것
+- **[탭 & 창](/agentmux/zh-CN/docs/tabs-panes/)** — 탭 단위로 저장되는 것
+- **[브라우저 지원](/agentmux/zh-CN/docs/browser-support/)** — 모바일 백그라운드 탭과 재연결의 알려진 이슈

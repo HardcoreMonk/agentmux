@@ -1,5 +1,5 @@
 module.exports = {
-  baseUrl: 'https://hardcoremonk.github.io/codexmux',
+  baseUrl: 'https://hardcoremonk.github.io/agentmux',
   assetVersion: {
     css: '74',
     docsCss: '9',

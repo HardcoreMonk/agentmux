@@ -8,7 +8,7 @@ AI가 생성한 코드도 시니어 엔지니어가 작성한 것처럼 보여�
 
 ## 프로젝트 개요
 
-- 제품: codexmux는 Codex 중심 웹 세션 매니저입니다.
+- 제품: agentmux는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정).
 - 제품 목표: Linux 단일 엔진 호스트에서 Codex 세션 운영과 프로젝트 거버넌스를
   통합합니다. Windows installer/updater와 Electron/Android 기록은 역사적 release 또는
   선택 client surface로 보존하며 Linux runtime acceptance를 대체하지 않습니다.
@@ -16,8 +16,8 @@ AI가 생성한 코드도 시니어 엔지니어가 작성한 것처럼 보여�
 - 패키지 매니저: pnpm입니다. 명령 실행 시 `corepack pnpm ...`을 우선합니다.
 - 스타일링: Tailwind CSS v4와 shadcn/ui를 사용합니다.
 - 언어: TypeScript입니다.
-- 런타임 상태: tmux 기반 세션과 `~/.codexmux/`에 저장되는 앱 상태를 함께 사용합니다.
-- 플랫폼 shell: Electron desktop app과 Capacitor Android app은 실행 중인 codexmux
+- 런타임 상태: tmux 기반 세션과 `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`)에 저장되는 앱 상태를 함께 사용합니다.
+- 플랫폼 shell: Electron desktop app과 Capacitor Android app은 실행 중인 agentmux
   서버에 연결합니다.
 - 지원 UI 언어: 한국어와 영어입니다. 기본 locale은 한국어입니다.
 
@@ -134,7 +134,7 @@ Root `CONTEXT.md`는 도메인 언어와 기준 소스 경계를 담당합니다
 | `docs/ARCHITECTURE-LOGIC.md` | 아키텍처 흐름과 서비스 로직 |
 | `docs/STATUS.md` | Codex 작업 상태 감지와 status 흐름 |
 | `docs/TMUX.md` | tmux, terminal 관리, WebSocket 흐름 |
-| `docs/DATA-DIR.md` | `~/.codexmux/` directory 구조 |
+| `docs/DATA-DIR.md` | `~/.agentmux/` (legacy 실제 경로 `~/.codexmux/`) directory 구조 |
 | `docs/TESTING.md` | test tier, Playwright/Chromium, platform smoke, live deploy 확인 |
 | `docs/WINDOWS-ONLY-GAP-AUDIT.md` | 보존된 Windows 전환·release 증거와 역사적 architecture 후보 |
 | `docs/SYSTEMD.md` | Linux user service 운영 |

@@ -34,7 +34,7 @@ permalink: /es/docs/editor-integration/index.html
 - **code-server**는 브라우저 안에서 동작합니다. URL은 호스팅 중인 서버(로컬·사내망·Tailscale 뒤)를 가리킵니다. 버튼을 누르면 새 탭이 열리며 폴더가 로드됩니다.
 - **로컬 IDE**(VS Code, Cursor, Windsurf, Zed)는 *브라우저가 실행 중인 머신*에 IDE가 설치되어 있어야 합니다. OS가 등록된 URI 핸들러를 호출하는 방식입니다.
 
-휴대폰에서 codexmux를 쓴다면 code-server 프리셋만 의미가 있습니다. 휴대폰에서 `vscode://`로 데스크탑 앱을 열 수는 없습니다.
+휴대폰에서 agentmux를 쓴다면 code-server 프리셋만 의미가 있습니다. 휴대폰에서 `vscode://`로 데스크탑 앱을 열 수는 없습니다.
 
 ## code-server 설정
 
@@ -51,10 +51,10 @@ code-server --port 8080
 tailscale serve --bg --https=8443 http://localhost:8080
 ```
 
-그다음 Editor 탭에 code-server 주소를 입력합니다. 로컬이면 `http://localhost:8080`, Tailscale Serve를 통한다면 `https://<machine>.<tailnet>.ts.net:8443`처럼 입력합니다. codexmux가 `http://` 또는 `https://` 여부를 검증한 뒤, 절대 경로를 `?folder=<path>` 형태로 자동 부착합니다.
+그다음 Editor 탭에 code-server 주소를 입력합니다. 로컬이면 `http://localhost:8080`, Tailscale Serve를 통한다면 `https://<machine>.<tailnet>.ts.net:8443`처럼 입력합니다. agentmux가 `http://` 또는 `https://` 여부를 검증한 뒤, 절대 경로를 `?folder=<path>` 형태로 자동 부착합니다.
 
 {% call callout('note', '8122 포트는 피하세요') %}
-codexmux가 이미 `8122`를 씁니다. code-server는 다른 포트(예시는 `8080`)에서 띄우세요.
+agentmux가 이미 `8122`를 씁니다. code-server는 다른 포트(예시는 `8080`)에서 띄우세요.
 {% endcall %}
 
 ## 커스텀 URL 템플릿
@@ -77,6 +77,6 @@ https://my.coder.example/workspace?dir={folderEncoded}
 
 ## 다음으로
 
-- **[사이드바 & Codex 옵션](/codexmux/es/docs/sidebar-options/)** — 사이드바 정렬, Codex 플래그 토글
-- **[커스텀 CSS](/codexmux/es/docs/custom-css/)** — 시각 요소 추가 조정
-- **[Tailscale](/codexmux/es/docs/tailscale/)** — code-server 외부 접속도 동일하게 활용
+- **[사이드바 & Codex 옵션](/agentmux/es/docs/sidebar-options/)** — 사이드바 정렬, Codex 플래그 토글
+- **[커스텀 CSS](/agentmux/es/docs/custom-css/)** — 시각 요소 추가 조정
+- **[Tailscale](/agentmux/es/docs/tailscale/)** — code-server 외부 접속도 동일하게 활용

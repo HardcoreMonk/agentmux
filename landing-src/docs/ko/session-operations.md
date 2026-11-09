@@ -35,7 +35,7 @@ Timeline Worker health, catalog freshness, 저장 필터, 검색 조건, 결과�
 4. 사용자·assistant 메시지, tool call과 agent event를 기록 순서로 검토합니다.
 5. 반복 검토에 필요하면 세션을 고정하고 tag를 적용하거나 현재 filter를 저장합니다.
 
-Pin, tag와 저장 filter는 codexmux durable storage가 소유합니다. 원본 Codex JSONL은 read-only로
+Pin, tag와 저장 filter는 agentmux durable storage가 소유합니다. 원본 Codex JSONL은 read-only로
 유지됩니다.
 
 ## Catalog health와 rebuild
@@ -55,9 +55,9 @@ Timeline Worker는 local Codex session directory의 파일을 증분 index합니
 인증된 CLI API로 rebuild를 요청할 수 있습니다.
 
 ```bash
-IFS= read -r codexmux_cli_token < ~/.codexmux/cli-token
+IFS= read -r agentmux_cli_token < ~/.agentmux/cli-token
 curl -fsS -X POST \
-  -H "x-cmux-token: $codexmux_cli_token" \
+  -H "x-agentmux-token: $agentmux_cli_token" \
   http://127.0.0.1:8122/api/sessions/rebuild
 ```
 
@@ -68,7 +68,7 @@ Session 삭제, retention 자동화, remote collector, multi-engine federation�
 
 ## 다음 단계
 
-- [라이브 세션 뷰](/codexmux/ko/docs/live-session-view/) — 아직 실행 중인 작업 확인
-- [세션 상태](/codexmux/ko/docs/session-status/) — activity와 approval 상태 이해
-- [Project Governance](/codexmux/ko/docs/project-governance/) — session context를 Managed Project와 연결
-- [Linux 서비스 운영](/codexmux/ko/docs/linux-service/) — health, backup, restart와 recovery 확인
+- [라이브 세션 뷰](/agentmux/ko/docs/live-session-view/) — 아직 실행 중인 작업 확인
+- [세션 상태](/agentmux/ko/docs/session-status/) — activity와 approval 상태 이해
+- [Project Governance](/agentmux/ko/docs/project-governance/) — session context를 Managed Project와 연결
+- [Linux 서비스 운영](/agentmux/ko/docs/linux-service/) — health, backup, restart와 recovery 확인

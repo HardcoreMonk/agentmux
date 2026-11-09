@@ -1,7 +1,7 @@
 {%- set loc = locale or 'en' %}
 {%- set t = i18n[loc] %}
 {%- set docsBasePath = '/docs/' if loc == 'en' else '/' + loc + '/docs/' %}
-{%- set docsUrlPrefix = '/codexmux' + docsBasePath %}
+{%- set docsUrlPrefix = '/agentmux' + docsBasePath %}
 {%- set currentGuide = docsNav | findDocsItem(page.fileSlug) %}
 <!DOCTYPE html>
 <html lang="{{ loc }}">
@@ -12,7 +12,7 @@
     (function () {
       var preference = 'auto';
       try {
-        var stored = localStorage.getItem('codexmux-site-theme');
+        var stored = localStorage.getItem('agentmux-site-theme');
         if (stored === 'light' || stored === 'dark') preference = stored;
       } catch (_) {}
       document.documentElement.dataset.themePreference = preference;
@@ -21,9 +21,9 @@
         : preference;
     })();
   </script>
-  <title>{{ title }} — codexmux docs</title>
+  <title>{{ title }} — agentmux docs</title>
   <meta name="description" content="{{ description }}" />
-  <meta property="og:title" content="{{ title }} — codexmux docs" />
+  <meta property="og:title" content="{{ title }} — agentmux docs" />
   <meta property="og:description" content="{{ description }}" />
   <meta property="og:type" content="article" />
   <meta property="og:url" content="{{ site.baseUrl }}{{ page.url }}" />
@@ -31,14 +31,14 @@
   <link rel="canonical" href="{{ site.baseUrl }}{{ page.url }}" />
 {%- for language in locales %}
 {%- if not currentGuide or currentGuide | guideAvailable(language.code) %}
-  <link rel="alternate" hreflang="{{ language.htmlLang }}" href="{{ site.baseUrl }}{{ page.url | localizeDocsUrl(language.code) | replace('/codexmux', '') }}" />
+  <link rel="alternate" hreflang="{{ language.htmlLang }}" href="{{ site.baseUrl }}{{ page.url | localizeDocsUrl(language.code) | replace('/agentmux', '') }}" />
 {%- endif %}
 {%- endfor %}
-  <link rel="alternate" hreflang="x-default" href="{{ site.baseUrl }}{{ page.url | localizeDocsUrl('en') | replace('/codexmux', '') }}" />
-  <link rel="icon" href="/codexmux/images/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/codexmux/images/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="16x16" href="/codexmux/images/favicon-16x16.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/codexmux/images/apple-touch-icon.png" />
+  <link rel="alternate" hreflang="x-default" href="{{ site.baseUrl }}{{ page.url | localizeDocsUrl('en') | replace('/agentmux', '') }}" />
+  <link rel="icon" href="/agentmux/images/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/agentmux/images/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/agentmux/images/favicon-16x16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/agentmux/images/apple-touch-icon.png" />
   <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f8f6" />
   <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c0e0f" />
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
@@ -47,8 +47,8 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&display=swap" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" />
-  <link rel="stylesheet" href="/codexmux/style.css?v={{ site.assetVersion.css }}" />
-  <link rel="stylesheet" href="/codexmux/style-docs.css?v={{ site.assetVersion.docsCss }}" />
+  <link rel="stylesheet" href="/agentmux/style.css?v={{ site.assetVersion.css }}" />
+  <link rel="stylesheet" href="/agentmux/style-docs.css?v={{ site.assetVersion.docsCss }}" />
 </head>
 <body class="doc-body">
 {%- set shellLocale = loc %}
@@ -118,7 +118,7 @@
 
 {% include "chrome/search-overlay.njk" %}
   <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js" defer></script>
-  <script src="/codexmux/docs.js?v={{ site.assetVersion.docsJs }}" defer></script>
-  <script src="/codexmux/site-shell.js?v={{ site.assetVersion.siteShellJs }}" defer></script>
+  <script src="/agentmux/docs.js?v={{ site.assetVersion.docsJs }}" defer></script>
+  <script src="/agentmux/site-shell.js?v={{ site.assetVersion.siteShellJs }}" defer></script>
 </body>
 </html>

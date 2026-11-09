@@ -1,6 +1,6 @@
 ---
 title: Documentation
-description: Install codexmux, operate live and historical Codex sessions, and govern project context.
+description: Install agentmux, operate live and historical Codex sessions, and govern project context.
 eyebrow: Start here
 permalink: /docs/index.html
 ---
@@ -12,20 +12,20 @@ permalink: /docs/index.html
     <h2>Start a first session in three minutes.</h2>
     <p>Requires Node.js 20.9+, tmux 3.0+, and an authenticated Codex CLI.</p>
   </div>
-  <pre><code>npx --yes codexmux@latest
+  <pre><code>npx --yes @hardcoremonk/agentmux@latest
 # http://127.0.0.1:8122</code></pre>
   <div class="doc-home-actions">
-    <a href="/codexmux/docs/quickstart/">Human quickstart</a>
-    <a href="/codexmux/docs/agent-quickstart/">Agent quickstart</a>
+    <a href="/agentmux/docs/quickstart/">Human quickstart</a>
+    <a href="/agentmux/docs/agent-quickstart/">Agent quickstart</a>
   </div>
 </div>
 <div class="doc-home-featured">
-  <a href="/codexmux/docs/session-operations/">
+  <a href="/agentmux/docs/session-operations/">
     <span>Session Operations</span>
     <strong>Search and replay durable Codex work.</strong>
     <small>Session Catalog · filters · annotations · rebuild</small>
   </a>
-  <a href="/codexmux/docs/project-governance/">
+  <a href="/agentmux/docs/project-governance/">
     <span>Project Governance</span>
     <strong>Manage approved project context safely.</strong>
     <small>Knowledge Index · lifecycle · audit · guarded actions</small>
@@ -37,7 +37,7 @@ permalink: /docs/index.html
 {%- if group | guideAvailable('en') %}
 {%- for item in group.items %}
 {%- if item | guideAvailable('en') %}
-  <a class="doc-home-card" href="/codexmux/docs/{{ item.slug }}/">
+  <a class="doc-home-card" href="/agentmux/docs/{{ item.slug }}/">
     <span class="doc-home-card-title">{{ item.label.en or item.label.ko }}</span>
     <span class="doc-home-card-desc">{{ group.group.en or group.group.ko }}</span>
   </a>

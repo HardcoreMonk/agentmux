@@ -16,16 +16,29 @@ custom server / Terminal Worker
 shell / codex
 ```
 
-## tmux 설정
+## tmux 설정과 systemd scope 분리
 
-Legacy adapter는 전용 tmux socket을 사용합니다.
+실행 중인 세션과 Codex CLI 프로세스를 끊지 않기 위해 기존 전용 tmux socket 이름을 그대로 보존합니다.
+
+| 경로 | Socket 이름 | 용도 |
+| --- | --- | --- |
+| Legacy tmux adapter | `-L codexmux` | legacy terminal adapter 및 세션 목록/상태 보조 |
+| Runtime v2 tmux adapter | `-L codexmux-runtime-v2` | Runtime v2 Terminal Worker 전용 socket |
 
 ```text
 tmux -L codexmux
+tmux -L codexmux-runtime-v2
 session: pt-{workspaceId}-{paneId}-{tabId}
 ```
 
 전용 socket을 쓰기 때문에 사용자의 일반 tmux 세션과 분리됩니다.
+
+Linux `systemd --user` production 환경(`INVOCATION_ID`, `NODE_ENV=production`, `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`가 모두 있는 경우)에서는 web service(`agentmux.service`)를 재시작하거나 중지해도 tmux 서버와 Codex CLI 자식 프로세스가 함께 종료되지 않도록 tmux 서버를 별도 transient scope(`agentmux-tmux-<socket>.scope`)에서 실행합니다.
+
+- 아직 해당 socket의 tmux 서버가 없으면 `systemd-run --user --scope --collect --unit=agentmux-tmux-<socket>`으로 tmux 명령을 감싸 별도 scope에서 tmux 서버를 기동합니다.
+- 이미 실행 중인 tmux 서버가 `agentmux.service` 또는 legacy `codexmux.service` cgroup 안에 속해 있으면 `busctl --user call ... StartTransientUnit`으로 `agentmux-tmux-<socket>.scope`에 서버 PID를 위임해 이관합니다.
+- 개발 모드, 테스트, 비-systemd 환경에서는 `systemd-run`/`busctl`을 호출하지 않고 일반 `tmux`를 직접 실행합니다.
+- 의도적으로 tmux 서버까지 완전히 종료해야 할 때는 `tmux -L <socket> kill-server` 또는 `systemctl --user stop agentmux-tmux-<socket>.scope`를 실행합니다.
 
 ## 터미널 WebSocket
 
@@ -74,7 +87,7 @@ Codex 입력 바는 prompt 본문을 bracketed paste로 감싸고 Enter를 같�
 
 ## Codex hook 설정
 
-Codex tab 실행과 resume command는 `hooks={path="~/.codexmux/hooks.json"}`를 넘기지 않습니다. 현재 Codex CLI는 `hooks`를 구조화된 TOML table로 해석하므로 path string override를 넣으면 config load 오류가 납니다.
+Codex tab 실행과 resume command는 `hooks={path="~/.agentmux/hooks.json"}`(legacy `~/.codexmux/hooks.json`)를 넘기지 않습니다. 현재 Codex CLI는 `hooks`를 구조화된 TOML table로 해석하므로 path string override를 넣으면 config load 오류가 납니다.
 
 Browser surface는 raw command, CLI token, hook capability를 만들지 않습니다. `/api/agent/launch`에 workspace/pane/tab과 launch/resume intent만 보내며 server의 `agent-launch-service`가 layout ownership, Codex panel, terminal process, Codex `0.144.1+` preflight를 검증합니다. Runtime v2는 exact terminal session을 다시 확인한 내부 write method를, legacy는 기존 `sendKeys`를 사용합니다.
 
@@ -84,9 +97,9 @@ Server Codex provider는 다음 session override를 각각 `-c`로 전달합니�
 - `hooks.UserPromptSubmit`
 - `hooks.Stop`
 
-각 handler는 POSIX `command`와 Windows `commandWindows`, 3초 timeout, async 실행을 선언하고 standalone `~/.codexmux/status-hook.cjs`를 호출합니다. Packaged Electron executable을 Node runtime으로 재사용할 때도 script가 실행되도록 `ELECTRON_RUN_AS_NODE=1`을 명시합니다. Bridge는 tab/session/expiry HMAC capability와 CLI token을 loopback hook API에 전달하며, timeout이나 서버 부재가 Codex action을 막지 않도록 항상 성공 종료합니다.
+각 handler는 POSIX `command`와 Windows `commandWindows`, 3초 timeout, async 실행을 선언하고 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출합니다. Packaged Electron executable을 Node runtime으로 재사용할 때도 script가 실행되도록 `ELECTRON_RUN_AS_NODE=1`을 명시합니다. Bridge는 tab/session/expiry HMAC capability와 CLI token을 loopback hook API에 전달하며, timeout이나 서버 부재가 Codex action을 막지 않도록 항상 성공 종료합니다.
 
-User/project/managed/plugin hook은 Codex native layer discovery를 그대로 사용합니다. codexmux는 사용자 config를 읽거나 병합하지 않으며 `~/.codexmux/hooks.json`에는 빈 `hooks`와 statusline 호환 설정만 생성합니다.
+User/project/managed/plugin hook은 Codex native layer discovery를 그대로 사용합니다. agentmux는 사용자 config를 읽거나 병합하지 않으며 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)에는 빈 `hooks`와 statusline 호환 설정만 생성합니다.
 
 ## 런타임 v2 터미널
 
@@ -97,7 +110,7 @@ Runtime v2 Terminal Worker는 `ITerminalRuntimeAdapter`를 통해 구현을 선�
 | `tmux` | legacy migration fallback |
 | `windows` | Windows node-pty/ConPTY runtime |
 
-`CODEXMUX_RUNTIME_TERMINAL_ADAPTER`로 adapter를 명시할 수 있습니다. Unknown value는 fail closed합니다.
+`AGENTMUX_RUNTIME_TERMINAL_ADAPTER`(legacy `CODEXMUX_RUNTIME_TERMINAL_ADAPTER` 호환)로 adapter를 명시할 수 있습니다. Unknown value는 fail closed합니다.
 
 ## 입력과 단축키
 

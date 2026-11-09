@@ -6,7 +6,7 @@ permalink: /es/docs/themes-fonts/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux는 앱 테마, 글꼴 크기, 터미널 팔레트를 전역 설정으로 제공합니다. 이 문서는 앱 테마와 글꼴 크기를 다룹니다.
+agentmux는 앱 테마, 글꼴 크기, 터미널 팔레트를 전역 설정으로 제공합니다. 이 문서는 앱 테마와 글꼴 크기를 다룹니다.
 
 ## 앱 테마
 
@@ -16,7 +16,7 @@ codexmux는 앱 테마, 글꼴 크기, 터미널 팔레트를 전역 설정으�
 | `Light` | 밝은 테마 고정 |
 | `Dark` | 어두운 테마 고정 |
 
-선택 값은 `~/.codexmux/config.json`의 `appTheme`에 저장되고 연결된 browser tab에 동기화됩니다.
+선택 값은 `~/.agentmux/config.json`의 `appTheme`에 저장되고 연결된 browser tab에 동기화됩니다.
 
 ## 글꼴 크기
 
@@ -30,10 +30,10 @@ UI는 `rem` 단위를 사용하므로 sidebar, dialog, table이 함께 scale됩�
 
 ## 터미널 색상
 
-터미널 palette는 앱 theme와 별도로 관리됩니다. 자세한 내용은 [터미널 테마](/codexmux/es/docs/terminal-themes/)를 참고하세요.
+터미널 palette는 앱 theme와 별도로 관리됩니다. 자세한 내용은 [터미널 테마](/agentmux/es/docs/terminal-themes/)를 참고하세요.
 
 ## 다음 단계
 
-- **[커스텀 CSS](/codexmux/es/docs/custom-css/)**
-- **[터미널 테마](/codexmux/es/docs/terminal-themes/)**
-- **[사이드바 & Codex 옵션](/codexmux/es/docs/sidebar-options/)**
+- **[커스텀 CSS](/agentmux/es/docs/custom-css/)**
+- **[터미널 테마](/agentmux/es/docs/terminal-themes/)**
+- **[사이드바 & Codex 옵션](/agentmux/es/docs/sidebar-options/)**

@@ -35,7 +35,7 @@ through authenticated APIs; filesystem paths are not exposed as public catalog f
 4. Review user and assistant messages, tool calls, and agent events in recorded order.
 5. Pin the session, apply tags, or save the current filter when it is useful for recurring reviews.
 
-Pin, tag, and saved-filter state belongs to codexmux durable storage. The original Codex JSONL remains
+Pin, tag, and saved-filter state belongs to agentmux durable storage. The original Codex JSONL remains
 read-only.
 
 ## Catalog health and rebuild
@@ -56,9 +56,9 @@ is zero.
 To request a rebuild through the authenticated CLI API:
 
 ```bash
-IFS= read -r codexmux_cli_token < ~/.codexmux/cli-token
+IFS= read -r agentmux_cli_token < ~/.agentmux/cli-token
 curl -fsS -X POST \
-  -H "x-cmux-token: $codexmux_cli_token" \
+  -H "x-agentmux-token: $agentmux_cli_token" \
   http://127.0.0.1:8122/api/sessions/rebuild
 ```
 
@@ -69,7 +69,7 @@ output search are not part of the current Session Operations scope.
 
 ## Next steps
 
-- [Live session view](/codexmux/docs/live-session-view/) — follow work that is still running
-- [Session status](/codexmux/docs/session-status/) — understand activity and approval states
-- [Project Governance](/codexmux/docs/project-governance/) — connect session context to managed projects
-- [Linux service operations](/codexmux/docs/linux-service/) — inspect health, backup, restart, and recovery
+- [Live session view](/agentmux/docs/live-session-view/) — follow work that is still running
+- [Session status](/agentmux/docs/session-status/) — understand activity and approval states
+- [Project Governance](/agentmux/docs/project-governance/) — connect session context to managed projects
+- [Linux service operations](/agentmux/docs/linux-service/) — inspect health, backup, restart, and recovery

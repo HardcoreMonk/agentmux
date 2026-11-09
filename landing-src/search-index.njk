@@ -7,7 +7,7 @@ eleventyExcludeFromCollections: true
   {
     "title": {{ page.data.title | dump | safe }},
     "description": {{ (page.data.description or "") | dump | safe }},
-    "url": "/codexmux{{ page.url }}",
+    "url": "/agentmux{{ page.url }}",
     "group": {{ (page.data.eyebrow or "Docs") | dump | safe }},
     "locale": {{ (page.data.locale or "en") | dump | safe }}
   }{% if not loop.last %},{% endif %}

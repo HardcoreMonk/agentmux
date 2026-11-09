@@ -98,7 +98,7 @@
 
   function openSearch() {
     if (!searchState.overlay) return;
-    document.dispatchEvent(new CustomEvent('codexmux:close-site-menu'));
+    document.dispatchEvent(new CustomEvent('agentmux:close-site-menu'));
     searchState.previousFocus = searchState.trigger;
     searchState.overlay.hidden = false;
     searchState.trigger.setAttribute('aria-expanded', 'true');
@@ -238,7 +238,7 @@
 
     var currentLocale = searchState.input.dataset.locale || 'en';
 
-    fetch('/codexmux/search-index.json')
+    fetch('/agentmux/search-index.json')
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var scoped = data.filter(function (d) { return (d.locale || 'en') === currentLocale; });

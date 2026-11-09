@@ -1,6 +1,6 @@
 # Codex 작업 상태 감지
 
-이 문서는 codexmux가 Codex tab의 상태를 판단하고 UI, notification, timeline에 전달하는 기준을 정리합니다.
+이 문서는 agentmux가 Codex tab의 상태를 판단하고 UI, notification, timeline에 전달하는 기준을 정리합니다.
 
 ## 흐름
 
@@ -29,7 +29,7 @@ Runtime v2에서는 Status Worker가 status polling, JSONL watch, hook applicati
 | `shadow` | legacy와 worker policy를 비교 |
 | `default` | worker status를 production source로 사용 |
 
-`CODEXMUX_RUNTIME_V2=1`에서 status mode가 unset이면 Phase 6 기준 `default`로 해석합니다. Rollback은 mode를 `off`로 두는 것입니다.
+`AGENTMUX_RUNTIME_V2=1`(legacy `CODEXMUX_RUNTIME_V2=1` 호환)에서 status mode가 unset이면 Phase 6 기준 `default`로 해석합니다. Rollback은 mode를 `off`로 두는 것입니다.
 
 ## 프로세스 상태
 
@@ -86,11 +86,11 @@ server/running 상태, browser와 diff panel을 작업으로 세지 않습니다
 
 ## Hook event 경로
 
-Codex tab launch/resume은 `hooks={path="~/.codexmux/hooks.json"}`를 사용하지 않습니다. Browser는 workspace/pane/tab과 action만 server에 보내고, `agent-launch-service`가 현재 layout ownership, panel type, terminal process, Codex `0.144.1+` compatibility를 확인합니다. 검증된 server provider만 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override를 만들어 `~/.codexmux/status-hook.cjs`를 호출합니다.
+Codex tab launch/resume은 `hooks={path="~/.agentmux/hooks.json"}`(legacy `~/.codexmux/hooks.json`)를 사용하지 않습니다. Browser는 workspace/pane/tab과 action만 server에 보내고, `agent-launch-service`가 현재 layout ownership, panel type, terminal process, Codex `0.144.1+` compatibility를 확인합니다. 검증된 server provider만 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override를 만들어 `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출합니다.
 
 각 handler에는 HMAC capability로 canonical tab id, terminal session name, expiry가 묶입니다. Hook API는 CLI token, capability, 현재 layout ownership을 모두 확인한 event만 reducer에 전달합니다. Bridge는 bounded stdin을 읽고 loopback으로만 1초 요청하며 모든 장애에서 성공 종료하는 best-effort observer입니다. Hook 관찰 누락은 JSONL/process polling이 보정하고 Codex action 자체를 막지 않습니다.
 
-User/project/managed/plugin hook은 Codex native layer discovery에 맡깁니다. codexmux는 user TOML을 읽거나 병합하지 않고 trust bypass flag도 쓰지 않습니다. `hooks.json`은 `hooks: {}`와 statusline 설정을 담는 생성 파일이며 status hook의 기준 source가 아닙니다.
+User/project/managed/plugin hook은 Codex native layer discovery에 맡깁니다. agentmux는 user TOML을 읽거나 병합하지 않고 trust bypass flag도 쓰지 않습니다. `hooks.json`은 `hooks: {}`와 statusline 설정을 담는 생성 파일이며 status hook의 기준 source가 아닙니다.
 
 `Stop` event는 terminal session name과 sequence를 포함해 client에 전달됩니다. Matching tab의 Git generation만 증가시키고 active tab은 즉시 cache를 우회해 갱신하며 inactive tab은 선택될 때 한 번 갱신합니다. 같은 sequence는 중복 invalidation하지 않습니다. 두 Git hook은 consumed generation을 session별로 보존하므로 같은 hook instance가 tab을 전환해도 다른 session의 낮은 generation을 이미 처리한 값으로 오인하지 않습니다.
 

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var storageKey = 'codexmux-site-theme';
+  var storageKey = 'agentmux-site-theme';
   var media = window.matchMedia('(prefers-color-scheme: dark)');
 
   function readPreference() {
@@ -94,7 +94,7 @@
     panel.addEventListener('click', function (event) {
       if (event.target.closest('a')) close();
     });
-    document.addEventListener('codexmux:close-site-menu', close);
+    document.addEventListener('agentmux:close-site-menu', close);
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !panel.hidden) {
         close();

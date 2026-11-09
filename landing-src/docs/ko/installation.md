@@ -10,7 +10,7 @@ permalink: /ko/docs/installation/index.html
 server, Runtime v2 다섯 worker와 Linux tmux adapter를 실행합니다.
 
 {% call callout('note', '현재 package') %}
-`codexmux@0.4.23`은 public npm `latest`이며 격리 tarball install, CLI와 production health
+`@hardcoremonk/agentmux@0.5.0`은 public npm `latest`(이전 package `codexmux@0.4.23`의 새 이름)이며 격리 tarball install, CLI와 production health
 smoke를 통과했습니다.
 {% endcall %}
 
@@ -24,26 +24,26 @@ smoke를 통과했습니다.
 - Git과 로그인된 Codex CLI
 
 ```bash
-npx --yes codexmux@latest
+npx --yes @hardcoremonk/agentmux@latest
 ```
 
-Global command가 필요하면 `pnpm add -g codexmux` 후 `codexmux`를 실행합니다.
+Global command가 필요하면 `pnpm add -g @hardcoremonk/agentmux` 후 `agentmux`를 실행합니다.
 
 ## Linux source와 user service
 
 ```bash
-git clone https://github.com/HardcoreMonk/codexmux.git
-cd codexmux
+git clone https://github.com/HardcoreMonk/agentmux.git
+cd agentmux
 corepack enable
 corepack pnpm install
 corepack pnpm build
 ```
 
-장기 실행은 `~/.config/systemd/user/codexmux.service`에 source checkout과 `command -v node`의
-절대 경로를 지정합니다. `CODEXMUX_RUNTIME_V2=1`,
-`CODEXMUX_SESSION_CATALOG_MODE=default`, `HOST=localhost`, `PORT=8122`를 사용하고
-`systemctl --user enable --now codexmux.service`로 시작합니다. 전체 unit과 backup/restart
-절차는 [systemd 문서](https://github.com/HardcoreMonk/codexmux/blob/main/docs/SYSTEMD.md)를
+장기 실행은 `~/.config/systemd/user/agentmux.service`에 source checkout과 `command -v node`의
+절대 경로를 지정합니다. `AGENTMUX_RUNTIME_V2=1`,
+`AGENTMUX_SESSION_CATALOG_MODE=default`, `HOST=localhost`, `PORT=8122`를 사용하고
+`systemctl --user enable --now agentmux.service`로 시작합니다. 전체 unit과 backup/restart
+절차는 [systemd 문서](https://github.com/HardcoreMonk/agentmux/blob/main/docs/SYSTEMD.md)를
 따릅니다.
 
 ## 별도 Windows package
@@ -52,11 +52,11 @@ corepack pnpm build
 
 | artifact | 용도 |
 |---|---|
-| `codexmux-Setup-<version>.exe` | per-user NSIS 설치 |
-| `codexmux-<version>-win.zip` 계열 | 압축 해제형 package |
+| `agentmux-Setup-<version>.exe` | per-user NSIS 설치 |
+| `agentmux-<version>-win.zip` 계열 | 압축 해제형 package |
 | `latest.yml`, `.blockmap` | Electron updater metadata |
 
-조직에서 승인한 내부 배포에는 [codexmux Releases](https://github.com/HardcoreMonk/codexmux/releases/latest)의 exact 네 artifact를 사용하고 version을 함께 확인하세요. Public code signing/SmartScreen reputation은 내부 배포 기준의 blocker가 아니지만 조직의 실행 정책은 별도로 따라야 합니다.
+조직에서 승인한 내부 배포에는 [agentmux Releases](https://github.com/HardcoreMonk/agentmux/releases/latest)의 exact 네 artifact를 사용하고 version을 함께 확인하세요. Public code signing/SmartScreen reputation은 내부 배포 기준의 blocker가 아니지만 조직의 실행 정책은 별도로 따라야 합니다.
 
 ## Windows source 실행
 
@@ -70,14 +70,14 @@ corepack pnpm build
 PowerShell에서:
 
 ```powershell
-git clone https://github.com/HardcoreMonk/codexmux.git
-Set-Location codexmux
+git clone https://github.com/HardcoreMonk/agentmux.git
+Set-Location agentmux
 corepack enable
 corepack pnpm install
 
-$env:CODEXMUX_RUNTIME_V2 = "1"
-$env:CODEXMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
-$env:CODEXMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
+$env:AGENTMUX_RUNTIME_V2 = "1"
+$env:AGENTMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
+$env:AGENTMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
 $env:PORT = "8122"
 corepack pnpm dev:electron
 ```
@@ -108,8 +108,8 @@ corepack pnpm pack:electron
 Fresh package 검증 순서:
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:preflight
 corepack pnpm smoke:windows:electron-env
 corepack pnpm smoke:windows:electron-packaging
@@ -121,11 +121,11 @@ corepack pnpm smoke:windows:release-gate
 
 `package-gate`는 updater local-feed 단계를 포함합니다. Fresh runner의 `release/`에는 이전 installer가 없으므로 현재 version보다 낮은 실제 installer를 위 환경 변수로 전달해야 합니다. `CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_ALLOW_SYNTHETIC=1`은 개발 fallback일 뿐 release acceptance evidence로 인정하지 않습니다.
 
-`v0.4.22`는 [Issue #16](https://github.com/HardcoreMonk/codexmux/issues/16)의 조건대로 fresh Windows runner, 새 package와 실제 `v0.4.21` installer로 통과했습니다. 이후 stable release도 명령의 존재가 아니라 같은 실제 evidence를 남겨야 합니다.
+`v0.4.22`는 [Issue #16](https://github.com/HardcoreMonk/agentmux/issues/16)의 조건대로 fresh Windows runner, 새 package와 실제 `v0.4.21` installer로 통과했습니다. 이후 stable release도 명령의 존재가 아니라 같은 실제 evidence를 남겨야 합니다.
 
 ## Port와 최초 설정
 
-외부 server port 기본값은 `8122`입니다. **Packaged Electron local server**는 이 port로 시작하지 못하면 port `0`으로 다시 시작해 빈 port를 선택하고 실제 값을 `~/.codexmux/port`에 기록합니다.
+외부 server port 기본값은 `8122`입니다. **Packaged Electron local server**는 이 port로 시작하지 못하면 port `0`으로 다시 시작해 빈 port를 선택하고 실제 값을 `~/.agentmux/port`에 기록합니다.
 
 반면 `dev:electron` wrapper는 처음 선택한 `PORT`의 health URL만 poll하므로 fallback port를 따라가지 않습니다. Source dev에서는 `8122`를 비우거나 시작 전에 free port를 지정합니다.
 
@@ -140,13 +140,13 @@ Fresh setup process는 `HOST`를 지정해도 loopback에만 bind합니다. Pack
 
 Packaged Electron은 GitHub release metadata를 사용하는 updater를 포함합니다. Update acceptance는 matching `latest.yml`, installer, `.blockmap`과 published install smoke가 함께 확인된 version만 대상으로 합니다.
 
-Windows 앱 제거는 **설정 → 앱 → 설치된 앱**에서 처리합니다. App 제거는 `~/.codexmux/` data를 자동으로 지우지 않습니다. 전체 data를 삭제하려면 app/server를 종료하고 별도로 실행합니다.
+Windows 앱 제거는 **설정 → 앱 → 설치된 앱**에서 처리합니다. App 제거는 `~/.agentmux/` data를 자동으로 지우지 않습니다. 전체 data를 삭제하려면 app/server를 종료하고 별도로 실행합니다.
 
 ```powershell
-Remove-Item -Recurse -Force (Join-Path $HOME ".codexmux")
+Remove-Item -Recurse -Force (Join-Path $HOME ".agentmux")
 ```
 
-이 작업은 workspace, runtime DB, 인증, log, upload를 모두 삭제하지만 Codex CLI 소유의 `~/.codex/`는 삭제하지 않습니다. 세부 구조는 [데이터 디렉터리](/codexmux/ko/docs/data-directory/)를 참고하세요.
+이 작업은 workspace, runtime DB, 인증, log, upload를 모두 삭제하지만 Codex CLI 소유의 `~/.codex/`는 삭제하지 않습니다. 세부 구조는 [데이터 디렉터리](/agentmux/ko/docs/data-directory/)를 참고하세요.
 
 ## 선택 client와 보존된 package
 
@@ -156,6 +156,6 @@ surface이며 Linux engine acceptance를 대신하지 않습니다.
 
 ## 다음으로
 
-- **[빠른 시작](/codexmux/ko/docs/quickstart/)** — Linux npm/source 실행과 setup
-- **[포트 & 환경 변수](/codexmux/ko/docs/ports-env-vars/)** — runtime/network 변수
-- **[문제 해결](/codexmux/ko/docs/troubleshooting/)** — Linux service, Runtime v2와 port 진단
+- **[빠른 시작](/agentmux/ko/docs/quickstart/)** — Linux npm/source 실행과 setup
+- **[포트 & 환경 변수](/agentmux/ko/docs/ports-env-vars/)** — runtime/network 변수
+- **[문제 해결](/agentmux/ko/docs/troubleshooting/)** — Linux service, Runtime v2와 port 진단

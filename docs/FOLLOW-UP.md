@@ -72,7 +72,7 @@ acceptance를 대체하지 않습니다. Public npm package의 현재 version은
   main rebase·fresh CI 통과 후 병합, open PR 0건과 Pages 재배포 성공
 - `codexmux@0.4.23` public npm publish, registry tarball install/CLI/production health smoke
 - 구현 commit `d405f683`의 Linux `systemd --user` live 배포, 실제 restart 전후 terminal
-  smoke와 Phase 6 gate, [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18) 완료
+  smoke와 Phase 6 gate, 이전 이름 저장소의 [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18) 완료
 - Workspace/Sessions/Governance 고정 탐색, Workspace Activity 명명, entity selection 접근성,
   lifecycle evidence 2,000 IPC bound와 live desktop/mobile 검증 완료
 
@@ -116,18 +116,18 @@ installer/package gate로 확인합니다.
 | 항목 | 상태 |
 | --- | --- |
 | Live build | Navigation Selection Clarity/hotfix artifact `a6a49588`, version `0.4.24` |
-| user service | `codexmux.service` enabled, `active/running`, authenticated `0.0.0.0:8122` |
+| user service | `agentmux.service` (이전 이름 `codexmux.service`) enabled, `active/running`, authenticated `0.0.0.0:8122` |
 | Runtime v2 | terminal `new-tabs`, storage/timeline/status `default` |
 | Session Catalog/Governance | 모두 ready, Governance `writeState=ready`, DB/WAL/SHM `0600` |
-| governance gate | `~/.config/systemd/user/codexmux.service.d/governance-writes.conf`, active |
+| governance gate | `~/.config/systemd/user/agentmux.service.d/governance-writes.conf` (이전 이름 `codexmux.service.d`), active |
 | latest backup | `runtime-v2-storage-20260823T135639Z`, service 정지 중 durable/workspace state 5개, `0700/0600` |
 | latest restart | PID `88057`; start `2026-08-23 22:57:01 KST`, restart count `0` |
-| issue | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
+| issue (이전 이름 저장소 기록) | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
 | 운영 handoff | `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
 
 Browser 인증 설정 뒤 `HOST=0.0.0.0` unit을 다시 시작해 실제 외부 listener를
 활성화했습니다. 승인된 Phase 3 배포에서 governance write gate도 활성화했고 CLI token 기반
-운영 API와 Runtime v2 worker는 정상입니다. 2026-08-22에는 `codexmux`를 실제 Managed Project로
+운영 API와 Runtime v2 worker는 정상입니다. 2026-08-22에는 `agentmux`(이전 이름 `codexmux`)를 실제 Managed Project로
 등록해 adoption preview/confirm/rollback을 완료하고 Session Catalog를 실제 JSONL로 rebuild해
 검색·replay·annotation을 확인했습니다. 301초 동안 동일 세션 재연결을 관찰하고 사후 gate까지
 통과해 ADR-031과 ADR-032는 `Verified`입니다.
@@ -138,14 +138,14 @@ Session/Managed Project selection, mobile 48px target과 console error 0건을 �
 확인했습니다. Governance lifecycle은 236 evidence를 HTTP 200으로 반환하고 worker counter도
 clean입니다.
 
-[Issue #16](https://github.com/HardcoreMonk/codexmux/issues/16)의 acceptance를 충족한
+이전 이름 저장소의 [Issue #16](https://github.com/HardcoreMonk/codexmux/issues/16) acceptance를 충족한
 fresh Windows 검증:
 
 ```powershell
 corepack pnpm install --frozen-lockfile
 corepack pnpm pack:electron
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:updater-local-feed
 corepack pnpm smoke:windows:packaged-launch
 corepack pnpm smoke:windows:upload-integrity
@@ -164,13 +164,13 @@ Tag workflow는 고정된 baseline tag/SHA-256, fresh Windows package/release ga
 남깁니다. Browser, Windows package, published updater artifact는 privacy scanner를 통과해야
 업로드되며 scanner 실패도 stable promotion을 차단합니다.
 
-`v0.4.20`은 [workflow 29161183240](https://github.com/HardcoreMonk/codexmux/actions/runs/29161183240)에서
+`v0.4.20`은 legacy [workflow 29161183240](https://github.com/HardcoreMonk/codexmux/actions/runs/29161183240)에서
 fresh Windows package/upload와 published updater 기능 경로를 최초 완료했습니다. 후속
 재감사에서 published-updater JSON 2개를 privacy-safe evidence에서 제외했고 token이나
 credential은 발견하지 않았습니다.
 
-현재 기준 `v0.4.22`는
-[workflow 29219010240 attempt 3](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240)에서
+보존된 기준 `v0.4.22`는
+legacy [workflow 29219010240 attempt 3](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240)에서
 실제 `v0.4.21` installer와 SHA-256
 `0e54fafe6465474e0092228a128755fdb04eba3698d8f2daf00327ad7bb24aaa`를 baseline으로
 package `394584ms`, upload integrity `11724ms`, local updater `240046ms`, release gate
@@ -183,7 +183,7 @@ package, published-updater artifact를 합친 16개 JSON도 독립 privacy scan�
 Published update 검증:
 
 - GitHub Release에 `latest.yml`을 올립니다.
-- 같은 release에 `codexmux-Setup-<version>.exe`를 올립니다.
+- 같은 release에 `agentmux-Setup-<version>.exe`(legacy `codexmux-Setup-<version>.exe`)를 올립니다.
 - matching `.blockmap` asset을 올립니다.
 - 설치된 낮은 버전 앱 기준 published channel metadata를 확인합니다.
 - `quitAndInstall` 후 새 앱 launch와 `/api/health`를 확인합니다. published install
@@ -212,17 +212,17 @@ Electron profile의 1회 재로그인과 재연결은 별도 후속 근거가 �
 | GitHub-hosted release asset과 published metadata | 완료: stable/latest `v0.4.22`의 `latest.yml`, NSIS installer, matching `.blockmap`, Windows zip 정확한 네 asset 확인 |
 | 실제 설치된 낮은 버전 앱에서 GitHub-hosted 최신 버전으로 `quitAndInstall` | 완료: 실제 `v0.4.21` installer baseline에서 exact target tag `v0.4.22`로 apply하고 post-update health `version=0.4.22`, `commit=4af0220` 확인 |
 | Long-running installed app session | 완료: `CODEXMUX_WINDOWS_INSTALLED_OBSERVATION_DURATION_MS=300000`, 302,808ms 관찰, 23회 반복 실행, 모든 round `version=0.4.16`, `commit=13fe69ba`, Phase 6 gate 통과, silent uninstall 확인 |
-| 제품명/app id/data dir의 codexwinmux 전환 여부 결정 | 완료: ADR-024와 `docs/operations/codexwinmux-product-line-migration.md`에 분리 기준 기록. `codexmux` line은 기존 identity를 유지하고, `codexwinmux`는 별도 productName/appId/data dir/updater channel을 소유합니다. |
+| 제품명/app id/data dir의 codexwinmux 전환 여부 결정 | 완료: ADR-024와 `docs/operations/codexwinmux-product-line-migration.md`에 분리 기준 기록. `agentmux`(이전 이름 `codexmux`) line은 기존 Linux identity와 호환 별칭을 유지하고, `codexwinmux`는 별도 productName/appId/data dir/updater channel을 소유합니다. |
 | 다음 버전 release/update smoke 반복 | 완료: `docs/operations/windows-release-update-repeat-checklist.md`에 `v0.4.21 -> v0.4.22` package/local/published update와 독립 privacy 16개 JSON 재검사 기록. 이전 반복 근거도 보존 |
 | Runtime v2 live rollback drill evidence | 완료: 설치 앱에서 runtime v2 `on -> CODEXMUX_RUNTIME_V2=0 -> restored` 전환, disabled health `404 runtime-v2-disabled`, 복구 후 Phase 6 gate 통과 |
 | 측정 기반 perf tuning | 완료/비차단: `corepack pnpm perf:timeline-jsonl` synthetic 5,000 entries parse `18.57ms`, virtualization 권고 유지. session list cold index refresh는 비차단 응답으로 조정했고 package/installed runtime v2 worker counter는 Phase 6 gate에서 clean 확인 |
 | Phase 6 closeout | 완료: packaged runtime v2 smoke, 설치 관찰 smoke, rollback drill에 Phase 6 health/perf gate 반영 |
-| [Issue #16: Production upload fresh Windows evidence](https://github.com/HardcoreMonk/codexmux/issues/16) | 완료: `v0.4.20` 기능 검증, `v0.4.21` privacy-safe 재검증과 `v0.4.22` 반복 검증, ADR-027/028 `Verified` |
-| Purplemux/Codexmux same-host cookie isolation | `v0.4.22` release와 fresh-profile updater 검증 완료. 기존 Electron profile에서 Codexmux 재로그인, 필요 시 Purplemux 재로그인, Runtime v2 WebSocket/upload 재연결을 직접 확인해야 하므로 ADR-029는 `Implemented` 유지 |
+| 이전 이름 저장소 [Issue #16: Production upload fresh Windows evidence](https://github.com/HardcoreMonk/codexmux/issues/16) | 완료: `v0.4.20` 기능 검증, `v0.4.21` privacy-safe 재검증과 `v0.4.22` 반복 검증, ADR-027/028 `Verified` |
+| Purplemux/이전 이름 Codexmux same-host cookie isolation | `v0.4.22` release와 fresh-profile updater 검증 완료. 기존 Electron profile에서 이전 이름 Codexmux 재로그인, 필요 시 Purplemux 재로그인, Runtime v2 WebSocket/upload 재연결을 직접 확인해야 하므로 ADR-029는 `Implemented` 유지 |
 | Purplemux 선택 기능 도입 | 완료: ADR-025 `Verified`, `docs/operations/2026-08-14-purplemux-selected-adoption-handoff.md`. Windows package 실기 검증은 이 범위의 완료 조건에서 제외 |
 | Linux Session Operations/Project Governance | 완료: 구현·live 배포·restart·Issue #18 종료와 301초·11회 동일 세션 재연결 관찰. ADR-031 `Verified` |
 | Governed Project Scaffold Phase 3 | 완료: `9d32d049` live 배포, write gate 활성화, private backup, scaffold/Linux/browser/Phase 6 smoke와 Issue #19 근거 확보 |
-| Governed unmarked adoption | 완료: `f46410b4` live 배포와 실제 `codexmux` Managed Project의 `AGENTS.md` adoption preview/confirm/rollback. ADR-032 `Verified` |
+| Governed unmarked adoption | 완료: `f46410b4` live 배포와 실제 `agentmux`(이전 이름 `codexmux`) Managed Project의 `AGENTS.md` adoption preview/confirm/rollback. ADR-032 `Verified` |
 | Navigation Selection Clarity | 완료: `a6a49588` live 배포, desktop/mobile App Area current state, entity selection, terminal/reconnect 10-check와 Phase 6 12-check 통과 |
 
 ## 비차단 항목
@@ -298,4 +298,4 @@ Linux engine acceptance를 Android smoke로 대체하지 않습니다.
   HTTPS smoke를 통과해 `operate`에 진입했습니다.
 - 실제 release/smoke 결과는 `docs/operations/` handoff에 추가합니다.
 - 과거 logs/specs는 기록 보존을 위해 재작성하지 않습니다.
-- 2026-05-07 이후 100% closeout 배치는 CODEX panel timeline hotfix 회귀도 자동 row로 포함합니다. 권장 closeout 명령은 `CODEXMUX_BACKLOG_COMPLETION_ALLOW_DEFER=1 CODEXMUX_SMOKE_ARTIFACT_DIR=/tmp/codexmux-backlog-complete corepack pnpm ops:backlog:complete`입니다.
+- 2026-05-07 이후 100% closeout 배치는 CODEX panel timeline hotfix 회귀도 자동 row로 포함합니다. 권장 closeout 명령은 `CODEXMUX_BACKLOG_COMPLETION_ALLOW_DEFER=1 CODEXMUX_SMOKE_ARTIFACT_DIR=/tmp/agentmux-backlog-complete corepack pnpm ops:backlog:complete`입니다.

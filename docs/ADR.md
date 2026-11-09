@@ -1,6 +1,6 @@
 # 아키텍처 결정 기록
 
-이 문서는 codexmux의 오래가는 설계 결정을 모읍니다. 세부 실행 흐름은 `ARCHITECTURE-LOGIC.md`, 상태 감지는 `STATUS.md`, terminal/runtime 경계는 `TMUX.md`와 Linux 운영 문서에 둡니다. Windows 전환 문서는 역사적 제품·release 근거로 보존합니다.
+이 문서는 agentmux의 오래가는 설계 결정을 모읍니다. 세부 실행 흐름은 `ARCHITECTURE-LOGIC.md`, 상태 감지는 `STATUS.md`, terminal/runtime 경계는 `TMUX.md`와 Linux 운영 문서에 둡니다. Windows 전환 문서는 역사적 제품·release 근거로 보존합니다.
 
 ## 작성 기준
 
@@ -9,7 +9,7 @@
 - framework, router, custom server boundary 변경
 - terminal runtime, process inspector, Codex session detection 변경
 - provider model 또는 `agent*` metadata 의미 변경
-- `~/.codexmux/` 저장 구조, auth, security 동작 변경
+- data directory(`~/.agentmux`, legacy 실제 경로 `~/.codexmux`) 저장 구조, auth, security 동작 변경
 - Electron/Android 같은 platform shell 동작 변경
 - 알림, locale, 모바일 UX, 터미널 입력, 재연결, 중복 제거 같은 cross-surface 정책 변경
 - 제품 실행 토폴로지, packaging, installer, updater, host operation 변경
@@ -242,6 +242,7 @@
 - 영향: `~/.codexmux/`, tmux/runtime session, 비밀번호와 `authSecret`, CLI `x-cmux-token` 계약은 바뀌지 않습니다. 같은 hostname의 browser request에는 두 제품 cookie가 함께 실릴 수 있지만 각 제품은 자기 namespace만 검증합니다. Cookie 기밀성까지 port별로 격리하는 결정은 아니며, 그 수준이 필요하면 별도 hostname을 사용해야 합니다.
 - 검증 조건: unit test에서 새 이름과 legacy-only 거부, 두 cookie 공존 시 Codexmux cookie 선택, HTTP/Runtime v2 WebSocket/install/upload fixture, 새·legacy query credential 거부를 확인합니다. Chromium reconnect smoke는 Codexmux cookie를 설정한 뒤 같은 hostname에 legacy `session-token`을 추가하고 page auth와 WebSocket 복구가 유지되는지 검증합니다.
 - 검증 근거: Linux에서 full unit suite, lint, typecheck, production/landing build, dev/prod pre-auth bootstrap과 upload integrity smoke, Chromium same-host cookie coexistence/reconnect smoke가 통과했습니다. `v0.4.22` Windows release는 fresh HOME/profile에서 `v0.4.21 -> v0.4.22` local/published updater apply와 post-update packaged launch를 통과했습니다. 다만 fresh profile은 기존 Electron storage의 legacy cookie가 새 namespace 전환 뒤 login으로 이동하고, 1회 재로그인 후 Runtime v2 WebSocket/upload에 다시 연결되는 실제 old-profile 경로를 증명하지 않습니다. 따라서 상태는 `Implemented`로 유지하며 old Electron profile 수동/자동 증거를 확보한 뒤 `Verified`로 전이합니다. 상세 결과는 `docs/operations/2026-07-12-purplemux-cookie-isolation-handoff.md`와 `docs/operations/2026-07-13-v0.4.22-windows-release-handoff.md`에 기록합니다.
+- 2026-11-09 갱신: 발급 cookie 이름을 `agentmux-session-token`으로 바꾸고 `codexmux-session-token`은 읽기만 유지(logout 시에만 삭제). `session-token`은 계속 읽지 않는다(ADR-033).
 
 ## ADR-030: Windows installer와 npm 실행 package를 독립 배포면으로 운영한다
 
@@ -265,6 +266,7 @@
 - 2026-08-22 release gate 실행: 사용자가 `0.4.24` package version, registry publish, commit/push와
   Linux live deploy/restart를 명시적으로 승인했습니다. Remote tag와 GitHub Windows Release는
   독립 배포면이므로 이번 실행에서 만들지 않습니다.
+- 2026-11-09 갱신: 공개 npm package 이름을 `@hardcoremonk/agentmux`로 변경하고 `bin`에 `agentmux`/`amux`와 호환 alias `codexmux`/`cmux`를 함께 등록한다(ADR-033).
 
 ## ADR-031: Linux 단일 엔진 호스트를 active product/runtime target으로 사용한다
 
@@ -384,3 +386,23 @@
   추가했습니다. Build `a6a49588` 배포 뒤 새 operations handoff를 포함한 236 evidence가 HTTP 200으로
   응답하고 Governance `writeState=ready`, Phase 6 12-check를 통과했습니다. Durable schema와
   Governance Action Run write semantics는 바꾸지 않으므로 ADR-032의 결정 경계는 유지합니다.
+
+## ADR-033: 제품 이름을 agentmux로 바꾸고 legacy 식별자는 호환 alias로 유지한다
+
+- 상태: Draft
+- 결정: 제품 표시 이름을 `agentmux`로, 제품 정의를 "코딩 에이전트 웹 세션 매니저 (현재 Codex 지원, Claude Code 지원 예정)"으로 바꾸고 공개 npm package는 `@hardcoremonk/agentmux`로 전환합니다. CLI bin은 `agentmux`/`amux`를 기본으로 두고 legacy `codexmux`/`cmux`도 같은 진입점으로 유지합니다. 환경변수는 `AGENTMUX_*`/`AMUX_*`를 우선 읽고 `CODEXMUX_*`/`CMUX_*`를 시작 시 양방향 이중화하며, 브라우저 세션 쿠키는 `agentmux-session-token`을 발급하되 `codexmux-session-token`을 읽기 후보로 유지하고 logout 시 두 쿠키를 함께 삭제합니다(`session-token`은 계속 거부). CLI 토큰 헤더는 `x-agentmux-token`을 발신하고 `x-cmux-token`도 수용합니다. Data directory는 이번 release에서 실제 데이터를 이동하지 않고 `legacy-only` 환경에서 `~/.agentmux` → `.codexmux` 상대 symlink 별칭만 생성하며, 모든 모듈은 별칭 한 단계만 해석한 실제 경로를 받습니다(두 실제 디렉터리 공존·비정상 symlink는 fail closed). Linux systemd user service unit은 `agentmux.service`를 사용하고 `/api/health`는 구버전 `lock.ts` 호환을 위해 `app: 'codexmux'`를 유지하면서 `product: 'agentmux'`를 함께 반환합니다. tmux socket(`codexmux`, `codexmux-runtime-v2`), `globalThis` key(`__pt*`, `__codexmux*`, `__cmux*`), session prefix(`pt-ws-`), Android `appId`(`com.hardcoremonk.codexmux`), Electron `appId`/`productName`/userData, governance scaffold marker(`<!-- BEGIN/END CODEXMUX:<id>:v<n> -->`), governance template 본문(`## Codexmux Managed …`), `.codexmux-stage-` 접두사, 내부 env(`__CMUX_PRISTINE_ENV`, `__CMUX_APP_DIR`)는 보존합니다.
+- 이유: 향후 Claude Code provider 지원을 앞두고 Codex 전용 제품명이 제품 정체성과 맞지 않으며, 전환과 rollback 과정에서 실행 중인 세션·로그인·기존 스크립트·governance journal/upload 무결성이 끊기지 않아야 합니다.
+- trade-off: 새·옛 환경변수, 쿠키, 헤더, CLI bin, data directory 별칭을 병행 유지하는 호환 비용이 발생합니다. 실제 data directory를 `~/.agentmux`로 물리 이전하고 legacy 호환을 제거하는 시점은 rollback 창 종료 뒤 별도 설계와 ADR로 결정해야 합니다.
+- 영향: `src/lib/app-identity.ts`, `src/lib/legacy-env.ts`, `src/lib/auth.ts`, `src/lib/cli-token.ts`, `bin/agentmux.js`가 제품 정체성과 호환 경계를 소유합니다. 현재 문서·UI·i18n·landing site는 `scripts/check-product-name.mjs` gate로 검사하고 과거 운영·설계 기록은 수정하지 않습니다.
+- 검증 조건: `app-identity`, `legacy-env`, cookie/CLI header 호환, lock/health, `check:product-name`, `smoke:npm-package`가 모두 통과하고, 격리 환경 전환·rollback 리허설과 live service 전환 후 재로그인 없는 접속·upload·Governance `writeState=ready`를 확인한 뒤 상태를 갱신합니다.
+- 검증 근거: `feat/agentmux-rename` 브랜치에서 `app-identity`·`legacy-env`·auth/header·CLI·lock 단위 테스트와 전체 unit suite(279 files), `smoke:npm-package`(`@hardcoremonk/agentmux` tarball 설치 및 `/api/health` 검증)를 통과했습니다(2026-11-09, release 확인 후 갱신 예정).
+
+## ADR-034: tmux 서버는 systemd 아래에서 web service와 별도 scope로 실행한다
+
+- 상태: Draft
+- 결정: Production systemd user service(`INVOCATION_ID` 존재 및 `NODE_ENV=production`, `AGENTMUX_TMUX_SCOPE=off`로 비활성화 가능)에서 tmux 서버(`codexmux`, `codexmux-runtime-v2` 두 socket)를 `busctl --user call ... StartTransientUnit`을 통해 socket별 `agentmux-tmux-<socket>.scope`로 편입하고 `/proc/<pid>/cgroup` polling으로 이동을 확인합니다. `busctl` 부재·실패 시에는 경고만 남기고 세션 생성과 서버 기동을 막지 않습니다. 첫 live 전환 시에는 `scripts/adopt-tmux-server-scope.ts`로 기존 `codexmux.service` cgroup 안의 tmux 서버를 먼저 scope로 편입합니다.
+- 이유: systemd 기본 `KillMode=control-group`에서는 web service를 중지하거나 재시작할 때 같은 cgroup에 속한 tmux 서버 프로세스가 함께 종료되어 실행 중인 터미널과 Codex 세션이 끊깁니다.
+- trade-off: Web service를 중지해도 tmux 서버와 세션은 `agentmux-tmux-<socket>.scope`에 계속 살아남으므로, 의도적으로 모든 터미널을 종료하려면 `tmux -L <socket> kill-server` 또는 `systemctl --user stop agentmux-tmux-<socket>.scope`를 별도로 실행해야 합니다.
+- 영향: `agentmux.service` stop/restart가 터미널과 Codex 프로세스를 끊지 않으며, `server.ts` startup과 legacy/Runtime v2 세션 생성 경로가 scope 편입을 보장합니다. 또한 web service 재시작 때 이미 살아 있던 세션의 shell 프롬프트에 `codex resume`이 중복 입력되지 않도록, 자동 재개(`autoResumeOnStartup`)는 startup 시점에 존재하지 않아 새로 생성한 tmux 세션에만 전송합니다.
+- 검증 조건: 단위 테스트(deps 주입)와 `smoke:tmux-scope` 격리 리허설(transient service 안에서 시작된 tmux 서버를 scope로 편입한 뒤 원래 service를 stop해도 tmux 서버 PID·세션이 생존하고 scope가 `active` 상태를 유지)이 통과해야 하며, 실제 live 전환과 재시작 후 PID 불변 확인 뒤 상태를 갱신합니다.
+- 검증 근거: `tests/unit/lib/tmux-server-scope.test.ts`, `tests/unit/lib/auto-resume.test.ts` 및 `corepack pnpm smoke:tmux-scope` 실측 리허설에서 service stop 전후 tmux 서버·pane PID 생존과 `agentmux-tmux-<socket>.scope` `active` 상태를 확인했습니다(2026-11-09, release 확인 후 갱신 예정).

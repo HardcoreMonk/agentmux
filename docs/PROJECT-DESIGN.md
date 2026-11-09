@@ -1,7 +1,7 @@
 # 프로젝트 설계 요약
 
-codexmux는 Codex CLI 전용 웹 세션 매니저입니다. 범용 터미널 대시보드가 아니라
-여러 Codex 세션을 브라우저에서 실행, 재개, 모니터링, 검토하기 위한 도구입니다.
+agentmux는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정). 범용 터미널 대시보드가 아니라
+여러 코딩 에이전트 세션을 브라우저에서 실행, 재개, 모니터링, 검토하기 위한 도구입니다.
 터미널 접근은 runtime adapter 경계 뒤에 두고, Codex 작업은 status badge와
 timeline 중심으로 보여줍니다.
 
@@ -12,7 +12,7 @@ Governance acceptance를 대체하지 않습니다.
 
 2026-08-23 현재 live app build commit `a6a49588`, version `0.4.24`가 `HOST=0.0.0.0`, port `8122`의
 `systemd --user` service로 배포되어 실제 `0.0.0.0:8122` listener와 구성된 browser 인증을
-제공합니다. `CODEXMUX_GOVERNANCE_WRITES=1`이 systemd drop-in에서 활성화됐고 Governance
+제공합니다. `AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환)이 systemd drop-in에서 활성화됐고 Governance
 `writeState=ready`입니다. 실제 restart, Managed Project adoption/rollback, Session Catalog
 rebuild/search/replay/annotation과 같은 live session의 301초·11회 재연결 관찰을 통과했습니다.
 관찰 직후 Runtime v2 10-check와 Phase 6 12-check도 통과해 ADR-031과 ADR-032는
@@ -22,22 +22,22 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
 
 ## 구현 상태
 
-- 서비스 이름과 실행 파일은 `codexmux`, 짧은 별칭은 `cmux`입니다.
-- 데이터 디렉터리는 `~/.codexmux`, tmux socket은 `codexmux`, CLI header는 `x-cmux-token`입니다.
+- 서비스 이름과 실행 파일은 `agentmux`, 짧은 별칭은 `amux`입니다 (legacy `codexmux`/`cmux` 호환 별칭 유지).
+- 데이터 디렉터리는 `~/.agentmux`(legacy 실제 경로 `~/.codexmux`), tmux socket은 `-L codexmux` 및 `codexmux-runtime-v2`, CLI header는 `x-agentmux-token`(legacy `x-cmux-token` 호환)입니다.
 - provider registry에는 `codex` panel type만 등록합니다.
 - Browser는 Codex command를 직접 조립하지 않고 workspace/pane/tab launch intent만 보냅니다. Server는 layout ownership, 안전한 shell, Codex `0.144.1+` preflight를 확인한 뒤 실행 또는 `codex resume <sessionId>` command를 만듭니다.
-- Codex hook event는 native session-layer TOML override와 HMAC tab/session capability를 사용해 standalone `~/.codexmux/status-hook.cjs`로 전달합니다. User/project/managed/plugin hook은 Codex native discovery가 보존합니다.
+- Codex hook event는 native session-layer TOML override와 HMAC tab/session capability를 사용해 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)로 전달합니다. User/project/managed/plugin hook은 Codex native discovery가 보존합니다.
 - process detection은 tmux pane 아래의 `codex` process를 찾고 session id, process start time, live process cwd fallback 순서로 JSONL path를 연결합니다.
 - timeline, history, stats, daily report와 rate-limit observation은 `~/.codex/sessions/**/*.jsonl`을 읽어 구성합니다.
 - Timeline은 exec, web search, MCP, patch, error/warning, context compaction을 semantic row로 표시합니다. Detail은 secret-like redaction, field 4KiB, entry 16KiB 상한을 적용하고 full output/download/local image serving은 제공하지 않습니다.
 - Rate-limit은 5시간/7일 window별 최신 `observed_at`을 보존하며 reset 뒤 새 관찰이 없으면 0%를 합성하지 않고 `갱신 대기`로 표시합니다.
-- session list는 `~/.codexmux/session-index.json` snapshot을 먼저 읽고, cold refresh 중이면 현재 snapshot을 표시한 뒤 재조회합니다.
-- `~/.codex`는 Codex CLI 소유 데이터이며 codexmux는 읽기 전용으로만 접근합니다.
+- session list는 `~/.agentmux/session-index.json`(legacy 실제 경로 `~/.codexmux/session-index.json`) snapshot을 먼저 읽고, cold refresh 중이면 현재 snapshot을 표시한 뒤 재조회합니다.
+- `~/.codex`는 Codex CLI 소유 데이터이며 agentmux는 읽기 전용으로만 접근합니다.
 - Session Catalog는 Timeline Worker가 JSONL read/watch와 app-owned 검색 index를 단독으로
   소유하는 재생성 가능한 projection입니다.
 - Managed Project의 durable catalog는 Storage Worker가 소유합니다. Governance Worker는 registered
   project read, Knowledge Index와 versioned scaffold의 유일한 writer입니다. 쓰기는
-  `CODEXMUX_GOVERNANCE_WRITES=1`에서만 열리고 제품 기본값은 off입니다. 현재 live Linux
+  `AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환)에서만 열리고 제품 기본값은 off입니다. 현재 live Linux
   service는 승인된 systemd drop-in으로 이 gate를 활성화했습니다.
 - Workspace, Sessions, Governance는 고정된 1차 App Area입니다. Workspace 내부 Activity는
   Session Catalog route와 다른 local context이며 utility surface에서는 어느 core area도 current로
@@ -49,8 +49,8 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
 - `config.json`의 malformed JSON, I/O 오류, hash-only 인증 상태는 setup으로 downgrade하지 않고 startup/request를 fail closed합니다.
 - setup POST는 startup claim latch, loopback Host, same-authority Origin, JSON media type을 요구합니다. `/api/install`은 generic WebSocket 예외가 아니라 setup-local lease 또는 session admission을 사용합니다.
 - `/api/upload-image`와 `/api/upload-file`은 Next proxy/Pages route가 아니라 outer custom server가 소유합니다. Image/file limit은 10MiB/50MiB이고, successful publish는 same-directory hard link의 no-replace commit입니다.
-- Linux 단일 엔진은 source checkout 또는 npm standalone server로 실행합니다. Windows Electron installer/updater와 npm registry package는 ADR-030의 독립 배포면이며 npm tarball은 CLI bin, standalone server와 다섯 Runtime v2 worker bundle을 제공합니다.
-- Public npm `latest`는 `codexmux@0.4.23`이며 registry tarball install, CLI help와 production
+- Linux 단일 엔진은 source checkout 또는 npm standalone server(`@hardcoremonk/agentmux`)로 실행합니다. Windows Electron installer/updater와 npm registry package는 ADR-030의 독립 배포면이며 npm tarball은 CLI bin, standalone server와 다섯 Runtime v2 worker bundle을 제공합니다.
+- Public npm `latest`는 `@hardcoremonk/agentmux`로 전환 중이며, 이전 이름 `codexmux@0.4.23`에서 registry tarball install, CLI help와 production
   health smoke를 통과했습니다. Local `v0.4.23`은 registry `gitHead`와 같은 `ef27e297`을
   가리키지만 remote tag는 없습니다. 이 tag를 그대로 push하면 tag snapshot에 없는 release
   note를 요구하는 Windows release workflow가 실패하므로 원격 publish는 보류했습니다.
@@ -58,7 +58,7 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
   service는 검증·배포됐지만 registry publish는 수행하지 않아 public `latest`는 계속 `0.4.23`입니다.
   Remote tag/GitHub Windows Release와 Trusted Publisher 등록도 별도 배포면으로 유지합니다.
 - Public 랜딩과 사용자 가이드는 Eleventy로 `_site/`를 만들고 GitHub Pages
-  `https://hardcoremonk.github.io/codexmux/`에 배포합니다. 메인 제품 정보 구조는 Session
+  `https://hardcoremonk.github.io/agentmux/`에 배포합니다. 메인 제품 정보 구조는 Session
   Operations, Live Session Control, Project Governance, Runtime Operations를 기준으로 하며,
   구현 완료·보호된 작업·현재 제외 범위를 분리합니다. Home/docs는 floating header, global search,
   Auto/Light/Dark theme와 mobile menu를 공유하고, homepage는 hero, quickstart, code-native product
@@ -125,7 +125,7 @@ Governed scaffold는 `AGENTS.md`, `CONTEXT.md`, 조건부 `DESIGN.md`와 세 `do
 버전 고정 catalog에서 render합니다. Existing unmarked file은 자동 채택하지 않습니다. 첫
 preview의 `adoption-available` artifact 중 사용자가 개별 선택한 file만 별도 compact adoption
 marker block을 EOF에 append하고 기존 bytes를 exact prefix로 보존합니다. Private preimage와 journal은
-`~/.codexmux/backups/governance-actions/<project-id>/<action-id>/`에 저장합니다.
+`~/.agentmux/backups/governance-actions/<project-id>/<action-id>/`(legacy 실제 경로 `~/.codexmux/backups/...`)에 저장합니다.
 
 오래된 provider alias는 runtime에서 허용하지 않습니다. 새 기능도
 provider-neutral boundary 또는 Codex provider 내부에 추가합니다.
