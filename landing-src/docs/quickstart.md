@@ -11,7 +11,7 @@ agentmux는 여러 Codex workspace, session, tab을 관리하는 Codex 중심 se
 Session Catalog와 승인 project read를 소유합니다.
 
 {% call callout('note', '현재 배포 기준') %}
-Public npm package는 `@hardcoremonk/agentmux@0.5.0`(이전 package `codexmux@0.4.23`)입니다. Windows Electron package는 별도 배포면의
+Public npm package는 아직 이전 package `codexmux@0.4.23`이며 `@hardcoremonk/agentmux@0.5.0`은 배포 전입니다. Windows Electron package는 별도 배포면의
 보존된 release surface이며 Linux engine 설치를 대체하지 않습니다.
 {% endcall %}
 
@@ -25,6 +25,10 @@ Linux engine에는 다음이 필요합니다.
 - **Codex CLI** — `codex --version`과 login 상태 확인
 
 ## npm package 실행
+
+{% call callout('warning', 'npm 미배포') %}
+`@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았습니다. 배포 전까지는 source checkout으로 실행하세요(`git clone https://github.com/HardcoreMonk/agentmux.git`).
+{% endcall %}
 
 ```bash
 npx --yes @hardcoremonk/agentmux@latest

@@ -38,13 +38,15 @@ Windows 설치형 제품 마감은 별도 제품 line인
 | bootstrap 보안 | ADR-026 `Verified` |
 | browser 인증 | `agentmux-session-token` (legacy `codexmux-session-token` 호환); 같은 hostname의 Purplemux cookie와 분리 |
 | upload ingress | ADR-027 `Verified` |
-| npm 배포 | `@hardcoremonk/agentmux` (legacy `codexmux@0.4.23` public `latest`, ADR-030 `Verified`) |
+| npm 배포 | `@hardcoremonk/agentmux` 배포 전 (현재 public `latest`는 legacy `codexmux@0.4.23`, ADR-030 `Verified`) |
 | 보존된 Windows release | `v0.4.22` stable/latest; ADR-028 `Verified` |
 
 ## 시작하기
 
 active Linux engine에는 Node.js `>=20.9.0`, tmux `>=3.0`, Git, Codex CLI가 필요합니다.
 공개 npm package로 전역 설치하거나 바로 실행할 수 있습니다.
+
+> `@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았습니다. 배포 전까지는 source checkout으로 실행하세요(`git clone https://github.com/HardcoreMonk/agentmux.git`).
 
 > 이전 이름 전역 패키지(`codexmux`)가 설치되어 있다면 `agentmux`/`codexmux` 바이너리 충돌을 막기 위해 먼저 제거한 뒤 설치하세요.
 

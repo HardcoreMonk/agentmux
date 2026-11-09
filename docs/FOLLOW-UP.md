@@ -115,13 +115,13 @@ installer/package gate로 확인합니다.
 
 | 항목 | 상태 |
 | --- | --- |
-| Live build | Navigation Selection Clarity/hotfix artifact `a6a49588`, version `0.4.24` |
-| user service | `agentmux.service` (이전 이름 `codexmux.service`) enabled, `active/running`, authenticated `0.0.0.0:8122` |
+| Live build | `5b0cf14f`, version `0.5.0` (2026-11-09 agentmux 전환) |
+| user service | `agentmux.service` enabled, `active/running`, authenticated, port `8122`. Rollback unit `codexmux.service`(legacy)는 disable 보존 |
 | Runtime v2 | terminal `new-tabs`, storage/timeline/status `default` |
-| Session Catalog/Governance | 모두 ready, Governance `writeState=ready`, DB/WAL/SHM `0600` |
-| governance gate | `~/.config/systemd/user/agentmux.service.d/governance-writes.conf` (이전 이름 `codexmux.service.d`), active |
+| Session Catalog/Governance | Session Catalog `ready`, Governance `state=ready`, `writeState=disabled`, DB/WAL/SHM `0600` |
+| governance gate | `agentmux.service.d/governance-writes.conf` 미설치 → governed write 비활성. 활성화는 별도 승인 뒤 |
 | latest backup | `runtime-v2-storage-20260823T135639Z`, service 정지 중 durable/workspace state 5개, `0700/0600` |
-| latest restart | PID `88057`; start `2026-08-23 22:57:01 KST`, restart count `0` |
+| latest restart | 2026-11-09 18:19 KST host 재부팅 뒤 자동 시작, PID `3739`. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
 | issue (이전 이름 저장소 기록) | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
 | 운영 handoff | `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
 
@@ -248,6 +248,9 @@ Plan Grilling, plan review와 별도 release gate를 거쳐야 합니다.
 | Remote topology | collector, remote node, multi-engine federation 미지원 | engine authority, credential, ordering, partition/reconnect와 data residency |
 | GSD orchestration | GSD CLI/UI, FastAPI/Python collector, 원본 Bash 실행 미도입 | provenance, allowlist, cancellation, audit와 lifecycle ownership |
 | Full-output search | bounded message search/snippet만 제공 | secret/terminal output policy, quota, encryption/retention과 explicit opt-in |
+| 자동 재개 대상 탐색 결함 | Runtime v2 storage `default`에서 `findAutoResumeTargets`(`src/lib/auto-resume.ts:26-50`)가 workspace 목록은 v2 DB(`src/lib/workspace-store.ts:277`)에서, layout은 legacy `layout.json`에서 읽어 재개 대상이 0개가 되고 재부팅 뒤 시작 시점 자동 재개가 동작하지 않음. `fdf8752b`(0.4.24)부터 동일 | workspace와 layout을 같은 storage owner에서 읽는 대상 탐색, v2 default 기준 회귀 test와 재부팅 뒤 live 확인 |
+| npm 첫 배포(보류) | `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux`(legacy package) deprecate, trusted publisher 연결 미실행. `v0.5.0` tag push는 Windows release workflow도 실행하므로 별도 결정 | 첫 배포 절차, tag 정책과 Windows release 분리 여부, deprecate 문구 |
+| Data 실제 이전 | `~/.codexmux`가 실제 경로이고 `~/.agentmux`는 별칭 | rollback 창 종료 뒤 `~/.agentmux` 실제 이전, `codexmux.service`와 옛 checkout 정리 |
 
 ## Codex lifecycle 기준
 
