@@ -1,6 +1,7 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 
-export const SESSION_COOKIE = 'codexmux-session-token';
+export const SESSION_COOKIE = 'agentmux-session-token';
+export const LEGACY_SESSION_COOKIE = 'codexmux-session-token';
 export const MAX_AGE = 7 * 86400;
 
 const getSecret = () => new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
@@ -33,8 +34,25 @@ export const buildCookieHeader = (token: string, secure: boolean) => {
   return parts.join('; ');
 };
 
-export const clearCookieHeader = () =>
-  `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`;
+const formatClearCookieHeader = (name: string, secure: boolean) => {
+  const parts = [
+    `${name}=`,
+    `HttpOnly`,
+    `SameSite=Lax`,
+    `Path=/`,
+    `Max-Age=0`,
+  ];
+  if (secure) parts.push('Secure');
+  return parts.join('; ');
+};
+
+export const buildClearCookieHeaders = (secure = false): string[] => [
+  formatClearCookieHeader(SESSION_COOKIE, secure),
+  formatClearCookieHeader(LEGACY_SESSION_COOKIE, secure),
+];
+
+export const clearCookieHeader = (secure = false) =>
+  formatClearCookieHeader(SESSION_COOKIE, secure);
 
 export const isSecureRequest = (req: { headers: Record<string, string | string[] | undefined> }) => {
   const proto = req.headers['x-forwarded-proto'];
@@ -53,8 +71,47 @@ export const extractCookie = (header: string, name: string): string | undefined 
   return undefined;
 };
 
+const extractNamedCookieValues = (header: string | undefined, name: string): string[] => {
+  if (!header) return [];
+  const values: string[] = [];
+  for (const part of header.split(';')) {
+    const trimmed = part.trim();
+    const eq = trimmed.indexOf('=');
+    if (eq !== -1 && trimmed.slice(0, eq) === name) {
+      const value = trimmed.slice(eq + 1).trim();
+      if (value) values.push(value);
+    }
+  }
+  return values;
+};
+
+export const readSessionTokenCandidates = (cookieHeader: string | undefined): string[] => {
+  const seen = new Set<string>();
+  const candidates: string[] = [];
+  for (const name of [SESSION_COOKIE, LEGACY_SESSION_COOKIE]) {
+    for (const value of extractNamedCookieValues(cookieHeader, name)) {
+      if (!seen.has(value)) {
+        seen.add(value);
+        candidates.push(value);
+      }
+    }
+  }
+  return candidates;
+};
+
+export const verifySessionCookies = async <TPayload = JWTPayload>(
+  cookieHeader: string | undefined,
+  verify: (token: string) => Promise<TPayload | null> = verifySessionToken as unknown as (
+    token: string,
+  ) => Promise<TPayload | null>,
+): Promise<TPayload | null> => {
+  for (const candidate of readSessionTokenCandidates(cookieHeader)) {
+    const payload = await verify(candidate);
+    if (payload) return payload;
+  }
+  return null;
+};
+
 export const verifyRequestSession = async (cookieHeader: string | undefined): Promise<boolean> => {
-  const token = extractCookie(cookieHeader ?? '', SESSION_COOKIE);
-  if (!token) return false;
-  return !!(await verifySessionToken(token));
+  return !!(await verifySessionCookies(cookieHeader));
 };

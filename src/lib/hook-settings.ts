@@ -49,7 +49,7 @@ process.stdin.on('end', () => {
       headers: {
         'content-type': 'application/json',
         'content-length': Buffer.byteLength(body),
-        'x-cmux-token': token,
+        'x-agentmux-token': token,
       },
     }, (response) => {
       response.resume();

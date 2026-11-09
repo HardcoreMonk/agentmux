@@ -3,7 +3,7 @@ import { verifyCliToken } from '@/lib/cli-token';
 
 const GUIDE = `# codexmux CLI HTTP API
 
-All endpoints require header \`x-cmux-token: <CMUX_TOKEN>\`.
+All endpoints require header \`x-agentmux-token: <AMUX_TOKEN>\` (legacy \`x-cmux-token\` is also accepted).
 
 ## Workspaces
 

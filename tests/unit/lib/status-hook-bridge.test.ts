@@ -73,7 +73,7 @@ describe('status hook bridge', () => {
           server.close();
           resolve({
             body: Buffer.concat(chunks).toString('utf-8'),
-            token: request.headers['x-cmux-token'] as string | undefined,
+            token: request.headers['x-agentmux-token'] as string | undefined,
             url: request.url,
           });
         });
@@ -119,7 +119,9 @@ describe('status hook bridge', () => {
     const statuslineSource = buildStatuslineScriptContent();
 
     expect(bridgeSource).toContain(JSON.stringify(path.join(homeDir, '.agentmux')));
+    expect(bridgeSource).toContain("'x-agentmux-token': token");
     expect(statuslineSource).toContain(`PORT_FILE='${path.join(homeDir, '.agentmux', 'port')}'`);
+    expect(statuslineSource).toContain('-H "x-agentmux-token: ${TOKEN}"');
     expect(statuslineSource).not.toContain('$HOME/.codexmux');
 
     const agentmuxDir = path.join(homeDir, '.agentmux');
@@ -138,7 +140,7 @@ describe('status hook bridge', () => {
           server.close();
           resolve({
             body: Buffer.concat(chunks).toString('utf-8'),
-            token: request.headers['x-cmux-token'] as string | undefined,
+            token: request.headers['x-agentmux-token'] as string | undefined,
             url: request.url,
           });
         });

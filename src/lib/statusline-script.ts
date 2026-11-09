@@ -15,7 +15,7 @@ PORT=$(cat "$PORT_FILE")
 TOKEN=$(cat "$TOKEN_FILE")
 curl -sf --max-time 2 -X POST \\
   -H 'Content-Type: application/json' \\
-  -H "x-cmux-token: \${TOKEN}" \\
+  -H "x-agentmux-token: \${TOKEN}" \\
   --data-binary @- \\
   "http://localhost:\${PORT}/api/status/statusline" 2>/dev/null || exit 0
 `;

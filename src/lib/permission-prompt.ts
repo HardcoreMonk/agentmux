@@ -91,7 +91,7 @@ const truncatePreview = (value: string): string =>
 
 const sanitizeSensitiveText = (value: string): string => value
   .replace(/Authorization:\s*Bearer\s+(?:\\?["'][^"']*\\?["']|[^"'\s)]+)/gi, 'Authorization: Bearer [redacted]')
-  .replace(/x-cmux-token(?:\s*[:=]\s*|\s+)(?:\\?["'][^"']*\\?["']|[^"'\s)]+)/gi, 'x-cmux-token [redacted]')
+  .replace(/(x-(?:agentmux|cmux)-token)(?:\s*[:=]\s*|\s+)(?:\\?["'][^"']*\\?["']|[^"'\s)]+)/gi, '$1 [redacted]')
   .replace(/\b([A-Z0-9_]*(?:TOKEN|API_KEY|PASSWORD|SECRET|ACCESS_KEY|PRIVATE_KEY)[A-Z0-9_]*|password|secret)=("[^"]*"|'[^']*'|[^"'\s)]+)/gi, '$1=[redacted]')
   .replace(/--token(?:\s*[:=]\s*|\s+)(?:\\?["'][^"']*\\?["']|[^"'\s)]+)/gi, '--token [redacted]')
   .replace(/\btoken(?:\s*:\s*|\s+)(?:\\?["'][^"']*\\?["']|[^"'\s)]+)/gi, 'token [redacted]')

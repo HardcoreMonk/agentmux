@@ -1,7 +1,17 @@
 import type { IncomingMessage } from 'http';
 import type { NextApiRequest } from 'next';
-import { extractCookie, SESSION_COOKIE, verifySessionToken } from '@/lib/auth';
-import { verifyTokenValue } from '@/lib/cli-token';
+import {
+  LEGACY_SESSION_COOKIE,
+  SESSION_COOKIE,
+  verifySessionCookies,
+  verifySessionToken,
+} from '@/lib/auth';
+import {
+  CLI_TOKEN_HEADER,
+  LEGACY_CLI_TOKEN_HEADER,
+  readCliTokenHeader,
+  verifyTokenValue,
+} from '@/lib/cli-token';
 import {
   validateBrowserRequestAuthority,
   validateSingleRequestHost,
@@ -20,13 +30,15 @@ export type TRuntimeApiAuthorization =
 const hasForbiddenQueryCredential = (rawUrl: string | undefined): boolean => {
   const forbidden = new Set([
     'token',
-    'x-cmux-token',
+    CLI_TOKEN_HEADER,
+    LEGACY_CLI_TOKEN_HEADER,
     'authorization',
     'auth',
     'api_key',
     'apikey',
     'access_token',
     SESSION_COOKIE.toLowerCase(),
+    LEGACY_SESSION_COOKIE.toLowerCase(),
     'session-token',
   ]);
   try {
@@ -59,10 +71,13 @@ export const authorizeRuntimeV2ApiRequest = async (
     return { authorized: false, statusCode: 401, reason: 'invalid-credential' };
   }
 
-  const cliToken = req.headers['x-cmux-token'];
-  if (Array.isArray(cliToken)) {
+  if (
+    Array.isArray(req.headers[CLI_TOKEN_HEADER]) ||
+    Array.isArray(req.headers[LEGACY_CLI_TOKEN_HEADER])
+  ) {
     return { authorized: false, statusCode: 400, reason: 'invalid-auth-request' };
   }
+  const cliToken = readCliTokenHeader(req.headers);
   try {
     if (typeof cliToken === 'string' && verifyTokenValue(cliToken)) {
       const credential = { kind: 'cli' } as const;
@@ -76,8 +91,7 @@ export const authorizeRuntimeV2ApiRequest = async (
     if (Array.isArray(cookieHeader)) {
       return { authorized: false, statusCode: 400, reason: 'invalid-auth-request' };
     }
-    const cookieToken = extractCookie(cookieHeader ?? '', SESSION_COOKIE);
-    if (!cookieToken || !(await verifySessionToken(cookieToken))) {
+    if (!(await verifySessionCookies(cookieHeader, verifySessionToken))) {
       return { authorized: false, statusCode: 401, reason: 'invalid-credential' };
     }
     const credential = { kind: 'session' } as const;
@@ -98,10 +112,8 @@ export const verifyRuntimeV2ApiAuth = async (req: NextApiRequest): Promise<boole
 export const verifyRuntimeV2WebSocketAuth = async (request: IncomingMessage): Promise<boolean> => {
   if (hasForbiddenQueryCredential(request.url)) return false;
 
-  const cliToken = request.headers['x-cmux-token'];
+  const cliToken = readCliTokenHeader(request.headers);
   if (typeof cliToken === 'string' && verifyTokenValue(cliToken)) return true;
 
-  const cookieToken = extractCookie(request.headers.cookie ?? '', SESSION_COOKIE);
-  if (!cookieToken) return false;
-  return !!(await verifySessionToken(cookieToken));
+  return !!(await verifySessionCookies(request.headers.cookie, verifySessionToken));
 };

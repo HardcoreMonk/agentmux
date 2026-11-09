@@ -192,7 +192,7 @@ export const sanitizeLifecycleDiagnosticText = (value: string): string =>
   value
     .replace(/"token"\s*:\s*"[^"]*"/gi, '[secret]')
     .replace(/Authorization:\s*Bearer\s+\S+/gi, '[secret]')
-    .replace(/x-cmux-token(?::\s*|=\s*|\s+)\S+/gi, '[secret]')
+    .replace(/x-(?:agentmux|cmux)-token(?::\s*|=\s*|\s+)\S+/gi, '[secret]')
     .replace(/\btoken\s*[:=]\s*\S+/gi, '[secret]')
     .replace(/~\/\.codexmux\/cli-token/g, '[secret]')
     .replace(/"cwd"\s*:\s*"[^"]*"/g, '[path]')

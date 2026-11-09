@@ -17,10 +17,8 @@ import {
 } from './src/lib/app-identity';
 import {
   buildCookieHeader,
-  extractCookie,
-  SESSION_COOKIE,
   signSessionToken,
-  verifySessionToken,
+  verifySessionCookies,
 } from './src/lib/auth';
 import { handleConnection, gracefulShutdown } from './src/lib/terminal-server';
 import { createInstallServer, INSTALL_MAX_FRAME_BYTES } from './src/lib/install-server';
@@ -77,9 +75,7 @@ const log = createLogger('server');
 const dev = process.env.NODE_ENV !== 'production';
 
 const verifyWebSocketAuth = async (request: IncomingMessage): Promise<boolean> => {
-  const value = extractCookie(request.headers.cookie ?? '', SESSION_COOKIE);
-  if (!value) return false;
-  return !!(await verifySessionToken(value));
+  return !!(await verifySessionCookies(request.headers.cookie));
 };
 
 const WS_PATHS = new Set(['/api/terminal', '/api/timeline', '/api/sync', '/api/status', '/api/v2/terminal']);
