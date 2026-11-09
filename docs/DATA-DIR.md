@@ -19,12 +19,16 @@ agentmux의 앱 상태는 기본 별칭 경로 `~/.agentmux/`(기존 설치의 l
 | `~/.agentmux` 상태 | legacy `~/.codexmux` 상태 | 판정 (`inspectDataDirLayout`) | `resolveDataDirPath` 반환값 | `prepareDataDir` 동작 |
 | --- | --- | --- | --- | --- |
 | 없음 | 실제 디렉터리 | `legacy-only` | `~/.codexmux` | `~/.agentmux -> .codexmux` 상대 symlink 생성 후 `~/.codexmux` 반환 |
-| `.codexmux`를 가리키는 유효 symlink | 실제 디렉터리 | `legacy-with-alias` | `~/.codexmux` | 변경 없이 `~/.codexmux` 반환 |
+| legacy `.codexmux`를 가리키는 유효 symlink | 실제 디렉터리 | `aliased` | `~/.codexmux` | 변경 없이 `~/.codexmux` 반환 |
 | 실제 디렉터리 | 없음 | `agentmux-only` | `~/.agentmux` | 변경 없이 `~/.agentmux` 반환 |
 | 실제 디렉터리 | `.agentmux`를 가리키는 유효 symlink | `agentmux-only` (후속 이전 완료 상태) | `~/.agentmux` | 변경 없이 `~/.agentmux` 반환 |
 | 없음 | 없음 | `fresh` | `~/.agentmux` | `~/.agentmux`(`0700`) 생성 후 반환 |
-| 실제 디렉터리 | 실제 디렉터리 | `conflict` (`both-real-directories`) | 예외 발생 (fail closed) | 시작 중단 및 진단 메시지 출력 |
-| 그 외 symlink(외부 대상, 깨진 링크) 또는 일반 파일 | 그 외 symlink 또는 일반 파일 | `conflict` (`unexpected-symlink-target` / `dangling-symlink` / `not-directory`) | 예외 발생 (fail closed) | 시작 중단 및 진단 메시지 출력 |
+| 실제 디렉터리 | 실제 디렉터리 | `conflict` (`both-real`) | 예외 발생 (fail closed) | 시작 중단 및 진단 메시지 출력 |
+| 그 외 symlink(외부 대상, 깨진 링크) 또는 일반 파일 | 그 외 symlink 또는 일반 파일 | `conflict` (`unexpected-symlink` / `dangling-symlink` / `not-directory`) | 예외 발생 (fail closed) | 시작 중단 및 진단 메시지 출력 |
+
+Windows(`win32`)는 이번 release에서 legacy `~\.codexmux`를 그대로 사용합니다. 별칭·`~\.agentmux`·conflict 판정을 하지 않으며 `host-paths.ts`와 Electron config 규칙과 같습니다.
+
+`~/.codexmux` 자체를 다른 디스크로 옮겨 symlink로 연결해 둔 구성은 `unexpected-symlink`로 시작이 중단됩니다. 이 경우 service 환경에 `AGENTMUX_DATA_DIR=<실제 directory 경로>`를 지정하면 홈 배치 검사 없이 그 경로를 사용합니다. CLI도 `AGENTMUX_DATA_DIR`(legacy `CODEXMUX_DATA_DIR`)의 `port`·`cli-token`을 먼저 읽습니다.
 
 Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단계에서 실제 데이터 디렉터리를 `~/.agentmux`로 이전하고 `~/.codexmux -> .agentmux` 역방향 호환 링크로 전환할 예정입니다.
 

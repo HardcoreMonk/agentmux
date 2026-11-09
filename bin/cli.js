@@ -20,7 +20,7 @@ const dataDirCandidates = () => {
   const dirs = [process.env.AGENTMUX_DATA_DIR, process.env.CODEXMUX_DATA_DIR]
     .map((dir) => dir && dir.trim())
     .filter(Boolean);
-  dirs.push(path.join(os.homedir(), '.agentmux'), path.join(os.homedir(), '.codexmux'));
+  dirs.push(path.join(os.homedir(), '.agentmux'), path.join(os.homedir(), '.codexmux')); // legacy fallback
   return dirs;
 };
 
