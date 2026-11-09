@@ -34,7 +34,7 @@ import { getStatusManager } from './src/lib/status-manager';
 import { ensureHookSettings, removePortFile } from './src/lib/hook-settings';
 import { getCliToken } from './src/lib/cli-token';
 import { acquireLock, releaseLock, registerLockCleanup } from './src/lib/lock';
-import { scanSessions, applyConfig } from './src/lib/tmux';
+import { listSessions, scanSessions, applyConfig } from './src/lib/tmux';
 import { initWorkspaceStore } from './src/lib/workspace-store';
 import { autoResumeOnStartup } from './src/lib/auto-resume';
 import { listInterfaceIps, resolveBindPlan } from './src/lib/network-access';
@@ -497,9 +497,10 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
   const bootstrap = await initializeServerBootstrap();
 
   await scanSessions();
+  const preexistingSessions = new Set(await listSessions());
   await applyConfig();
   await initWorkspaceStore();
-  await autoResumeOnStartup();
+  await autoResumeOnStartup({ preexistingSessions });
   if (shouldPrewarmSessionIndexOnStartup()) {
     await initSessionIndexService();
   }

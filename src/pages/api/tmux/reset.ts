@@ -21,7 +21,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     await scanSessions();
     await applyConfig();
     await initWorkspaceStore();
-    await autoResumeOnStartup();
+    await autoResumeOnStartup({ preexistingSessions: new Set() });
     await getStatusManager().rescan();
 
     log.info('tmux re-initialized after reset');

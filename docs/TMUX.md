@@ -159,9 +159,9 @@ DIFF 패널은 workspace/tab cwd를 기준으로 Git snapshot을 읽습니다. �
 ## 서버 시작 순서
 
 1. Strict config/auth bootstrap과 startup loopback restriction을 확정합니다.
-2. Legacy tmux fallback 또는 runtime v2 adapter를 준비합니다.
+2. Legacy tmux fallback 또는 runtime v2 adapter를 준비하고, `scanSessions()` 직후(`initWorkspaceStore()`가 누락된 session을 재생성하기 전) `listSessions()`로 시작 시점에 이미 존재하던 tmux session 집합(`preexistingSessions`)을 기록합니다.
 3. Generic terminal route와 typed install route를 분리해 등록합니다.
-4. Workspace/layout state를 읽습니다.
+4. Workspace/layout state를 읽고, `autoResumeOnStartup({ preexistingSessions })`는 시작 시점에 없던 tmux session에 대해서만 Codex resume 명령을 보냅니다(이미 살아 있던 session은 재개 명령을 보내지 않으며, `/api/tmux/reset` 경로는 빈 집합을 전달해 전체 재개합니다).
 5. Runtime v2가 켜져 있으면 stale/ready terminal tab을 reconcile합니다.
 
 ## 관련 파일
@@ -169,6 +169,7 @@ DIFF 패널은 workspace/tab cwd를 기준으로 Git snapshot을 읽습니다. �
 | 파일 | 역할 |
 | --- | --- |
 | `src/lib/tmux.ts` | legacy tmux adapter helper |
+| `src/lib/auto-resume.ts` | 시작 시점에 없던 tmux session에 대한 자동 재개 |
 | `src/lib/terminal-server.ts` | legacy terminal WebSocket |
 | `src/lib/install-request-auth.ts` | install request admission과 setup lease state |
 | `src/lib/install-server.ts` | atomic legacy install PTY owner와 bounded I/O |
