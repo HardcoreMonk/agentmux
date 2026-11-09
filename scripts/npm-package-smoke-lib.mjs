@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 const REQUIRED_PACKAGE_FILES = [
+  'bin/agentmux.js',
   'bin/codexmux.js',
   'bin/cli.js',
   'dist/server.js',
@@ -36,15 +37,17 @@ export const assertInstalledPackage = async (packageDir) => {
     await fs.readFile(path.join(packageDir, 'package.json'), 'utf8'),
   );
 
-  if (manifest.name !== 'codexmux') {
+  if (manifest.name !== '@hardcoremonk/agentmux') {
     throw new Error(`unexpected installed package name: ${String(manifest.name)}`);
   }
   if (Object.hasOwn(manifest, 'main')) {
     throw new Error('the npm execution package must not expose a main entry.');
   }
   if (
-    manifest.bin?.codexmux !== 'bin/codexmux.js'
-    || manifest.bin?.cmux !== 'bin/codexmux.js'
+    manifest.bin?.agentmux !== 'bin/agentmux.js'
+    || manifest.bin?.amux !== 'bin/agentmux.js'
+    || manifest.bin?.codexmux !== 'bin/agentmux.js'
+    || manifest.bin?.cmux !== 'bin/agentmux.js'
   ) {
     throw new Error('installed package bin contract is invalid.');
   }

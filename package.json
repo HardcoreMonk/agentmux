@@ -1,16 +1,16 @@
 {
-  "name": "codexmux",
-  "version": "0.4.24",
+  "name": "@hardcoremonk/agentmux",
+  "version": "0.5.0",
   "description": "Manage multiple Codex sessions from your browser",
   "license": "MIT",
   "author": "HardcoreMonk",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HardcoreMonk/codexmux.git"
+    "url": "git+https://github.com/HardcoreMonk/agentmux.git"
   },
-  "homepage": "https://github.com/HardcoreMonk/codexmux",
+  "homepage": "https://github.com/HardcoreMonk/agentmux",
   "bugs": {
-    "url": "https://github.com/HardcoreMonk/codexmux/issues"
+    "url": "https://github.com/HardcoreMonk/agentmux/issues"
   },
   "keywords": [
     "codex",
@@ -25,8 +25,10 @@
   },
   "packageManager": "pnpm@10.32.1",
   "bin": {
-    "codexmux": "bin/codexmux.js",
-    "cmux": "bin/codexmux.js"
+    "agentmux": "bin/agentmux.js",
+    "amux": "bin/agentmux.js",
+    "codexmux": "bin/agentmux.js",
+    "cmux": "bin/agentmux.js"
   },
   "files": [
     "bin/",

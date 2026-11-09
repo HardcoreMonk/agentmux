@@ -114,6 +114,7 @@ const buildServerEnv = (home, port) => {
       || key === '__CMUX_APP_DIR_UNPACKED'
       || key === '__CMUX_PRISTINE_ENV'
       || key.startsWith('__CMUX_BOOTSTRAP_')
+      || key.startsWith('AGENTMUX_RUNTIME_')
       || key.startsWith('CODEXMUX_RUNTIME_')
     ) {
       delete env[key];
@@ -122,6 +123,7 @@ const buildServerEnv = (home, port) => {
   Object.assign(env, {
     HOME: home,
     USERPROFILE: home,
+    TMUX_TMPDIR: path.join(home, 'tmux'),
     HOST: '127.0.0.1',
     PORT: String(port),
     NODE_ENV: 'production',
@@ -132,17 +134,17 @@ const buildServerEnv = (home, port) => {
 };
 
 const main = async () => {
-  tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codexmux-npm-smoke-'));
+  tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-npm-smoke-'));
   const packDir = path.join(tempDir, 'pack');
   const consumerDir = path.join(tempDir, 'consumer');
   const home = path.join(tempDir, 'home');
   await Promise.all([
     fs.mkdir(packDir, { recursive: true }),
     fs.mkdir(consumerDir, { recursive: true }),
-    fs.mkdir(home, { recursive: true }),
+    fs.mkdir(path.join(home, 'tmux'), { recursive: true }),
   ]);
   await fs.writeFile(path.join(consumerDir, 'package.json'), JSON.stringify({
-    name: 'codexmux-npm-smoke-consumer',
+    name: 'agentmux-npm-smoke-consumer',
     private: true,
   }), 'utf8');
 
@@ -163,16 +165,16 @@ const main = async () => {
     tarball,
   ], { cwd: consumerDir });
 
-  const packageDir = path.join(consumerDir, 'node_modules', 'codexmux');
+  const packageDir = path.join(consumerDir, 'node_modules', '@hardcoremonk', 'agentmux');
   await assertInstalledPackage(packageDir);
 
-  const executable = path.join(packageDir, 'bin', 'codexmux.js');
-  const help = await run('npm', ['exec', '--offline', '--', 'codexmux', 'help'], {
+  const executable = path.join(packageDir, 'bin', 'agentmux.js');
+  const help = await run('npm', ['exec', '--offline', '--', 'agentmux', 'help'], {
     cwd: consumerDir,
     env: { ...process.env, NO_UPDATE_NOTIFIER: '1' },
   });
-  if (!help.stdout.includes('codexmux CLI')) {
-    throw new Error('installed codexmux help output is invalid.');
+  if (!help.stdout.includes('agentmux CLI')) {
+    throw new Error('installed agentmux help output is invalid.');
   }
 
   const port = await getFreePort();

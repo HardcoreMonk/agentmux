@@ -3,13 +3,20 @@ import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 interface IPackageManifest {
+  name?: string;
+  version?: string;
   bin?: Record<string, string>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   files?: string[];
+  homepage?: string;
   main?: string;
   publishConfig?: {
     access?: string;
+  };
+  repository?: {
+    type?: string;
+    url?: string;
   };
   scripts?: Record<string, string>;
 }
@@ -21,11 +28,17 @@ describe('npm package contract', () => {
   it('publishes the CLI runtime and postinstall implementation', () => {
     const manifest = readPackageManifest();
 
+    expect(manifest.name).toBe('@hardcoremonk/agentmux');
+    expect(manifest.version).toBe('0.5.0');
     expect(manifest.main).toBeUndefined();
     expect(manifest.bin).toEqual({
-      codexmux: 'bin/codexmux.js',
-      cmux: 'bin/codexmux.js',
+      agentmux: 'bin/agentmux.js',
+      amux: 'bin/agentmux.js',
+      codexmux: 'bin/agentmux.js',
+      cmux: 'bin/agentmux.js',
     });
+    expect(manifest.repository?.url).toBe('git+https://github.com/HardcoreMonk/agentmux.git');
+    expect(manifest.homepage).toBe('https://github.com/HardcoreMonk/agentmux');
     expect(manifest.files).toEqual(expect.arrayContaining([
       'bin/',
       'dist/',
