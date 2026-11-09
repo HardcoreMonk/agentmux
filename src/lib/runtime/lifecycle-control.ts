@@ -303,8 +303,8 @@ export const selectTopPerfTimings = (
 
 export const buildRollbackRunbook = (): string => [
   'Runtime v2 rollback runbook (copy-only):',
-  '1. Set CODEXMUX_RUNTIME_STORAGE_V2_MODE=write.',
-  '2. Set CODEXMUX_RUNTIME_TERMINAL_V2_MODE=off.',
+  '1. Set AGENTMUX_RUNTIME_STORAGE_V2_MODE=write.',
+  '2. Set AGENTMUX_RUNTIME_TERMINAL_V2_MODE=off.',
   '3. Run systemctl --user restart codexmux.service.',
   '4. Recheck lifecycle health and worker diagnostics.',
 ].join('\n');

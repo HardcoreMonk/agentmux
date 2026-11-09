@@ -8,9 +8,9 @@ const main = async (): Promise<void> => {
   const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codexmux-runtime-v2-storage-write-'));
   const originalEnv = {
     HOME: process.env.HOME,
-    CODEXMUX_RUNTIME_V2: process.env.CODEXMUX_RUNTIME_V2,
-    CODEXMUX_RUNTIME_STORAGE_V2_MODE: process.env.CODEXMUX_RUNTIME_STORAGE_V2_MODE,
-    CODEXMUX_RUNTIME_DB: process.env.CODEXMUX_RUNTIME_DB,
+    AGENTMUX_RUNTIME_V2: process.env.AGENTMUX_RUNTIME_V2,
+    AGENTMUX_RUNTIME_STORAGE_V2_MODE: process.env.AGENTMUX_RUNTIME_STORAGE_V2_MODE,
+    AGENTMUX_RUNTIME_DB: process.env.AGENTMUX_RUNTIME_DB,
   };
 
   try {
@@ -54,9 +54,9 @@ const main = async (): Promise<void> => {
     await fs.mkdir(layoutDir, { recursive: true });
     await fs.writeFile(path.join(dataDir, 'workspaces.json'), JSON.stringify(workspacesData), { mode: 0o600 });
     process.env.HOME = homeDir;
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
-    process.env.CODEXMUX_RUNTIME_STORAGE_V2_MODE = 'write';
-    process.env.CODEXMUX_RUNTIME_DB = dbPath;
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
+    process.env.AGENTMUX_RUNTIME_STORAGE_V2_MODE = 'write';
+    process.env.AGENTMUX_RUNTIME_DB = dbPath;
 
     const { writeLayoutFile } = await import('@/lib/layout-store');
     const { openRuntimeDatabase } = await import('@/lib/runtime/storage/schema');
@@ -84,9 +84,9 @@ const main = async (): Promise<void> => {
     }, null, 2));
   } finally {
     process.env.HOME = originalEnv.HOME;
-    process.env.CODEXMUX_RUNTIME_V2 = originalEnv.CODEXMUX_RUNTIME_V2;
-    process.env.CODEXMUX_RUNTIME_STORAGE_V2_MODE = originalEnv.CODEXMUX_RUNTIME_STORAGE_V2_MODE;
-    process.env.CODEXMUX_RUNTIME_DB = originalEnv.CODEXMUX_RUNTIME_DB;
+    process.env.AGENTMUX_RUNTIME_V2 = originalEnv.AGENTMUX_RUNTIME_V2;
+    process.env.AGENTMUX_RUNTIME_STORAGE_V2_MODE = originalEnv.AGENTMUX_RUNTIME_STORAGE_V2_MODE;
+    process.env.AGENTMUX_RUNTIME_DB = originalEnv.AGENTMUX_RUNTIME_DB;
     await fs.rm(homeDir, { recursive: true, force: true });
   }
 };

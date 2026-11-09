@@ -165,7 +165,7 @@ export const routeWebSocketUpgrade = async ({
   fallbackUpgrade,
   verifyRuntimeAuth = verifyRuntimeV2WebSocketAuth,
   verifyGenericAuth,
-  runtimeEnabled = () => process.env.CODEXMUX_RUNTIME_V2 === '1',
+  runtimeEnabled = () => process.env.AGENTMUX_RUNTIME_V2 === '1',
 }: IRouteWebSocketUpgradeOptions): Promise<void> => {
   const rawUrl = typeof request.url === 'string' ? request.url : '';
   if (

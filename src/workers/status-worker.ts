@@ -1,3 +1,4 @@
+import '@/lib/legacy-env-bootstrap';
 import { createRuntimeReply, parseRuntimeMessage } from '@/lib/runtime/ipc';
 import { createStatusWorkerService } from '@/lib/runtime/status/worker-service';
 

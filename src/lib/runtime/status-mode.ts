@@ -15,23 +15,23 @@ export const parseRuntimeStatusV2Mode = (value: unknown): TRuntimeStatusV2Mode =
 export const resolveRuntimeStatusV2Mode = (
   options: IRuntimeStatusV2ModeOptions = {},
 ): TRuntimeStatusV2Mode => {
-  const runtimeV2Enabled = options.runtimeV2Enabled ?? process.env.CODEXMUX_RUNTIME_V2 === '1';
+  const runtimeV2Enabled = options.runtimeV2Enabled ?? process.env.AGENTMUX_RUNTIME_V2 === '1';
   const statusMode = Object.hasOwn(options, 'statusMode')
     ? options.statusMode
-    : process.env.CODEXMUX_RUNTIME_STATUS_V2_MODE;
+    : process.env.AGENTMUX_RUNTIME_STATUS_V2_MODE;
   if (statusMode === undefined && runtimeV2Enabled) return defaultRuntimeStatusV2Mode;
   return parseRuntimeStatusV2Mode(statusMode);
 };
 
 export const getRuntimeStatusV2Mode = (env: NodeJS.ProcessEnv = process.env): TRuntimeStatusV2Mode =>
   resolveRuntimeStatusV2Mode({
-    runtimeV2Enabled: env.CODEXMUX_RUNTIME_V2 === '1',
-    statusMode: env.CODEXMUX_RUNTIME_STATUS_V2_MODE,
+    runtimeV2Enabled: env.AGENTMUX_RUNTIME_V2 === '1',
+    statusMode: env.AGENTMUX_RUNTIME_STATUS_V2_MODE,
   });
 
 export const shouldUseRuntimeStatusV2Live = ({
-  runtimeV2Enabled = process.env.CODEXMUX_RUNTIME_V2 === '1',
-  statusMode = process.env.CODEXMUX_RUNTIME_STATUS_V2_MODE,
+  runtimeV2Enabled = process.env.AGENTMUX_RUNTIME_V2 === '1',
+  statusMode = process.env.AGENTMUX_RUNTIME_STATUS_V2_MODE,
 }: IRuntimeStatusV2ModeOptions = {}): boolean => {
   if (!runtimeV2Enabled) return false;
   return resolveRuntimeStatusV2Mode({ runtimeV2Enabled, statusMode }) === 'default';

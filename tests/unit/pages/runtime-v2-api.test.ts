@@ -88,11 +88,11 @@ const createRequest = (input: {
 
 describe('runtime v2 api routes', () => {
   beforeEach(() => {
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
-    delete process.env.CODEXMUX_RUNTIME_TERMINAL_V2_MODE;
-    delete process.env.CODEXMUX_RUNTIME_STORAGE_V2_MODE;
-    delete process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
-    delete process.env.CODEXMUX_RUNTIME_STATUS_V2_MODE;
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
+    delete process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE;
+    delete process.env.AGENTMUX_RUNTIME_STORAGE_V2_MODE;
+    delete process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
+    delete process.env.AGENTMUX_RUNTIME_STATUS_V2_MODE;
     mocks.auth.mockReset();
     mocks.getRuntimeSupervisor.mockClear();
     Object.values(mocks.supervisor).forEach((mock) => mock.mockReset());
@@ -130,7 +130,7 @@ describe('runtime v2 api routes', () => {
   });
 
   it('returns disabled before auth when runtime v2 flag is off', async () => {
-    process.env.CODEXMUX_RUNTIME_V2 = '0';
+    process.env.AGENTMUX_RUNTIME_V2 = '0';
     mocks.auth.mockResolvedValue(false);
     const cases = [
       { handler: healthHandler, request: createRequest({ method: 'GET' }) },
@@ -180,10 +180,10 @@ describe('runtime v2 api routes', () => {
   });
 
   it('returns health and workspace lists', async () => {
-    process.env.CODEXMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
-    process.env.CODEXMUX_RUNTIME_STORAGE_V2_MODE = 'write';
-    process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = 'shadow';
-    process.env.CODEXMUX_RUNTIME_STATUS_V2_MODE = 'shadow';
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
+    process.env.AGENTMUX_RUNTIME_STORAGE_V2_MODE = 'write';
+    process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = 'shadow';
+    process.env.AGENTMUX_RUNTIME_STATUS_V2_MODE = 'shadow';
     const health = createResponse();
     await healthHandler(createRequest({ method: 'GET' }), health.res);
     expect(health.statusCode).toBe(200);

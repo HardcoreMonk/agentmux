@@ -1,3 +1,4 @@
+import '@/lib/legacy-env-bootstrap';
 import { createRuntimeReply, parseRuntimeMessage } from '@/lib/runtime/ipc';
 import { createTimelineWorkerService } from '@/lib/runtime/timeline/worker-service';
 import {

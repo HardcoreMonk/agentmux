@@ -1,4 +1,5 @@
-if (!process.env.CODEXMUX_CLI) process.env.CODEXMUX_CLI = '1';
+import './src/lib/legacy-env-bootstrap';
+if (!process.env.AGENTMUX_CLI) process.env.AGENTMUX_CLI = '1';
 import './src/lib/pristine-env';
 import { createServer, request as httpRequest } from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
@@ -343,7 +344,7 @@ const shutdownRuntimeResources = async (): Promise<void> => {
     () => releaseLock(),
     () => removePortFile(),
     () => {
-      if (process.env.CODEXMUX_RUNTIME_V2 === '1') {
+      if (process.env.AGENTMUX_RUNTIME_V2 === '1') {
         getRuntimeSupervisor().shutdown();
       }
     },
@@ -496,10 +497,10 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
   if (shouldPrewarmSessionIndexOnStartup()) {
     await initSessionIndexService();
   }
-  if (process.env.CODEXMUX_RUNTIME_V2 === '1') {
+  if (process.env.AGENTMUX_RUNTIME_V2 === '1') {
     runRuntimeStartupDiagnostic(getRuntimeSupervisor(), log);
   }
-  if (process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default') {
+  if (process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default') {
     try {
       await getRuntimeSupervisor().startStatusLive();
     } catch (err) {
@@ -527,7 +528,7 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
       setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
       clearTimeout: (timer) => clearTimeout(timer),
     },
-    disabled: process.env.CODEXMUX_UPLOADS_DISABLED === '1',
+    disabled: process.env.AGENTMUX_UPLOADS_DISABLED === '1',
   });
   const result = dev
     ? await startDev(port, appDir, bindPlan.host, uploadServer)

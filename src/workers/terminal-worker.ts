@@ -1,3 +1,4 @@
+import '@/lib/legacy-env-bootstrap';
 import { createRuntimeReply, parseRuntimeMessage } from '@/lib/runtime/ipc';
 import { createTerminalRuntimeAdapter } from '@/lib/runtime/terminal/terminal-runtime-adapter-factory';
 import { createTerminalWorkerService } from '@/lib/runtime/terminal/terminal-worker-service';

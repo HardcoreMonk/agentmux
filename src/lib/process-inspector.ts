@@ -33,7 +33,7 @@ export type TProcessInspectorAdapterKind = 'posix' | 'windows';
 
 export interface IProcessInspectorAdapterFactoryEnv {
   [key: string]: string | undefined;
-  CODEXMUX_PROCESS_INSPECTOR_ADAPTER?: string;
+  AGENTMUX_PROCESS_INSPECTOR_ADAPTER?: string;
 }
 
 export interface IResolveProcessInspectorAdapterKindOptions {
@@ -253,7 +253,7 @@ export const resolveProcessInspectorAdapterKind = ({
   env = process.env,
   platform = process.platform,
 }: IResolveProcessInspectorAdapterKindOptions = {}): TProcessInspectorAdapterKind => {
-  const value = env.CODEXMUX_PROCESS_INSPECTOR_ADAPTER?.trim().toLowerCase();
+  const value = env.AGENTMUX_PROCESS_INSPECTOR_ADAPTER?.trim().toLowerCase();
   if (!value) return platform === 'win32' ? 'windows' : 'posix';
   if (value === 'posix') return 'posix';
   if (value === 'windows') return 'windows';

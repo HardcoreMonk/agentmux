@@ -33,14 +33,14 @@ describe('process inspector adapter factory', () => {
 
   it('resolves the Windows process inspector kind without claiming it is implemented', () => {
     expect(resolveProcessInspectorAdapterKind({
-      env: { CODEXMUX_PROCESS_INSPECTOR_ADAPTER: 'windows' },
+      env: { AGENTMUX_PROCESS_INSPECTOR_ADAPTER: 'windows' },
       platform: 'win32',
     })).toBe('windows');
   });
 
   it('fails closed when an unknown process inspector adapter is requested', () => {
     expect(() => resolveProcessInspectorAdapterKind({
-      env: { CODEXMUX_PROCESS_INSPECTOR_ADAPTER: 'wmic' },
+      env: { AGENTMUX_PROCESS_INSPECTOR_ADAPTER: 'wmic' },
       platform: 'win32',
     })).toThrow(expect.objectContaining({
       code: 'runtime-v2-process-inspector-adapter-unsupported',
@@ -50,7 +50,7 @@ describe('process inspector adapter factory', () => {
 
   it('creates the selected POSIX process inspector through an injectable factory', async () => {
     const inspector = createProcessInspectorAdapter({
-      env: { CODEXMUX_PROCESS_INSPECTOR_ADAPTER: 'posix' },
+      env: { AGENTMUX_PROCESS_INSPECTOR_ADAPTER: 'posix' },
       createPosixInspector: createFakeInspector,
     });
 
@@ -59,7 +59,7 @@ describe('process inspector adapter factory', () => {
 
   it('creates the selected Windows process inspector through the factory', async () => {
     const inspector = createProcessInspectorAdapter({
-      env: { CODEXMUX_PROCESS_INSPECTOR_ADAPTER: 'windows' },
+      env: { AGENTMUX_PROCESS_INSPECTOR_ADAPTER: 'windows' },
       platform: 'win32',
     });
 

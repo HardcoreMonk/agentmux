@@ -23,25 +23,25 @@ vi.mock('@/lib/runtime/supervisor', () => ({
 
 import handler from '@/pages/api/timeline/sessions';
 
-const originalRuntimeV2 = process.env.CODEXMUX_RUNTIME_V2;
-const originalTimelineMode = process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
+const originalRuntimeV2 = process.env.AGENTMUX_RUNTIME_V2;
+const originalTimelineMode = process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
 
 const restoreEnv = () => {
   if (originalRuntimeV2 === undefined) {
-    delete process.env.CODEXMUX_RUNTIME_V2;
+    delete process.env.AGENTMUX_RUNTIME_V2;
   } else {
-    process.env.CODEXMUX_RUNTIME_V2 = originalRuntimeV2;
+    process.env.AGENTMUX_RUNTIME_V2 = originalRuntimeV2;
   }
   if (originalTimelineMode === undefined) {
-    delete process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
+    delete process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
   } else {
-    process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = originalTimelineMode;
+    process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = originalTimelineMode;
   }
 };
 
 const clearRuntimeEnv = () => {
-  delete process.env.CODEXMUX_RUNTIME_V2;
-  delete process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
+  delete process.env.AGENTMUX_RUNTIME_V2;
+  delete process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
 };
 
 const createResponse = () => {
@@ -144,8 +144,8 @@ describe('/api/timeline/sessions', () => {
   });
 
   it('uses runtime v2 read ownership in default mode', async () => {
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
-    process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = 'default';
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
+    process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = 'default';
     const response = createResponse();
 
     await handler(createRequest({

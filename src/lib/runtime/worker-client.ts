@@ -235,7 +235,7 @@ export class RuntimeWorkerClient {
       stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
       env: {
         ...process.env,
-        ...(process.env.CODEXMUX_RUNTIME_DB ? { CODEXMUX_RUNTIME_DB: process.env.CODEXMUX_RUNTIME_DB } : {}),
+        ...(process.env.AGENTMUX_RUNTIME_DB ? { AGENTMUX_RUNTIME_DB: process.env.AGENTMUX_RUNTIME_DB } : {}),
       },
     });
   }

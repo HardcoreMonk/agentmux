@@ -28,19 +28,19 @@ vi.mock('@/lib/runtime/supervisor', () => ({
 import entriesHandler from '@/pages/api/timeline/entries';
 import messageCountsHandler from '@/pages/api/timeline/message-counts';
 
-const originalRuntimeV2 = process.env.CODEXMUX_RUNTIME_V2;
-const originalTimelineMode = process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
+const originalRuntimeV2 = process.env.AGENTMUX_RUNTIME_V2;
+const originalTimelineMode = process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
 
 const restoreEnv = () => {
   if (originalRuntimeV2 === undefined) {
-    delete process.env.CODEXMUX_RUNTIME_V2;
+    delete process.env.AGENTMUX_RUNTIME_V2;
   } else {
-    process.env.CODEXMUX_RUNTIME_V2 = originalRuntimeV2;
+    process.env.AGENTMUX_RUNTIME_V2 = originalRuntimeV2;
   }
   if (originalTimelineMode === undefined) {
-    delete process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
+    delete process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
   } else {
-    process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = originalTimelineMode;
+    process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = originalTimelineMode;
   }
 };
 
@@ -107,8 +107,8 @@ describe('timeline legacy read routes in runtime v2 default mode', () => {
   });
 
   it('routes entries-before through the Timeline Worker', async () => {
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
-    process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = 'default';
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
+    process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = 'default';
     const response = createResponse();
 
     await entriesHandler(createRequest({
@@ -129,8 +129,8 @@ describe('timeline legacy read routes in runtime v2 default mode', () => {
   });
 
   it('routes message counts through the Timeline Worker', async () => {
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
-    process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = 'default';
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
+    process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = 'default';
     const response = createResponse();
 
     await messageCountsHandler(createRequest({

@@ -55,7 +55,7 @@ const defaultServiceName = 'codexmux';
 export const resolveWindowsServiceHostOwner = (
   env: TWindowsServiceHostEnv,
 ): IWindowsServiceHostOwnerResult => {
-  const value = env.CODEXMUX_WINDOWS_HOST_OWNER?.trim().toLowerCase();
+  const value = env.AGENTMUX_WINDOWS_HOST_OWNER?.trim().toLowerCase();
   if (!value) return { ok: true, owner: 'tray' };
   if (value === 'tray' || value === 'service' || value === 'installer-background') {
     return { ok: true, owner: value };
@@ -75,7 +75,7 @@ export const resolveWindowsServiceHostPlan = ({
   const ownerResult = resolveWindowsServiceHostOwner(env);
   const owner = ownerResult.ok ? ownerResult.owner! : 'tray';
   const hostPaths = resolveHostPaths({ platform, env });
-  const serviceName = env.CODEXMUX_WINDOWS_SERVICE_NAME?.trim() || defaultServiceName;
+  const serviceName = env.AGENTMUX_WINDOWS_SERVICE_NAME?.trim() || defaultServiceName;
   const port = env.PORT?.trim() || defaultPort;
   const host = env.HOST?.trim() || defaultHost;
 
@@ -99,9 +99,9 @@ export const resolveWindowsServiceHostPlan = ({
       args: ['pnpm', 'start'],
       cwd: appDir,
       env: {
-        CODEXMUX_RUNTIME_V2: '1',
-        CODEXMUX_RUNTIME_TERMINAL_ADAPTER: 'windows',
-        CODEXMUX_PROCESS_INSPECTOR_ADAPTER: 'windows',
+        AGENTMUX_RUNTIME_V2: '1',
+        AGENTMUX_RUNTIME_TERMINAL_ADAPTER: 'windows',
+        AGENTMUX_PROCESS_INSPECTOR_ADAPTER: 'windows',
         HOST: host,
         PORT: port,
       },

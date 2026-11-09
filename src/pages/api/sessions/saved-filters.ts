@@ -8,7 +8,7 @@ import {
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (process.env.CODEXMUX_RUNTIME_V2 !== '1') return sendRuntimeDisabled(res);
+  if (process.env.AGENTMUX_RUNTIME_V2 !== '1') return sendRuntimeDisabled(res);
   const mutation = req.method === 'PUT' || req.method === 'DELETE';
   const authorization = await authorizeRuntimeV2ApiRequest(req, mutation ? { mutation: true } : {});
   if (!authorization.authorized) return res.status(authorization.statusCode).json({ error: authorization.reason });

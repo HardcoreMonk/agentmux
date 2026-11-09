@@ -262,7 +262,7 @@ export interface ICreateRuntimeSupervisorForTestOptions {
 const g = globalThis as unknown as IRuntimeSupervisorGlobalState;
 
 const getDbPath = (): string =>
-  process.env.CODEXMUX_RUNTIME_DB || path.join(getDataDir(), 'runtime-v2', 'state.db');
+  process.env.AGENTMUX_RUNTIME_DB || path.join(getDataDir(), 'runtime-v2', 'state.db');
 
 const runtimeDbFiles = (dbPath: string): string[] => [dbPath, `${dbPath}-wal`, `${dbPath}-shm`];
 
@@ -316,7 +316,7 @@ export const createRuntimeSupervisorForTest = (
     if (preparedDbPath) return preparedDbPath;
 
     const dbPath = options.dbPath ?? getDbPath();
-    const reset = options.runtimeReset ?? process.env.CODEXMUX_RUNTIME_V2_RESET === '1';
+    const reset = options.runtimeReset ?? process.env.AGENTMUX_RUNTIME_V2_RESET === '1';
     if (reset && hasRuntimeDbFiles(dbPath)) backupRuntimeDbFiles(dbPath);
     preparedDbPath = dbPath;
     if (options.useGlobal) g.__ptRuntimeSupervisorPreparedDbPath = dbPath;
@@ -664,7 +664,7 @@ export const createRuntimeSupervisorForTest = (
 
   const startInternal = async (): Promise<void> => {
     if (started) return;
-    process.env.CODEXMUX_RUNTIME_DB = prepareRuntimeDbPath();
+    process.env.AGENTMUX_RUNTIME_DB = prepareRuntimeDbPath();
     const { storage, terminal, timeline, status, governance } = getClients();
     try {
       storage.start();

@@ -82,7 +82,7 @@ const createRequest = ({
 
 describe('session catalog API', () => {
   beforeEach(() => {
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
     mocks.auth.mockReset().mockResolvedValue({ authorized: true, credential: { kind: 'session' } });
     mocks.getRuntimeSupervisor.mockClear();
     Object.values(mocks.supervisor).forEach((mock) => mock.mockReset());

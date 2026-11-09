@@ -17,15 +17,15 @@ describe('runtime timeline v2 mode', () => {
 
   it('defaults to timeline default when runtime v2 is enabled and timeline mode is unset', () => {
     expect(getRuntimeTimelineV2Mode({
-      CODEXMUX_RUNTIME_V2: '1',
+      AGENTMUX_RUNTIME_V2: '1',
     } as unknown as NodeJS.ProcessEnv)).toBe('default');
     expect(getRuntimeTimelineV2Mode({
-      CODEXMUX_RUNTIME_V2: '1',
-      CODEXMUX_RUNTIME_TIMELINE_V2_MODE: 'off',
+      AGENTMUX_RUNTIME_V2: '1',
+      AGENTMUX_RUNTIME_TIMELINE_V2_MODE: 'off',
     } as unknown as NodeJS.ProcessEnv)).toBe('off');
     expect(getRuntimeTimelineV2Mode({
-      CODEXMUX_RUNTIME_V2: '1',
-      CODEXMUX_RUNTIME_TIMELINE_V2_MODE: 'invalid',
+      AGENTMUX_RUNTIME_V2: '1',
+      AGENTMUX_RUNTIME_TIMELINE_V2_MODE: 'invalid',
     } as unknown as NodeJS.ProcessEnv)).toBe('off');
     expect(getRuntimeTimelineV2Mode({} as unknown as NodeJS.ProcessEnv)).toBe('off');
   });
@@ -46,20 +46,20 @@ describe('runtime timeline v2 mode', () => {
   });
 
   it('uses the process env phase 6 fallback for live timeline ownership', () => {
-    const originalRuntime = process.env.CODEXMUX_RUNTIME_V2;
-    const originalMode = process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
+    const originalRuntime = process.env.AGENTMUX_RUNTIME_V2;
+    const originalMode = process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
     try {
-      process.env.CODEXMUX_RUNTIME_V2 = '1';
-      delete process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
+      process.env.AGENTMUX_RUNTIME_V2 = '1';
+      delete process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
       expect(shouldUseRuntimeTimelineV2Live()).toBe(true);
 
-      process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = 'off';
+      process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = 'off';
       expect(shouldUseRuntimeTimelineV2Live()).toBe(false);
     } finally {
-      if (originalRuntime === undefined) delete process.env.CODEXMUX_RUNTIME_V2;
-      else process.env.CODEXMUX_RUNTIME_V2 = originalRuntime;
-      if (originalMode === undefined) delete process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE;
-      else process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = originalMode;
+      if (originalRuntime === undefined) delete process.env.AGENTMUX_RUNTIME_V2;
+      else process.env.AGENTMUX_RUNTIME_V2 = originalRuntime;
+      if (originalMode === undefined) delete process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE;
+      else process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = originalMode;
     }
   });
 
@@ -95,7 +95,7 @@ describe('runtime timeline v2 mode', () => {
 
   it('reads timeline mode from an explicit env object', () => {
     expect(getRuntimeTimelineV2Mode({
-      CODEXMUX_RUNTIME_TIMELINE_V2_MODE: 'shadow',
+      AGENTMUX_RUNTIME_TIMELINE_V2_MODE: 'shadow',
     } as unknown as NodeJS.ProcessEnv)).toBe('shadow');
   });
 });

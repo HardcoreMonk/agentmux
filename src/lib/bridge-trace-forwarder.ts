@@ -102,8 +102,8 @@ export const buildBridgeTracePayload = (
 export const createBridgeTraceForwarder = (
   options: IBridgeTraceForwarderOptions = {},
 ): IBridgeTraceForwarder => {
-  const url = (options.url ?? process.env.CODEXMUX_BRIDGE_TRACE_URL ?? '').trim();
-  const token = (options.token ?? process.env.CODEXMUX_BRIDGE_TRACE_TOKEN ?? '').trim();
+  const url = (options.url ?? process.env.AGENTMUX_BRIDGE_TRACE_URL ?? '').trim();
+  const token = (options.token ?? process.env.AGENTMUX_BRIDGE_TRACE_TOKEN ?? '').trim();
   const fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   const now = options.now ?? (() => new Date());
   const getWorkspaces = options.getWorkspaces ?? loadWorkspaces;

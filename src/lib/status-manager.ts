@@ -863,7 +863,7 @@ export class StatusManager {
     input: IStatusSideEffectPolicyInput,
     expected: IStatusSideEffectIntent,
   ): void {
-    if (process.env.CODEXMUX_RUNTIME_V2 !== '1' || getRuntimeStatusV2Mode() !== 'shadow') return;
+    if (process.env.AGENTMUX_RUNTIME_V2 !== '1' || getRuntimeStatusV2Mode() !== 'shadow') return;
 
     getRuntimeSupervisor().evaluateStatusSideEffects(input).then((actual) => {
       const comparison = compareRuntimeStatusShadowDecision('side-effect', expected, actual);
@@ -905,7 +905,7 @@ export class StatusManager {
 
   private shouldUseRuntimeStatusDefault(): boolean {
     return this.options.useRuntimeAdapters !== false
-      && process.env.CODEXMUX_RUNTIME_V2 === '1'
+      && process.env.AGENTMUX_RUNTIME_V2 === '1'
       && getRuntimeStatusV2Mode() === 'default';
   }
 
@@ -976,7 +976,7 @@ export class StatusManager {
     input: IStatusClientEventPolicyInput,
     expected: IStatusClientEventIntent,
   ): void {
-    if (process.env.CODEXMUX_RUNTIME_V2 !== '1' || getRuntimeStatusV2Mode() !== 'shadow') return;
+    if (process.env.AGENTMUX_RUNTIME_V2 !== '1' || getRuntimeStatusV2Mode() !== 'shadow') return;
 
     getRuntimeSupervisor().evaluateStatusClientEvent(input).then((actual) => {
       const comparison = compareRuntimeStatusShadowDecision('client-event', expected, actual);

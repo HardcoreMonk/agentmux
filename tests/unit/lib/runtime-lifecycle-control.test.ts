@@ -312,8 +312,8 @@ describe('runtime lifecycle control helpers', () => {
   it('builds a copy-only rollback runbook without secrets', () => {
     const runbook = buildRollbackRunbook();
 
-    expect(runbook).toContain('CODEXMUX_RUNTIME_STORAGE_V2_MODE=write');
-    expect(runbook).toContain('CODEXMUX_RUNTIME_TERMINAL_V2_MODE=off');
+    expect(runbook).toContain('AGENTMUX_RUNTIME_STORAGE_V2_MODE=write');
+    expect(runbook).toContain('AGENTMUX_RUNTIME_TERMINAL_V2_MODE=off');
     expect(runbook).toContain('systemctl --user restart codexmux.service');
     expect(runbook).not.toContain('x-cmux-token');
     expect(runbook).not.toContain('~/.codexmux/cli-token');
