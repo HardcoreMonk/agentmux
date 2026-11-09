@@ -73,6 +73,23 @@ describe('check-product-name', () => {
     expect(violations.map((v: { line: number }) => v.line)).toEqual([2]);
   });
 
+  it('scans the Android launcher but allows its preserved storage keys and bridge name', async () => {
+    const { findProductNameViolations, isProductNameScanTarget } = await loadLib();
+    expect(isProductNameScanTarget('android-web/index.html')).toBe(true);
+    const violations = findProductNameViolations([
+      {
+        path: 'android-web/index.html',
+        content: [
+          '<h1>codexmux</h1>',
+          "const CURRENT_KEY = 'codexmux:server-url';",
+          "const RECENT_KEY = 'codexmux:recent-server-urls';",
+          'const api = window.CodexmuxAndroid;',
+        ].join('\n'),
+      },
+    ]);
+    expect(violations.map((v: { line: number }) => v.line)).toEqual([1]);
+  });
+
   it('ignores files outside the product name scan scope and binary assets in public/', async () => {
     const { findProductNameViolations, isProductNameScanTarget } = await loadLib();
     expect(isProductNameScanTarget('README.md')).toBe(true);

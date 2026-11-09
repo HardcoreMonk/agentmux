@@ -115,13 +115,13 @@ installer/package gate로 확인합니다.
 
 | 항목 | 상태 |
 | --- | --- |
-| Live build | `5b0cf14f`, version `0.5.0` (2026-11-09 agentmux 전환) |
+| Live build | `e369598b`, version `0.5.0` (2026-11-10 logo 수정 배포, branch `chore/android-launcher-and-handoff`. agentmux 전환 build는 `5b0cf14f`) |
 | user service | `agentmux.service` enabled, `active/running`, authenticated, port `8122`. Rollback unit `codexmux.service`(legacy)는 disable 보존 |
 | Runtime v2 | terminal `new-tabs`, storage/timeline/status `default` |
 | Session Catalog/Governance | Session Catalog `ready`, Governance `state=ready`, `writeState=disabled`, DB/WAL/SHM `0600` |
 | governance gate | `agentmux.service.d/governance-writes.conf` 미설치 → governed write 비활성. 활성화는 별도 승인 뒤 |
 | latest backup | `runtime-v2-storage-20260823T135639Z`, service 정지 중 durable/workspace state 5개, `0700/0600` |
-| latest restart | 2026-11-09 18:19 KST host 재부팅 뒤 자동 시작, PID `3739`. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
+| latest restart | 2026-11-10 07:02 KST `deploy:local` 재시작, PID `2076015`. tmux 서버 `43870`과 session은 재시작 전후 유지. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
 | issue (이전 이름 저장소 기록) | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
 | 운영 handoff | `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
 
@@ -250,6 +250,8 @@ Plan Grilling, plan review와 별도 release gate를 거쳐야 합니다.
 | Full-output search | bounded message search/snippet만 제공 | secret/terminal output policy, quota, encryption/retention과 explicit opt-in |
 | npm 첫 배포(보류) | `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux`(legacy package) deprecate, trusted publisher 연결 미실행. `v0.5.0` tag push는 Windows release workflow도 실행하므로 별도 결정 | 첫 배포 절차, tag 정책과 Windows release 분리 여부, deprecate 문구 |
 | Data 실제 이전 | `~/.codexmux`가 실제 경로이고 `~/.agentmux`는 별칭 | rollback 창 종료 뒤 `~/.agentmux` 실제 이전, `codexmux.service`와 옛 checkout 정리 |
+| Multi-agent (Claude Code + Codex) | brainstorming 중. 한 화면 동시 실행, 일 나누기, 상호 리뷰가 목표이고 Herdr `hc`/desktop app이 참고 모델. 위임 자동화(옛 3번 프로젝트) 통합 여부 미정. `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | 사람 개입 시점, 위임 주체, Claude Code 상태 감지 방식, agent 간 회신 계약을 정한 설계 문서 승인 |
+| Android 앱 `0.5.0` | Linux 서버 client 유지로 결정. Launcher 표시 문구 정리, product name gate 범위 확장, debug/release APK와 release AAB 빌드(label agentmux, `versionCode=500`, app ID와 release 서명 인증서 유지) 완료. 실제 폰에서 debug `0.5`로 `smoke:android:foreground` 통과 뒤 사용자 결정으로 signed release `0.5`로 재설치(저장 주소·로그인 초기화) | 웹 UI logo(`app-logo.tsx`)의 옛 이름은 `e369598b`로 고쳐 live 배포했고 폰에서 `agent`+`mux` 표시 확인. Branch push와 PR. Release 앱은 WebView devtools가 꺼져 CDP smoke 대상이 아님 |
 
 ## Codex lifecycle 기준
 

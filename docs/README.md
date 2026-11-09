@@ -18,7 +18,7 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `PROJECT-DESIGN.md` | 제품/아키텍처 설계 요약과 주요 구성 |
 | `WINDOWS-ONLY-GAP-AUDIT.md` | ADR-023 기간의 Windows 전환 gap과 release 증거 보존 |
 | `PURPLEMUX-ADOPTION-AUDIT.md` | Purplemux 계보, 보안/구조 차이, 선택 이식 우선순위 |
-| `HERDR-ADOPTION-AUDIT.md` | Herdr 기능 인벤토리, agentmux(이전 이름 `codexmux`) 대비 비교, 차용 후보와 제외 범위 |
+| `HERDR-ADOPTION-AUDIT.md` | Herdr 기능 인벤토리, agentmux(이전 이름 `codexmux`) 대비 비교, 차용 후보와 제외 범위, 2026-11-10 보충 감사(herdr-core/app, multi-agent 기능) |
 | `ARCHITECTURE-LOGIC.md` | Linux engine, runtime worker, Session Catalog, Project Governance와 API 흐름 |
 | `RUNTIME-V2-CUTOVER.md` | runtime v2 production 전환 단계와 rollback 기준 |
 | `RUNTIME-V2-PARITY.md` | runtime v2 surface별 parity와 증거 |
@@ -50,6 +50,8 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `operations/2026-08-22-live-verification-maintenance-handoff.md` | 실제 Managed Project/Session Catalog 검증, 301초 재연결 관찰, release·Dependabot 유지보수 결과 |
 | `operations/2026-08-23-navigation-selection-clarity-handoff.md` | Workspace/Sessions/Governance 탐색 명료화, lifecycle IPC hotfix, live 배포와 rollback 기준 |
 | `operations/2026-08-24-public-site-opencodex-renewal-handoff.md` | Public home/docs 공통 shell 리뉴얼, Pages 배포와 live desktop/mobile smoke |
+| `operations/2026-11-09-agentmux-rename-handoff.md` | agentmux 이름 변경과 tmux 서버 분리 release, live 전환·재부팅 검증, npm 배포 보류 |
+| `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | Multi-agent(Claude Code + Codex) 설계 논의 중간 상태, Herdr 보충 감사, Android 재빌드 확인 |
 
 보존된 Windows stable release `v0.4.22`는 같은 hostname의 Purplemux와 동시 실행하기 위한 cookie namespace 수정을
 포함하고 fresh Windows package/published updater와 privacy gate를 통과해 stable/latest로
