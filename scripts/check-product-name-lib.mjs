@@ -10,6 +10,7 @@ export const PRODUCT_NAME_SCAN_GLOBS = [
   'landing-src/**',
   'capacitor.config.ts',
   'android/app/src/main/res/values/strings.xml',
+  'android-web/index.html',
   'README.md',
   'AGENTS.md',
   'CLAUDE.md',
@@ -37,6 +38,7 @@ const EXACT_SCAN_FILES = new Set([
   'bin/cli.js',
   'capacitor.config.ts',
   'android/app/src/main/res/values/strings.xml',
+  'android-web/index.html',
   'README.md',
   'AGENTS.md',
   'CLAUDE.md',
@@ -110,6 +112,9 @@ const PRESERVED_IDENTIFIERS = [
   'cmux.lock',
   '.codexmux\\',
   '"app":"codexmux"',
+  'codexmux:server-url',
+  'codexmux:recent-server-urls',
+  'CodexmuxAndroid',
 ];
 
 const COMPATIBILITY_LINE_PATTERN = /(?:legacy|formerly|호환|별칭|이전 이름)/i;
