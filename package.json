@@ -82,6 +82,7 @@
     "smoke:electron:runtime-v2": "node scripts/smoke-electron-runtime-v2.mjs",
     "smoke:permission": "node scripts/smoke-permission-prompt.mjs",
     "smoke:codex-session-hooks": "tsx scripts/smoke-codex-session-hooks.ts",
+    "smoke:tmux-scope": "node node_modules/tsx/dist/cli.mjs scripts/smoke-tmux-scope-isolation.ts",
     "smoke:npm-package": "corepack pnpm build && node scripts/smoke-npm-package.mjs",
     "smoke:pwa": "node scripts/smoke-pwa-readiness.mjs",
     "smoke:browser-reconnect": "node scripts/smoke-browser-reconnect-dom.mjs",

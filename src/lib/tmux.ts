@@ -8,6 +8,7 @@ import { buildShellLaunchCommand } from '@/lib/shell-env';
 import { createLogger } from '@/lib/logger';
 import { isLinux } from '@/lib/platform';
 import { getDescendantPids, getLatestChildPid, getProcessCommandLine, getProcessCwd } from '@/lib/session-detection';
+import { adoptTmuxServerIntoScope, shouldIsolateTmuxServer } from '@/lib/tmux-server-scope';
 
 const log = createLogger('terminal');
 
@@ -61,6 +62,12 @@ export const createSession = async (
     },
   );
   await applyConfig();
+  if (shouldIsolateTmuxServer(process.env)) {
+    const scopeResult = await adoptTmuxServerIntoScope(TMUX_SOCKET);
+    if (scopeResult.status === 'failed') {
+      log.warn(`tmux server scope adoption failed for ${TMUX_SOCKET}: ${scopeResult.reason ?? 'unknown'}`);
+    }
+  }
   log.debug(`tmux session created: ${name} (cols: ${cols}, rows: ${rows})`);
 };
 

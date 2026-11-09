@@ -15,6 +15,7 @@ import {
   prepareDataDir,
   type IDataDirConflictError,
 } from './src/lib/app-identity';
+import { ensureTmuxServerIsolation } from './src/lib/tmux-server-scope';
 import {
   buildCookieHeader,
   signSessionToken,
@@ -476,6 +477,15 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
       process.exit(1);
     }
     throw err;
+  }
+
+  const tmuxScopeResults = await ensureTmuxServerIsolation();
+  for (const scopeResult of tmuxScopeResults) {
+    if (scopeResult.status === 'failed') {
+      log.warn(`tmux scope isolation failed (pid=${scopeResult.pid ?? 'none'}): ${scopeResult.reason ?? 'unknown'}`);
+    } else if (scopeResult.status === 'adopted' || scopeResult.status === 'already-isolated') {
+      log.info(`tmux scope isolation ${scopeResult.status} (pid=${scopeResult.pid ?? 'none'})`);
+    }
   }
 
   const port = opts?.port ?? parseInt(process.env.PORT || String(DEFAULT_PORT), 10);

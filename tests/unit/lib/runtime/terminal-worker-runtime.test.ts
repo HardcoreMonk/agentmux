@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { TAdoptResult } from '@/lib/tmux-server-scope';
 
 const execFileMock = vi.hoisted(() => vi.fn());
 const ptySpawnMock = vi.hoisted(() => vi.fn());
 const resolveRuntimeTmuxConfigPathMock = vi.hoisted(() => vi.fn(() => '/repo/src/config/tmux.conf'));
+const shouldIsolateTmuxServerMock = vi.hoisted(() => vi.fn(() => false));
+const adoptTmuxServerIntoScopeMock = vi.hoisted(() =>
+  vi.fn<() => Promise<TAdoptResult>>(async () => ({ status: 'adopted', pid: 1234 })),
+);
 
 vi.mock('child_process', () => ({
   execFile: execFileMock,
@@ -14,6 +19,11 @@ vi.mock('node-pty', () => ({
 
 vi.mock('@/lib/runtime/worker-paths', () => ({
   resolveRuntimeTmuxConfigPath: resolveRuntimeTmuxConfigPathMock,
+}));
+
+vi.mock('@/lib/tmux-server-scope', () => ({
+  shouldIsolateTmuxServer: shouldIsolateTmuxServerMock,
+  adoptTmuxServerIntoScope: adoptTmuxServerIntoScopeMock,
 }));
 
 vi.mock('@/lib/shell-env', () => ({
@@ -62,8 +72,36 @@ describe('terminal worker runtime', () => {
     execFileMock.mockReset();
     ptySpawnMock.mockReset();
     resolveRuntimeTmuxConfigPathMock.mockReset();
+    shouldIsolateTmuxServerMock.mockReset();
+    adoptTmuxServerIntoScopeMock.mockReset();
     resolveRuntimeTmuxConfigPathMock.mockReturnValue('/repo/src/config/tmux.conf');
+    shouldIsolateTmuxServerMock.mockReturnValue(false);
+    adoptTmuxServerIntoScopeMock.mockResolvedValue({ status: 'adopted', pid: 1234 });
     execFileSuccess();
+  });
+
+  it('continues session creation when tmux server scope adoption fails (Review Focus 3)', async () => {
+    shouldIsolateTmuxServerMock.mockReturnValue(true);
+    adoptTmuxServerIntoScopeMock.mockResolvedValue({
+      status: 'failed',
+      pid: 1234,
+      reason: 'busctl failed',
+    });
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');
+    const runtime = createTerminalWorkerRuntime();
+
+    await expect(
+      runtime.createSession({
+        sessionName: 'rtv2-ws-a-pane-b-tab-c',
+        cols: 80,
+        rows: 24,
+      }),
+    ).resolves.toEqual({ sessionName: 'rtv2-ws-a-pane-b-tab-c' });
+
+    expect(adoptTmuxServerIntoScopeMock).toHaveBeenCalledWith('codexmux-runtime-v2');
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('codexmux-runtime-v2'));
+    warnSpy.mockRestore();
   });
 
   it('cleans up partial creates and preserves source-file failure', async () => {
