@@ -121,13 +121,18 @@
   `smoke:android:*`는 release 앱에 쓸 수 없다.
 - 새로 발견한 결함: 웹 UI logo `src/components/layout/app-logo.tsx`가 `codex`와 `mux`를 별도 span으로
   그려 header, sidebar, login, onboarding, tools-required 화면에 옛 이름이 보인다. 단어가 나뉘어 있어
-  product name gate가 잡지 못했다. 고치면 live 서버 재배포가 필요하다.
+  product name gate가 잡지 못했다.
+- 사용자 승인 뒤 logo를 `agent`+`mux`로 고치고 표시 텍스트를 unit test로 고정했다(`e369598b`). 전체
+  test 1774개 통과, lint error 0(경고 6개는 기존 파일), typecheck 통과. `deploy:local`로 live에
+  배포했다(07:02 KST, PID `2076015`, health commit `e369598b`). tmux 서버 `43870`과 session은
+  유지되었고 service log에 오류가 없다. 폰 로그인 화면에서 `agent`+`mux` 표시를 확인했다.
+- Live service는 이 branch에서 build되어 있다. main에는 아직 merge되지 않았다.
 - 이 변경은 아직 commit하지 않았다.
 
 ## Current Lifecycle Stage
 
 - Multi-agent: `superpowers:brainstorming` (설계 문서 전).
-- Android: 기기 설치와 foreground smoke 완료, commit 전 (rename 설계의 "보이는 모든 surface" 범위에서 빠진 부분 보완).
+- Android와 웹 logo: release 서명 설치와 live 배포 완료, branch commit 뒤 PR 전 (rename 설계의 "보이는 모든 surface" 범위에서 빠진 부분 보완).
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
@@ -140,5 +145,5 @@
 
 - Multi-agent 설계 문서 작성과 승인, 이어서 `superpowers:writing-plans`.
 - 3번 프로젝트(위임 자동화와 agent split)를 2번에 합칠지 결정.
-- 웹 UI logo(`app-logo.tsx`)의 옛 이름 수정과 live 재배포.
+- Branch `chore/android-launcher-and-handoff` push, PR, CI 뒤 main merge.
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.
