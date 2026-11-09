@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import { nanoid } from 'nanoid';
+import { getDataDir } from '@/lib/app-identity';
 import { createSession, hasSession, killSession, resolveExistingDir, sendKeys, workspaceSessionName } from '@/lib/tmux';
 import { broadcastSync } from '@/lib/sync-server';
 import { createLogger } from '@/lib/logger';
@@ -28,7 +28,7 @@ import type { IAgentProvider } from '@/lib/providers/types';
 
 const log = createLogger('layout');
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 
 interface ILayoutReconciler {
   reconcileWorkspaceTabs: (wsId: string, validTabIds: readonly string[]) => void;

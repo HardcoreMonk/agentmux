@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
-import os from 'os';
 import path from 'path';
+import { getDataDir } from '@/lib/app-identity';
 
 export interface IRuntimeStorageBackupInput {
   dataDir?: string;
@@ -77,7 +77,7 @@ const collectStorageFiles = async (dataDir: string): Promise<string[]> => {
 };
 
 export const createRuntimeStorageBackup = async ({
-  dataDir = path.join(os.homedir(), '.codexmux'),
+  dataDir = getDataDir(),
   outputRoot = path.join(dataDir, 'backups'),
   timestamp = timestampForBackup(),
 }: IRuntimeStorageBackupInput = {}): Promise<IRuntimeStorageBackupResult> => {

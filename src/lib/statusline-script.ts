@@ -1,13 +1,14 @@
 import path from 'path';
-import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
-export const STATUSLINE_SCRIPT_PATH = path.join(BASE_DIR, 'statusline.sh');
-export const RATE_LIMITS_FILE = path.join(BASE_DIR, 'rate-limits.json');
+const shQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
 
-export const STATUSLINE_SCRIPT_CONTENT = `#!/bin/sh
-PORT_FILE="$HOME/.codexmux/port"
-TOKEN_FILE="$HOME/.codexmux/cli-token"
+export const buildStatuslineScriptContent = (baseDir = getDataDir()): string => {
+  const portFile = shQuote(path.join(baseDir, 'port'));
+  const tokenFile = shQuote(path.join(baseDir, 'cli-token'));
+  return `#!/bin/sh
+PORT_FILE=${portFile}
+TOKEN_FILE=${tokenFile}
 [ -f "$PORT_FILE" ] || exit 0
 [ -f "$TOKEN_FILE" ] || exit 0
 PORT=$(cat "$PORT_FILE")
@@ -18,3 +19,9 @@ curl -sf --max-time 2 -X POST \\
   --data-binary @- \\
   "http://localhost:\${PORT}/api/status/statusline" 2>/dev/null || exit 0
 `;
+};
+
+const BASE_DIR = getDataDir();
+export const STATUSLINE_SCRIPT_PATH = path.join(BASE_DIR, 'statusline.sh');
+export const RATE_LIMITS_FILE = path.join(BASE_DIR, 'rate-limits.json');
+export const STATUSLINE_SCRIPT_CONTENT = buildStatuslineScriptContent(BASE_DIR);

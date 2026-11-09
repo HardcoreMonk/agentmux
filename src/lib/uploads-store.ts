@@ -1,13 +1,13 @@
 import { randomBytes } from 'crypto';
 import type { Dirent } from 'fs';
 import fs from 'fs/promises';
-import os from 'os';
 import path from 'path';
 import { Transform, Writable, type Readable } from 'stream';
 import { pipeline } from 'stream/promises';
+import { getDataDir } from '@/lib/app-identity';
 import type { TUploadPolicy } from '@/lib/upload-request-contract';
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const UPLOADS_DIR = path.join(BASE_DIR, 'uploads');
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;

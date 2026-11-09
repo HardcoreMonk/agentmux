@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
 import { nanoid } from 'nanoid';
+import { getDataDir } from '@/lib/app-identity';
 import { listSessions } from '@/lib/tmux';
 import { createLogger } from '@/lib/logger';
 import { cleanupTabSession } from '@/lib/tab-session-cleanup';
@@ -37,7 +38,7 @@ const nextWorkspaceName = (workspaces: IWorkspace[]): string => {
   return `${WORKSPACE_PREFIX}${max + 1}`;
 };
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const WORKSPACES_FILE = path.join(BASE_DIR, 'workspaces.json');
 const LEGACY_LAYOUT_FILE = path.join(BASE_DIR, 'layout.json');
 const LEGACY_TABS_FILE = path.join(BASE_DIR, 'tabs.json');

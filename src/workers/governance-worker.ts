@@ -1,8 +1,9 @@
 import path from 'node:path';
+import { getDataDir } from '@/lib/app-identity';
 import { createGovernanceWorkerService } from '@/lib/runtime/governance/worker-service';
 import { createRuntimeReply, parseRuntimeMessage } from '@/lib/runtime/ipc';
 
-const dataDirectory = process.env.CODEXMUX_DATA_DIR || path.join(process.env.HOME || process.cwd(), '.codexmux');
+const dataDirectory = getDataDir();
 const indexPath = process.env.CODEXMUX_GOVERNANCE_INDEX || path.join(dataDirectory, 'governance', 'index.db');
 const backupRoot = path.join(dataDirectory, 'backups', 'governance-actions');
 const service = createGovernanceWorkerService({

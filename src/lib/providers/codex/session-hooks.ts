@@ -1,11 +1,11 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 import path from 'path';
-import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 import { getCliToken } from '@/lib/cli-token';
 
 const CAPABILITY_VERSION = 1;
 const CAPABILITY_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const BRIDGE_PATH = path.join(os.homedir(), '.codexmux', 'status-hook.cjs');
+const BRIDGE_PATH = path.join(getDataDir(), 'status-hook.cjs');
 
 interface IHookCapabilityPayload {
   v: number;

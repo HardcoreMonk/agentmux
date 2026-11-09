@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 
 interface IQuickPrompt {
   id: string;
@@ -21,7 +21,7 @@ interface IQuickPromptsData {
   order: string[];
 }
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const FILE_PATH = path.join(BASE_DIR, 'quick-prompts.json');
 
 const BUILTIN_PROMPTS: IQuickPrompt[] = [

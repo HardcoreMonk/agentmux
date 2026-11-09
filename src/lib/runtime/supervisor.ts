@@ -1,6 +1,6 @@
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
+import { getDataDir } from '@/lib/app-identity';
 import { recordPerfCounter } from '@/lib/perf-metrics';
 import type {
   IRuntimeCreateWorkspaceResult,
@@ -262,7 +262,7 @@ export interface ICreateRuntimeSupervisorForTestOptions {
 const g = globalThis as unknown as IRuntimeSupervisorGlobalState;
 
 const getDbPath = (): string =>
-  process.env.CODEXMUX_RUNTIME_DB || path.join(process.env.HOME || os.homedir(), '.codexmux', 'runtime-v2', 'state.db');
+  process.env.CODEXMUX_RUNTIME_DB || path.join(getDataDir(), 'runtime-v2', 'state.db');
 
 const runtimeDbFiles = (dbPath: string): string[] => [dbPath, `${dbPath}-wal`, `${dbPath}-shm`];
 

@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { getDataDir } from '@/lib/app-identity';
 import { createSessionCatalogRepository } from '@/lib/session-catalog/index-repository';
 import { createSessionCatalogIndexer, type ISessionCatalogIndexFileInput } from '@/lib/session-catalog/indexer';
 import { createSessionCatalogQueryService } from '@/lib/session-catalog/query-service';
@@ -29,7 +30,7 @@ const defaultSessionsRoot = (): string =>
   path.join(process.env.HOME || process.env.USERPROFILE || os.homedir(), '.codex', 'sessions');
 
 const defaultDbPath = (): string =>
-  path.join(process.env.HOME || process.env.USERPROFILE || os.homedir(), '.codexmux', 'session-catalog', 'index.db');
+  path.join(getDataDir(), 'session-catalog', 'index.db');
 
 const catalogError = (code: string, message: string, retryable = false): Error =>
   Object.assign(new Error(message), { code, retryable });

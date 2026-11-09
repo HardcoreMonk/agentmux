@@ -1,11 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 import type { IFacetEntry, TPeriod } from '@/types/stats';
 import { isWithinPeriod } from './period-filter';
 
 const FACETS_DIRS = [
-  path.join(os.homedir(), '.codexmux', 'usage-data', 'facets'),
+  path.join(getDataDir(), 'usage-data', 'facets'),
 ];
 
 const parseSingleFacet = (raw: Record<string, unknown>, sessionId: string): IFacetEntry => ({

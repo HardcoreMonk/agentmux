@@ -1,3 +1,5 @@
+import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { describe, expect, it } from 'vitest';
 import { resolveHostPaths } from '@/lib/host-paths';
@@ -22,17 +24,33 @@ describe('Windows host diagnostics', () => {
     expect(paths.logDir).toBe(path.win32.join('C:\\Users\\cmux\\AppData\\Local', 'codexmux', 'logs'));
   });
 
-  it('keeps non-Windows log paths compatible with the existing data directory', () => {
-    const paths = resolveHostPaths({
+  it('keeps non-Windows log paths compatible with the existing data directory and uses .agentmux on fresh hosts', () => {
+    const freshPaths = resolveHostPaths({
       platform: 'linux',
       env: {
         HOME: '/home/cmux',
       },
     });
 
-    expect(paths.dataDir).toBe('/home/cmux/.codexmux');
-    expect(paths.codexDir).toBe('/home/cmux/.codex');
-    expect(paths.logDir).toBe('/home/cmux/.codexmux/logs');
+    expect(freshPaths.dataDir).toBe('/home/cmux/.agentmux');
+    expect(freshPaths.codexDir).toBe('/home/cmux/.codex');
+    expect(freshPaths.logDir).toBe('/home/cmux/.agentmux/logs');
+
+    const legacyHome = fs.mkdtempSync(path.join(os.tmpdir(), 'agentmux-host-paths-legacy-'));
+    try {
+      fs.mkdirSync(path.join(legacyHome, '.codexmux'));
+      const legacyPaths = resolveHostPaths({
+        platform: 'linux',
+        env: {
+          HOME: legacyHome,
+        },
+      });
+      expect(legacyPaths.dataDir).toBe(path.posix.join(legacyHome, '.codexmux'));
+      expect(legacyPaths.codexDir).toBe(path.posix.join(legacyHome, '.codex'));
+      expect(legacyPaths.logDir).toBe(path.posix.join(legacyHome, '.codexmux', 'logs'));
+    } finally {
+      fs.rmSync(legacyHome, { recursive: true, force: true });
+    }
   });
 
   it('reports Windows logs and health probes without mutating the host', () => {

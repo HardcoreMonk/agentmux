@@ -1394,4 +1394,19 @@ describe('uploads store streaming transaction', () => {
     expect(source).not.toContain('Buffer.concat');
     expect(source).not.toMatch(/chunks\s*=\s*\[/);
   });
+
+  it('commits upload artifacts under the real .codexmux/uploads directory on a legacy-only HOME', async () => {
+    const legacyDataDir = path.join(homeDir, '.codexmux');
+    await fs.mkdir(legacyDataDir, { recursive: true });
+    const store = await loadStore();
+    const bytes = 1024;
+    const result = await store.streamUploadArtifact(
+      streamInput(createRepeatedSource(bytes), FILE_UPLOAD_POLICY, bytes),
+    );
+
+    expect(result.committed).toBe(true);
+    if (!result.committed) throw new Error('expected committed upload');
+    expect(result.receipt.path.startsWith(path.join(legacyDataDir, 'uploads') + path.sep)).toBe(true);
+    await expect(fs.stat(result.receipt.path)).resolves.toMatchObject({ size: bytes });
+  });
 });

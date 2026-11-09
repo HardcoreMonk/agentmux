@@ -1,10 +1,10 @@
-import os from 'os';
 import path from 'path';
+import { getDataDir } from '@/lib/app-identity';
 import { createRuntimeReply, parseRuntimeMessage } from '@/lib/runtime/ipc';
 import { createStorageWorkerService } from '@/lib/runtime/storage/worker-service';
 
 const dbPath = process.env.CODEXMUX_RUNTIME_DB
-  || path.join(process.env.HOME || os.homedir(), '.codexmux', 'runtime-v2', 'state.db');
+  || path.join(getDataDir(), 'runtime-v2', 'state.db');
 
 const service = createStorageWorkerService({ dbPath });
 

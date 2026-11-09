@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import crypto from 'crypto';
+import { getDataDir } from '@/lib/app-identity';
 import { broadcastSync } from '@/lib/sync-server';
 import { createLogger } from '@/lib/logger';
 import type { TNetworkAccess } from '@/lib/network-access';
@@ -38,7 +38,7 @@ export interface IConfigData {
   updatedAt: string;
 }
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const CONFIG_FILE = path.join(BASE_DIR, 'config.json');
 
 const g = globalThis as unknown as {

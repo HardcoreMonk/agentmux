@@ -1,14 +1,14 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import { existsSync } from 'fs';
+import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
 import type { ISessionStats } from '@/types/timeline';
 import { collectAgentJsonlFiles, extractSessionIdFromAgentJsonlPath } from '@/lib/stats/agent-jsonl-files';
 
 const log = createLogger('session-stats');
 
-const SESSION_STATS_DIR = path.join(os.homedir(), '.codexmux', 'session-stats');
+const SESSION_STATS_DIR = path.join(getDataDir(), 'session-stats');
 
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

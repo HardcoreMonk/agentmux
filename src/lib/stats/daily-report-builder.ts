@@ -5,12 +5,13 @@ import { createReadStream } from 'fs';
 import readline from 'readline';
 import { execFile } from 'child_process';
 import { randomUUID } from 'crypto';
+import { getDataDir } from '@/lib/app-identity';
 import { getShellPath } from '@/lib/preflight';
 import { normalizeLocale } from '@/lib/locales';
 import { collectJsonlFiles } from './stats-cache';
 import type { IDailyReportDay } from '@/types/stats';
 
-const CACHE_DIR = path.join(os.homedir(), '.codexmux', 'stats', 'daily-reports');
+const CACHE_DIR = path.join(getDataDir(), 'stats', 'daily-reports');
 
 // --- Cache read/write ---
 

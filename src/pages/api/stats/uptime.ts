@@ -1,15 +1,15 @@
 import fsPromises from 'fs/promises';
 import pathModule from 'path';
-import os from 'os';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import dayjs from 'dayjs';
+import { getDataDir } from '@/lib/app-identity';
 import { parseTimestampsByDay } from '@/lib/stats/jsonl-parser';
 import { getCached, setCached } from '@/lib/stats/cache';
 import type { IUptimeResponse, IStreak, IStreakDay } from '@/types/stats';
 
 const SLOT_MS = 60 * 1000;
 const ACTIVITY_GAP_MS = 15 * 60 * 1000;
-const CACHE_DIR = pathModule.join(os.homedir(), '.codexmux', 'stats');
+const CACHE_DIR = pathModule.join(getDataDir(), 'stats');
 const CACHE_PATH = pathModule.join(CACHE_DIR, 'uptime-cache.json');
 const DISK_CACHE_VERSION = 1;
 

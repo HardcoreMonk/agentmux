@@ -1,5 +1,6 @@
 import os from 'os';
 import path from 'path';
+import { resolveDataDirPath } from '@/lib/app-identity';
 
 export type THostPathsEnv = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -50,7 +51,7 @@ export const resolveHostPaths = ({
     };
   }
 
-  const dataDir = path.posix.join(homeDir, '.codexmux');
+  const dataDir = resolveDataDirPath(homeDir, env);
 
   return {
     platform,

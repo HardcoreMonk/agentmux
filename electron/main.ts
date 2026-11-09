@@ -49,7 +49,30 @@ interface IAppConfig {
   appTheme?: string;
 }
 
-const CONFIG_DIR = path.join(os.homedir(), '.codexmux');
+const resolveElectronConfigDir = (
+  homeDir = os.homedir(),
+  platform = process.platform,
+  env: NodeJS.ProcessEnv = process.env,
+): string => {
+  if (platform === 'win32') {
+    return path.join(homeDir, '.codexmux');
+  }
+  const override = env.AGENTMUX_DATA_DIR?.trim() || env.CODEXMUX_DATA_DIR?.trim();
+  if (override) {
+    return override;
+  }
+  const legacyDir = path.join(homeDir, '.codexmux');
+  try {
+    if (fs.lstatSync(legacyDir).isDirectory()) {
+      return legacyDir;
+    }
+  } catch {
+    // Fall through to .agentmux when legacy directory does not exist.
+  }
+  return path.join(homeDir, '.agentmux');
+};
+
+const CONFIG_DIR = resolveElectronConfigDir();
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 const readAppConfig = (): IAppConfig => {

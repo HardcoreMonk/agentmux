@@ -1,13 +1,13 @@
 import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import http from 'http';
+import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('lock');
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const LOCK_FILE = path.join(BASE_DIR, 'cmux.lock');
 
 interface ILockData {

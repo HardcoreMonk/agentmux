@@ -4,9 +4,16 @@ import { createServer, request as httpRequest } from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { createConnection } from 'net';
 import type { Duplex } from 'stream';
+import os from 'os';
 import path from 'path';
 import next from 'next';
 import { WebSocketServer } from 'ws';
+import {
+  DATA_DIR_NAME,
+  LEGACY_DATA_DIR_NAME,
+  prepareDataDir,
+  type IDataDirConflictError,
+} from './src/lib/app-identity';
 import {
   buildCookieHeader,
   extractCookie,
@@ -458,6 +465,22 @@ export const DEFAULT_PORT = 8122;
 
 
 export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
+  try {
+    prepareDataDir();
+  } catch (err) {
+    const conflict = err as Partial<IDataDirConflictError>;
+    if (conflict?.code === 'data-dir-conflict') {
+      const homeDir = os.homedir();
+      const agentmuxPath = conflict.agentmuxPath ?? path.join(homeDir, DATA_DIR_NAME);
+      const legacyPath = conflict.legacyPath ?? path.join(homeDir, LEGACY_DATA_DIR_NAME);
+      process.stderr.write(
+        `[agentmux] Fatal data directory conflict (${conflict.reason}): agentmux=${agentmuxPath}, legacy=${legacyPath}\n`,
+      );
+      process.exit(1);
+    }
+    throw err;
+  }
+
   const port = opts?.port ?? parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
   const appDir = process.env.__CMUX_APP_DIR || process.cwd();
 

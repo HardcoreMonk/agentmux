@@ -115,7 +115,7 @@ describe('runtime lifecycle actions', () => {
     });
 
     const result = await service.runAction({ actionId: 'phase6-gate' });
-    const raw = await fs.readFile(path.join(tempHome, '.codexmux', 'lifecycle-actions.jsonl'), 'utf-8');
+    const raw = await fs.readFile(path.join(tempHome, '.agentmux', 'lifecycle-actions.jsonl'), 'utf-8');
 
     expect(result.ok).toBe(false);
     expect(result.event.error).toBe('action-execution-failed');
@@ -140,7 +140,7 @@ describe('runtime lifecycle actions', () => {
     });
 
     const result = await service.runAction({ actionId: 'deploy-local', confirmation: 'deploy local' });
-    const raw = await fs.readFile(path.join(tempHome, '.codexmux', 'lifecycle-actions.jsonl'), 'utf-8');
+    const raw = await fs.readFile(path.join(tempHome, '.agentmux', 'lifecycle-actions.jsonl'), 'utf-8');
 
     expect(result.ok).toBe(false);
     expect(result.event.error).toBe('exit-code-1');
