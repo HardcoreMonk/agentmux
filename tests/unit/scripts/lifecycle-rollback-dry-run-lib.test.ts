@@ -15,16 +15,24 @@ const createDropIn = async (content: string) => {
 };
 
 describe('lifecycle rollback dry-run helper', () => {
+  it('resolves the default drop-in path under agentmux.service.d', async () => {
+    const { getDefaultRuntimeDropInPath } = await loadLib();
+
+    expect(getDefaultRuntimeDropInPath('/home/tester')).toBe(
+      path.join('/home/tester', '.config', 'systemd', 'user', 'agentmux.service.d', 'runtime-v2-shadow.conf'),
+    );
+  });
+
   it('parses runtime environment values from a systemd drop-in', async () => {
     const { parseRuntimeDropIn } = await loadLib();
 
     expect(parseRuntimeDropIn([
       '[Service]',
-      'Environment=CODEXMUX_RUNTIME_V2=1',
+      'Environment=AGENTMUX_RUNTIME_V2=1',
       'Environment=CODEXMUX_RUNTIME_STORAGE_V2_MODE=default',
       'Environment=PATH=/usr/bin',
     ].join('\n'))).toEqual({
-      CODEXMUX_RUNTIME_V2: '1',
+      AGENTMUX_RUNTIME_V2: '1',
       CODEXMUX_RUNTIME_STORAGE_V2_MODE: 'default',
     });
   });
@@ -33,20 +41,34 @@ describe('lifecycle rollback dry-run helper', () => {
     const { buildLifecycleRollbackDryRun, runtimeV2RollbackEnv } = await loadLib();
     const dropInPath = await createDropIn([
       '[Service]',
-      'Environment=CODEXMUX_RUNTIME_V2=1',
-      'Environment=CODEXMUX_RUNTIME_TERMINAL_V2_MODE=new-tabs',
+      'Environment=AGENTMUX_RUNTIME_V2=1',
+      'Environment=AGENTMUX_RUNTIME_TERMINAL_V2_MODE=new-tabs',
       'Environment=CODEXMUX_RUNTIME_STORAGE_V2_MODE=default',
       'Environment=CODEXMUX_RUNTIME_TIMELINE_V2_MODE=default',
       'Environment=CODEXMUX_RUNTIME_STATUS_V2_MODE=default',
     ].join('\n'));
 
+    expect(runtimeV2RollbackEnv).toEqual({
+      AGENTMUX_RUNTIME_V2: '0',
+      AGENTMUX_RUNTIME_TERMINAL_V2_MODE: 'off',
+      AGENTMUX_RUNTIME_STORAGE_V2_MODE: 'off',
+      AGENTMUX_RUNTIME_TIMELINE_V2_MODE: 'off',
+      AGENTMUX_RUNTIME_STATUS_V2_MODE: 'off',
+    });
+
     await expect(buildLifecycleRollbackDryRun({ dropInPath })).resolves.toMatchObject({
+      service: 'agentmux.service',
       dropInExists: true,
       runtimeEnv: {
-        CODEXMUX_RUNTIME_V2: '1',
+        AGENTMUX_RUNTIME_V2: '1',
         CODEXMUX_RUNTIME_STORAGE_V2_MODE: 'default',
       },
       rollbackEnv: runtimeV2RollbackEnv,
+      commands: [
+        `rm ${dropInPath}`,
+        'systemctl --user daemon-reload',
+        'systemctl --user restart agentmux.service',
+      ],
       mutates: false,
       warnings: [],
     });
@@ -58,8 +80,13 @@ describe('lifecycle rollback dry-run helper', () => {
     await expect(buildLifecycleRollbackDryRun({
       dropInPath: path.join(os.tmpdir(), 'codexmux-missing-runtime-v2-shadow.conf'),
     })).resolves.toMatchObject({
+      service: 'agentmux.service',
       dropInExists: false,
       rollbackEnv: runtimeV2RollbackEnv,
+      commands: [
+        'systemctl --user daemon-reload',
+        'systemctl --user restart agentmux.service',
+      ],
       mutates: false,
       warnings: ['runtime drop-in not found; rollback may already be applied'],
     });

@@ -57,7 +57,7 @@ const buildEnv = {
 };
 
 run('corepack', ['pnpm', 'build'], { env: buildEnv });
-run('systemctl', ['--user', 'restart', 'codexmux.service']);
+run('systemctl', ['--user', 'restart', 'agentmux.service']);
 
 const health = await waitForHealth();
 console.log(`[deploy-local] healthy ${JSON.stringify(health)}`);

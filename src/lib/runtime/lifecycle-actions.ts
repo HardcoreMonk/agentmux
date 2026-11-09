@@ -3,7 +3,7 @@ import path from 'path';
 import { randomUUID } from 'crypto';
 import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
-import { getDataDir } from '@/lib/app-identity';
+import { getDataDir, getServiceUnitName } from '@/lib/app-identity';
 import { sanitizeLifecycleDiagnosticText } from '@/lib/runtime/lifecycle-control';
 
 const execFile = promisify(execFileCb);
@@ -73,8 +73,8 @@ const definitions: ILifecycleActionDefinition[] = [
     label: 'Restart Service',
     description: 'Restart the Linux user service with systemd.',
     command: 'systemctl',
-    args: ['--user', 'restart', 'codexmux.service'],
-    confirmationPhrase: 'restart codexmux.service',
+    args: ['--user', 'restart', getServiceUnitName()],
+    confirmationPhrase: `restart ${getServiceUnitName()}`,
   },
   {
     id: 'deploy-local',

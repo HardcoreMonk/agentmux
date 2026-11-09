@@ -73,6 +73,14 @@ describe('runtime lifecycle actions', () => {
 
     const result = await service.runAction({ actionId: 'restart-service', confirmation: 'restart' });
 
+    expect(service.getDefinitions()).toContainEqual(
+      expect.objectContaining({
+        id: 'restart-service',
+        command: 'systemctl',
+        args: ['--user', 'restart', 'agentmux.service'],
+        confirmationPhrase: 'restart agentmux.service',
+      }),
+    );
     expect(result.ok).toBe(false);
     expect(result.event).toMatchObject({
       actionId: 'restart-service',

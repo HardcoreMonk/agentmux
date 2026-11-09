@@ -214,7 +214,7 @@ export const resolveDailyReportCodexCwd = (): string =>
 
 const callCodexCli = async (input: string, systemPrompt: string): Promise<string> => {
   const resolvedPath = await getShellPath();
-  const outputPath = path.join(os.tmpdir(), `codexmux-daily-report-${process.pid}-${randomUUID()}.txt`);
+  const outputPath = path.join(os.tmpdir(), `agentmux-daily-report-${process.pid}-${randomUUID()}.txt`);
 
   return new Promise((resolve, reject) => {
     const child = execFile(

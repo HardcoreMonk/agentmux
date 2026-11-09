@@ -232,6 +232,7 @@ describe('parsePermissionOptions', () => {
       "x-cmux-token=eq-secret",
       "x-cmux-token space-secret",
       '{"token":"json-secret"}',
+      '~/.agentmux/cli-token',
       '~/.codexmux/cli-token',
       'C:\\Users\\bob\\secret.txt',
       '/data/projects/codexmux/sessions/secret.jsonl',
@@ -257,6 +258,7 @@ describe('parsePermissionOptions', () => {
     expect(metadataText).not.toContain('eq-secret');
     expect(metadataText).not.toContain('space-secret');
     expect(metadataText).not.toContain('json-secret');
+    expect(metadataText).not.toContain('~/.agentmux/cli-token');
     expect(metadataText).not.toContain('~/.codexmux/cli-token');
     expect(metadataText).not.toContain('C:\\Users\\bob\\secret.txt');
     expect(metadataText).not.toContain('/data/projects');
