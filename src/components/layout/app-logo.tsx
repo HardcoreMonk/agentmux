@@ -15,7 +15,7 @@ const AppLogo = ({ shimmer = false, size = 'sm', className }: IAppLogoProps) => 
     <div className={cn('flex items-center gap-1.5', size === 'xl' && 'gap-2.5', className)}>
       <Terminal className={cn(iconSize, 'shrink-0 text-brand')} />
       <span className={cn(textSize, shimmer ? 'animate-shimmer' : 'text-brand')}>
-        <span className="font-bold">codex</span>
+        <span className="font-bold">agent</span>
         <span className="font-normal">mux</span>
       </span>
     </div>
