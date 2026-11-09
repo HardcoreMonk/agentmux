@@ -1,13 +1,16 @@
 import { execFile as execFileCb } from 'child_process';
 import fs from 'fs/promises';
 import { promisify } from 'util';
+import { TMUX_SOCKETS } from '@/lib/tmux-sockets';
 
 const execFile = promisify(execFileCb);
 const CMD_TIMEOUT_MS = 5_000;
 const CGROUP_POLL_INTERVAL_MS = 100;
 const CGROUP_POLL_MAX_ATTEMPTS = 50;
+const SCOPE_START_RETRY_INTERVAL_MS = 200;
+const SCOPE_START_MAX_ATTEMPTS = 10;
 
-export const TMUX_SOCKETS = ['codexmux', 'codexmux-runtime-v2'] as const;
+export { TMUX_SOCKETS };
 
 export type TAdoptResult = {
   status: 'adopted' | 'already-isolated' | 'skipped' | 'failed';
@@ -131,17 +134,29 @@ export const adoptTmuxServerIntoScope = async (
       return { status: 'already-isolated', pid };
     }
 
-    try {
-      await resolvedDeps.startTransientScope(unit, pid);
-    } catch (err) {
-      const cgroupAfterReject = await resolvedDeps.readCgroup(pid).catch(() => null);
-      if (isIsolatedInUnit(cgroupAfterReject, unit)) {
-        return { status: 'already-isolated', pid };
+    let scopeError: unknown = null;
+    let scopeStarted = false;
+    for (let attempt = 0; attempt < SCOPE_START_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        await resolvedDeps.startTransientScope(unit, pid);
+        scopeStarted = true;
+        break;
+      } catch (err) {
+        scopeError = err;
+        const cgroupAfterReject = await resolvedDeps.readCgroup(pid).catch(() => null);
+        if (isIsolatedInUnit(cgroupAfterReject, unit)) {
+          return { status: 'already-isolated', pid };
+        }
+        if (attempt < SCOPE_START_MAX_ATTEMPTS - 1) {
+          await sleep(SCOPE_START_RETRY_INTERVAL_MS);
+        }
       }
+    }
+    if (!scopeStarted) {
       return {
         status: 'failed',
         pid,
-        reason: toReason(err),
+        reason: toReason(scopeError),
       };
     }
 
@@ -180,9 +195,5 @@ export const ensureTmuxServerIsolation = async (
   if (!shouldIsolateTmuxServer(env)) {
     return [];
   }
-  const results: TAdoptResult[] = [];
-  for (const socket of TMUX_SOCKETS) {
-    results.push(await adoptTmuxServerIntoScope(socket, deps));
-  }
-  return results;
+  return Promise.all(TMUX_SOCKETS.map((socket) => adoptTmuxServerIntoScope(socket, deps)));
 };

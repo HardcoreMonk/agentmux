@@ -16,16 +16,27 @@ const readFileOrNull = (file) => {
   }
 };
 
-const PORT =
-  process.env.AMUX_PORT ||
-  process.env.CMUX_PORT ||
-  readFileOrNull(path.join(os.homedir(), '.agentmux', 'port')) ||
-  readFileOrNull(path.join(os.homedir(), '.codexmux', 'port')); // legacy fallback
-const TOKEN =
-  process.env.AMUX_TOKEN ||
-  process.env.CMUX_TOKEN ||
-  readFileOrNull(path.join(os.homedir(), '.agentmux', 'cli-token')) ||
-  readFileOrNull(path.join(os.homedir(), '.codexmux', 'cli-token')); // legacy fallback
+const dataDirCandidates = () => {
+  const dirs = [process.env.AGENTMUX_DATA_DIR, process.env.CODEXMUX_DATA_DIR]
+    .map((dir) => dir && dir.trim())
+    .filter(Boolean);
+  dirs.push(path.join(os.homedir(), '.agentmux'), path.join(os.homedir(), '.codexmux'));
+  return dirs;
+};
+
+const readDataFile = (name) => {
+  for (const dir of dataDirCandidates()) {
+    const value = readFileOrNull(path.join(dir, name));
+    if (value) return value;
+  }
+  return null;
+};
+
+const describeDataFile = (name) =>
+  dataDirCandidates().map((dir) => path.join(dir, name)).join(', ');
+
+const PORT = process.env.AMUX_PORT || process.env.CMUX_PORT || readDataFile('port');
+const TOKEN = process.env.AMUX_TOKEN || process.env.CMUX_TOKEN || readDataFile('cli-token');
 const BASE = `http://localhost:${PORT}`;
 
 const die = (msg) => {
@@ -34,8 +45,8 @@ const die = (msg) => {
 };
 
 const requireEnv = () => {
-  if (!PORT) die('AMUX_PORT (or legacy alias CMUX_PORT) not set and ~/.agentmux/port missing (is the server running?)');
-  if (!TOKEN) die('AMUX_TOKEN (or legacy alias CMUX_TOKEN) not set and ~/.agentmux/cli-token missing (is the server running?)');
+  if (!PORT) die(`AMUX_PORT (or legacy alias CMUX_PORT) not set and port file missing (checked ${describeDataFile('port')}; is the server running?)`);
+  if (!TOKEN) die(`AMUX_TOKEN (or legacy alias CMUX_TOKEN) not set and cli-token file missing (checked ${describeDataFile('cli-token')}; is the server running?)`);
 };
 
 const out = (body) => {

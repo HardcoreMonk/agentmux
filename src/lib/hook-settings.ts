@@ -9,7 +9,6 @@ const log = createLogger('hooks');
 
 const BASE_DIR = getDataDir();
 const HOOKS_FILE = path.join(BASE_DIR, 'hooks.json');
-const PORT_FILE = path.join(BASE_DIR, 'port');
 const HOOK_BRIDGE = CODEXMUX_STATUS_HOOK_BRIDGE_PATH;
 
 export const HOOK_SETTINGS_PATH = HOOKS_FILE;
@@ -127,7 +126,7 @@ export const ensureHookSettings = async (port: number): Promise<void> => {
 
 export const removePortFile = async (): Promise<void> => {
   try {
-    await fs.unlink(PORT_FILE);
+    await fs.unlink(path.join(getDataDir(), 'port'));
   } catch {
     // already removed
   }

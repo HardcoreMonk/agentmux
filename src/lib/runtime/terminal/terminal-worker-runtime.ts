@@ -7,9 +7,9 @@ import { resolveRuntimeTmuxConfigPath } from '@/lib/runtime/worker-paths';
 import { buildShellEnv, buildShellLaunchCommand } from '@/lib/shell-env';
 import { PRISTINE_ENV } from '@/lib/pristine-env';
 import { adoptTmuxServerIntoScope, shouldIsolateTmuxServer } from '@/lib/tmux-server-scope';
+import { RUNTIME_TMUX_SOCKET } from '@/lib/tmux-sockets';
 
 const execFile = promisify(execFileCb);
-const RUNTIME_TMUX_SOCKET = 'codexmux-runtime-v2';
 const CMD_TIMEOUT = 5000;
 
 interface IAttachedPty {

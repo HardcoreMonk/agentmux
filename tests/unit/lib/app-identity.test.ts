@@ -315,3 +315,40 @@ describe('app-identity', () => {
     expect(reloaded.getDataDir()).toBe(path.join(homeB, '.agentmux'));
   });
 });
+
+describe('app-identity win32', () => {
+  it('uses ~/.codexmux without creating .agentmux on a fresh home', () => {
+    const homeDir = makeTempDir();
+
+    expect(resolveDataDirPath(homeDir, {}, 'win32')).toBe(path.join(homeDir, '.codexmux'));
+    expect(prepareDataDir({ homeDir, env: {}, platform: 'win32' })).toBe(
+      path.join(homeDir, '.codexmux'),
+    );
+    expect(fs.existsSync(path.join(homeDir, '.codexmux'))).toBe(true);
+    expect(fs.existsSync(path.join(homeDir, '.agentmux'))).toBe(false);
+  });
+
+  it('ignores a coexisting .agentmux directory instead of reporting a conflict', () => {
+    const homeDir = makeTempDir();
+    fs.mkdirSync(path.join(homeDir, '.agentmux'));
+    fs.mkdirSync(path.join(homeDir, '.codexmux'));
+
+    expect(() => prepareDataDir({ homeDir, env: {}, platform: 'win32' })).not.toThrow();
+    expect(resolveDataDirPath(homeDir, {}, 'win32')).toBe(path.join(homeDir, '.codexmux'));
+  });
+});
+
+describe('app-identity legacy-only race', () => {
+  it('returns the legacy path when symlink creation loses to an existing alias', () => {
+    const homeDir = makeTempDir();
+    fs.mkdirSync(path.join(homeDir, '.codexmux'));
+    const realSymlink = fs.symlinkSync.bind(fs);
+    vi.spyOn(fs, 'symlinkSync').mockImplementationOnce((target, linkPath, type) => {
+      realSymlink(target, linkPath, type);
+      throw Object.assign(new Error('exists'), { code: 'EEXIST' });
+    });
+
+    expect(prepareDataDir({ homeDir, env: {} })).toBe(path.join(homeDir, '.codexmux'));
+    vi.restoreAllMocks();
+  });
+});

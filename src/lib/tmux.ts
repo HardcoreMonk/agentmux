@@ -9,12 +9,13 @@ import { createLogger } from '@/lib/logger';
 import { isLinux } from '@/lib/platform';
 import { getDescendantPids, getLatestChildPid, getProcessCommandLine, getProcessCwd } from '@/lib/session-detection';
 import { adoptTmuxServerIntoScope, shouldIsolateTmuxServer } from '@/lib/tmux-server-scope';
+import { LEGACY_TMUX_SOCKET } from '@/lib/tmux-sockets';
 
 const log = createLogger('terminal');
 
 const execFile = promisify(execFileCb);
 
-const TMUX_SOCKET = 'codexmux';
+const TMUX_SOCKET = LEGACY_TMUX_SOCKET;
 const TMUX_CONFIG_PATH = path.join(process.env.__CMUX_APP_DIR_UNPACKED || process.env.__CMUX_APP_DIR || process.cwd(), 'src', 'config', 'tmux.conf');
 const CMD_TIMEOUT = 5000;
 

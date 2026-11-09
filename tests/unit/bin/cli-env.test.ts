@@ -160,4 +160,38 @@ describe('bin/agentmux.js and bin/codexmux.js CLI contract', () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  it('reads port and cli-token from AGENTMUX_DATA_DIR when no AMUX/CMUX env is set', async () => {
+    const homeDir = await makeIsolatedHome();
+    const dataDir = await makeIsolatedHome();
+
+    let receivedHeader: string | string[] | undefined;
+    const server = http.createServer((req, res) => {
+      receivedHeader = req.headers['x-agentmux-token'];
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ workspaces: [] }));
+    });
+
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      server.close();
+      throw new Error('Failed to bind stub server');
+    }
+
+    try {
+      await fs.writeFile(path.join(dataDir, 'port'), String(address.port), 'utf8');
+      await fs.writeFile(path.join(dataDir, 'cli-token'), 'data-dir-token', 'utf8');
+
+      const result = await runCli(
+        'bin/agentmux.js',
+        ['workspaces'],
+        buildCleanCliEnv(homeDir, { AGENTMUX_DATA_DIR: dataDir }),
+      );
+      expect(result.code).toBe(0);
+      expect(receivedHeader).toBe('data-dir-token');
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
 });

@@ -172,6 +172,32 @@ describe('tmux-server-scope', () => {
     expect(result.reason).toContain('agentmux-tmux-codexmux.scope');
   });
 
+  it('retries startTransientScope while the previous scope is still being cleaned up', async () => {
+    vi.useFakeTimers();
+    const readCgroup = vi
+      .fn<ITmuxScopeDeps['readCgroup']>()
+      .mockResolvedValueOnce('/app.slice/codexmux.service')
+      .mockResolvedValueOnce('/app.slice/codexmux.service')
+      .mockResolvedValueOnce('/app.slice/codexmux.service')
+      .mockResolvedValueOnce('/app.slice/codexmux.service')
+      .mockResolvedValue('/app.slice/agentmux-tmux-codexmux.scope');
+    const startTransientScope = vi
+      .fn<ITmuxScopeDeps['startTransientScope']>()
+      .mockRejectedValueOnce(new Error('already exists'))
+      .mockRejectedValueOnce(new Error('already exists'))
+      .mockResolvedValueOnce(undefined);
+
+    const promise = adoptTmuxServerIntoScope('codexmux', {
+      getServerPid: async () => 5678,
+      readCgroup,
+      startTransientScope,
+    });
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect(promise).resolves.toEqual({ status: 'adopted', pid: 5678 });
+    expect(startTransientScope).toHaveBeenCalledTimes(3);
+  });
+
   it('adopts both sockets in ensureTmuxServerIsolation when isolation is enabled', async () => {
     const startTransientScope = vi.fn<ITmuxScopeDeps['startTransientScope']>(async () => undefined);
     const deps: ITmuxScopeDeps = {

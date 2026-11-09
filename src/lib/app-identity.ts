@@ -37,6 +37,7 @@ export type TAppIdentityEnv =
 export interface IPrepareDataDirOptions {
   homeDir?: string;
   env?: TAppIdentityEnv;
+  platform?: NodeJS.Platform;
 }
 
 const safeLstat = (targetPath: string): fs.Stats | null => {
@@ -137,10 +138,15 @@ export const inspectDataDirLayout = (homeDir: string): TDataDirLayout => {
 export const resolveDataDirPath = (
   homeDir: string,
   env: TAppIdentityEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
 ): string => {
   const override = readDataDirOverride(env);
   if (override) {
     return override;
+  }
+
+  if (platform === 'win32') {
+    return path.join(homeDir, LEGACY_DATA_DIR_NAME);
   }
 
   const agentmuxPath = path.join(homeDir, DATA_DIR_NAME);
@@ -187,6 +193,12 @@ export const prepareDataDir = (options?: IPrepareDataDirOptions): string => {
   }
 
   const homeDir = options?.homeDir ?? (env.HOME?.trim() || os.homedir());
+  if ((options?.platform ?? process.platform) === 'win32') {
+    const windowsPath = path.join(homeDir, LEGACY_DATA_DIR_NAME);
+    fs.mkdirSync(windowsPath, { recursive: true, mode: 0o700 });
+    return windowsPath;
+  }
+
   const agentmuxPath = path.join(homeDir, DATA_DIR_NAME);
   const legacyPath = path.join(homeDir, LEGACY_DATA_DIR_NAME);
   const layout = inspectDataDirLayout(homeDir);
@@ -198,7 +210,21 @@ export const prepareDataDir = (options?: IPrepareDataDirOptions): string => {
       return agentmuxPath;
     }
     case 'legacy-only': {
-      fs.symlinkSync(LEGACY_DATA_DIR_NAME, agentmuxPath);
+      try {
+        fs.symlinkSync(LEGACY_DATA_DIR_NAME, agentmuxPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+          throw error;
+        }
+        const raced = inspectDataDirLayout(homeDir);
+        if (raced.kind === 'aliased') {
+          return legacyPath;
+        }
+        if (raced.kind === 'conflict') {
+          throw createConflictError(raced.reason, agentmuxPath, legacyPath);
+        }
+        throw error;
+      }
       return legacyPath;
     }
     case 'aliased': {
@@ -214,7 +240,7 @@ export const prepareDataDir = (options?: IPrepareDataDirOptions): string => {
 };
 
 export const getDataDir = (): string =>
-  resolveDataDirPath(os.homedir(), process.env);
+  resolveDataDirPath(os.homedir(), process.env, process.platform);
 
 export const getDisplayDataDir = (env: TAppIdentityEnv = process.env): string =>
   readDataDirOverride(env) ?? '~/.agentmux';
