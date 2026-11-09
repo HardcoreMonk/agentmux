@@ -51,6 +51,28 @@ describe('check-product-name', () => {
     expect(violations).toEqual([]);
   });
 
+  it('allows the preserved cmux.lock lock file name but still flags bare cmux', async () => {
+    const { findProductNameViolations } = await loadLib();
+    const violations = findProductNameViolations([
+      {
+        path: 'landing-src/docs/data-directory.md',
+        content: '| `cmux.lock` | 단일 인스턴스 guard |\n`cmux` 명령을 실행합니다',
+      },
+    ]);
+    expect(violations.map((v: { line: number }) => v.line)).toEqual([2]);
+  });
+
+  it('allows the preserved Windows data directory path', async () => {
+    const { findProductNameViolations } = await loadLib();
+    const violations = findProductNameViolations([
+      {
+        path: 'landing-src/docs/troubleshooting.md',
+        content: '$path = Join-Path $HOME ".codexmux\\config.json"\nRun codexmux',
+      },
+    ]);
+    expect(violations.map((v: { line: number }) => v.line)).toEqual([2]);
+  });
+
   it('ignores files outside the product name scan scope and binary assets in public/', async () => {
     const { findProductNameViolations, isProductNameScanTarget } = await loadLib();
     expect(isProductNameScanTarget('README.md')).toBe(true);

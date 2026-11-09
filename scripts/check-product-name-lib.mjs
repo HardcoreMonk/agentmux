@@ -107,6 +107,9 @@ const PRESERVED_IDENTIFIERS = [
   'bin/codexmux.js',
   'codexwinmux',
   'codexmux@0.',
+  'cmux.lock',
+  '.codexmux\\',
+  '"app":"codexmux"',
 ];
 
 const COMPATIBILITY_LINE_PATTERN = /(?:legacy|formerly|호환|별칭|이전 이름)/i;
