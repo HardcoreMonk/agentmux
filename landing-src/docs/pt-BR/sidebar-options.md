@@ -52,6 +52,6 @@ Sessions와 Governance가 목록에 보여도 **항상 표시**되는 core area�
 
 ## 다음 단계
 
-- **[퀵 프롬프트 & 첨부](/codexmux/pt-BR/docs/quick-prompts-attachments/)**
-- **[테마 & 글꼴](/codexmux/pt-BR/docs/themes-fonts/)**
-- **[권한/입력 프롬프트](/codexmux/pt-BR/docs/permission-prompts/)**
+- **[퀵 프롬프트 & 첨부](/agentmux/pt-BR/docs/quick-prompts-attachments/)**
+- **[테마 & 글꼴](/agentmux/pt-BR/docs/themes-fonts/)**
+- **[권한/입력 프롬프트](/agentmux/pt-BR/docs/permission-prompts/)**

@@ -107,11 +107,15 @@ describe('runtime lifecycle control helpers', () => {
               lastError: {
                 message: [
                   'write failed at /data/projects/secret',
+                  'x-agentmux-token agentmux-secret-token',
+                  'x-agentmux-token: agentmux-colon-token',
                   'x-cmux-token secret-token',
                   'x-cmux-token: colon-token',
                   'Authorization: Bearer bearer-token',
                   'token=query-token',
                   'token: query-colon-token',
+                  'x-agentmux-token=agentmux-equals-token',
+                  'x-agentmux-token:agentmux-no-space-token',
                   'x-cmux-token=equals-token',
                   'x-cmux-token:no-space-token',
                   'cwd /data/projects/error',
@@ -152,7 +156,14 @@ describe('runtime lifecycle control helpers', () => {
               },
             },
             terminal: { restarts: 1, timeouts: 0, commandFailures: 0, healthFailures: 0, readyFailures: 0, errors: 0, lastError: null },
-            timeline: { timeouts: 1, commandFailures: 0, healthFailures: 0, readyFailures: 0, errors: 0, lastError: { message: 'timed out' } },
+            timeline: {
+              timeouts: 1,
+              commandFailures: 0,
+              healthFailures: 0,
+              readyFailures: 0,
+              errors: 0,
+              lastError: { message: 'timed out reading ~/.agentmux/cli-token and ~/.codexmux/cli-token' },
+            },
             status: { restarts: 0, timeouts: 0, commandFailures: 0, healthFailures: 0, readyFailures: 0, errors: 0, lastError: null },
           },
         },
@@ -219,10 +230,10 @@ describe('runtime lifecycle control helpers', () => {
           restarts: 0,
           timeouts: 0,
           failures: 1,
-          lastError: 'write failed at [path] [secret] [secret] [secret] [secret] [secret] [secret] [secret] [path] [path] [path] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [path] [path] [path] session timed out cwd lookup failed prompt template failed {[path],[runtime-session],[path],[secret],[redacted],[redacted],[redacted]} {[runtime-session]} [redacted] [redacted] [redacted]',
+          lastError: 'write failed at [path] [secret] [secret] [secret] [secret] [secret] [secret] [secret] [secret] [secret] [secret] [secret] [path] [path] [path] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [runtime-session] [path] [path] [path] session timed out cwd lookup failed prompt template failed {[path],[runtime-session],[path],[secret],[redacted],[redacted],[redacted]} {[runtime-session]} [redacted] [redacted] [redacted]',
         },
         { name: 'terminal', state: 'degraded', restarts: 1, timeouts: 0, failures: 0, lastError: null },
-        { name: 'timeline', state: 'degraded', restarts: 0, timeouts: 1, failures: 0, lastError: 'timed out' },
+        { name: 'timeline', state: 'degraded', restarts: 0, timeouts: 1, failures: 0, lastError: 'timed out reading [secret] and [secret]' },
         { name: 'status', state: 'healthy', restarts: 0, timeouts: 0, failures: 0, lastError: null },
       ],
       perfTimings: [
@@ -267,6 +278,10 @@ describe('runtime lifecycle control helpers', () => {
     expect(actionsJson).not.toContain('corepack');
     expect(actionsJson).not.toContain('systemctl');
     expect(json).not.toContain('lifecycle-secret');
+    expect(json).not.toContain('agentmux-secret-token');
+    expect(json).not.toContain('agentmux-colon-token');
+    expect(json).not.toContain('agentmux-equals-token');
+    expect(json).not.toContain('agentmux-no-space-token');
     expect(json).not.toContain('secret-token');
     expect(json).not.toContain('colon-token');
     expect(json).not.toContain('query-colon-token');
@@ -275,12 +290,14 @@ describe('runtime lifecycle control helpers', () => {
     expect(json).not.toContain('bearer-token');
     expect(json).not.toContain('query-token');
     expect(json).not.toContain('json-token');
+    expect(json).not.toContain('x-agentmux-token');
     expect(json).not.toContain('x-cmux-token');
     expect(json).not.toContain('Authorization: Bearer');
     expect(json).not.toContain('token=');
     expect(json).not.toContain('token:');
     expect(json).not.toContain('x-cmux-token:');
     expect(json).not.toContain('"token"');
+    expect(json).not.toContain('~/.agentmux/cli-token');
     expect(json).not.toContain('~/.codexmux/cli-token');
     expect(json).not.toContain('"cwd"');
     expect(json).not.toContain('sessionName');
@@ -312,10 +329,11 @@ describe('runtime lifecycle control helpers', () => {
   it('builds a copy-only rollback runbook without secrets', () => {
     const runbook = buildRollbackRunbook();
 
-    expect(runbook).toContain('CODEXMUX_RUNTIME_STORAGE_V2_MODE=write');
-    expect(runbook).toContain('CODEXMUX_RUNTIME_TERMINAL_V2_MODE=off');
-    expect(runbook).toContain('systemctl --user restart codexmux.service');
+    expect(runbook).toContain('AGENTMUX_RUNTIME_STORAGE_V2_MODE=write');
+    expect(runbook).toContain('AGENTMUX_RUNTIME_TERMINAL_V2_MODE=off');
+    expect(runbook).toContain('systemctl --user restart agentmux.service');
     expect(runbook).not.toContain('x-cmux-token');
+    expect(runbook).not.toContain('~/.agentmux/cli-token');
     expect(runbook).not.toContain('~/.codexmux/cli-token');
   });
 });

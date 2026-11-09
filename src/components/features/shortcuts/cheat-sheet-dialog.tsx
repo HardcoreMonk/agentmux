@@ -40,7 +40,7 @@ const CATEGORY_ORDER: TActionCategory[] = [
 ];
 
 const ICON_CLASS = 'h-2.5 w-2.5';
-const PLATFORM_STORAGE_KEY = 'codexmux-shortcut-platform';
+const PLATFORM_STORAGE_KEY = 'codexmux-shortcut-platform'; // product-name-allow: persisted browser preference
 
 type TShortcutDisplayPlatform = 'windows' | 'mac';
 

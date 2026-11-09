@@ -1,13 +1,13 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import * as _webpush from 'web-push';
 const webpush = (_webpush as unknown as { default?: typeof _webpush }).default ?? _webpush;
+import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('vapid');
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const VAPID_FILE = path.join(BASE_DIR, 'vapid-keys.json');
 
 interface IVAPIDKeys {

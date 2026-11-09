@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import type { PushSubscription } from 'web-push';
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+import { getDataDir } from '@/lib/app-identity';
+const BASE_DIR = getDataDir();
 const SUBS_FILE = path.join(BASE_DIR, 'push-subscriptions.json');
 
 const g = globalThis as unknown as { __ptPushLock?: Promise<void> };

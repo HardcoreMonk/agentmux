@@ -1,13 +1,13 @@
 import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import http from 'http';
+import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('lock');
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const LOCK_FILE = path.join(BASE_DIR, 'cmux.lock');
 
 interface ILockData {
@@ -54,7 +54,7 @@ const checkHealth = (port: number): Promise<boolean> =>
       res.on('end', () => {
         try {
           const data = JSON.parse(body);
-          resolve(data.app === 'codexmux');
+          resolve(data.app === 'codexmux' || data.product === 'agentmux');
         } catch {
           resolve(false);
         }
@@ -89,7 +89,7 @@ export const acquireLock = async (port: number): Promise<void> => {
 
     if (code === 'EACCES') {
       console.error(`\x1b[31mCannot acquire lock: ${LOCK_FILE} has wrong permissions.\x1b[0m`);
-      console.error('If you previously ran codexmux with sudo, remove the lock file manually:');
+      console.error('If you previously ran agentmux with sudo, remove the lock file manually:');
       console.error(`  sudo rm ${LOCK_FILE}`);
       process.exit(1);
     }
@@ -121,11 +121,11 @@ export const acquireLock = async (port: number): Promise<void> => {
 
   const healthy = await checkHealth(existing.port);
   if (healthy) {
-    console.error(`\x1b[31mcodexmux is already running (pid=${existing.pid}, port=${existing.port})\x1b[0m`);
+    console.error(`\x1b[31magentmux is already running (pid=${existing.pid}, port=${existing.port})\x1b[0m`);
     process.exit(1);
   }
 
-  log.warn(`PID ${existing.pid} is alive but not codexmux, reclaiming lock`);
+  log.warn(`PID ${existing.pid} is alive but not agentmux, reclaiming lock`);
   await removeStaleLock();
   await writeLockData(data);
   log.debug(`Lock acquired (pid=${process.pid})`);

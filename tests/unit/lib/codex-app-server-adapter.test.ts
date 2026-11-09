@@ -34,8 +34,8 @@ describe('Codex app-server fixture adapter', () => {
   });
 
   it('enables only read-only fixture capabilities behind the experimental env gate', () => {
-    expect(resolveCodexAppServerMode({ CODEXMUX_CODEX_APP_SERVER: 'experimental' })).toBe('experimental');
-    expect(buildCodexAppServerCapability({ CODEXMUX_CODEX_APP_SERVER: 'experimental' })).toEqual({
+    expect(resolveCodexAppServerMode({ AGENTMUX_CODEX_APP_SERVER: 'experimental' })).toBe('experimental');
+    expect(buildCodexAppServerCapability({ AGENTMUX_CODEX_APP_SERVER: 'experimental' })).toEqual({
       providerId: APP_SERVER_PROVIDER_ID,
       mode: 'experimental',
       enabled: true,

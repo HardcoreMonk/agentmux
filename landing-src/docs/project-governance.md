@@ -16,8 +16,8 @@ Select **Governance** in the fixed primary navigation; its route is `/governance
 page, check Governance Worker state through authenticated Runtime health.
 
 ```bash
-IFS= read -r codexmux_cli_token < ~/.codexmux/cli-token
-curl -fsS -H "x-cmux-token: $codexmux_cli_token" \
+IFS= read -r agentmux_cli_token < ~/.agentmux/cli-token
+curl -fsS -H "x-agentmux-token: $agentmux_cli_token" \
   http://127.0.0.1:8122/api/v2/runtime/health
 ```
 
@@ -41,7 +41,7 @@ this systemd drop-in and restart the service.
 
 ```ini
 [Service]
-Environment=CODEXMUX_GOVERNANCE_WRITES=1
+Environment=AGENTMUX_GOVERNANCE_WRITES=1
 ```
 
 {% call callout('warning', 'The write gate is not an authorization bypass') %}
@@ -66,7 +66,7 @@ no adopt-all, force merge, delete, move, or full-sync action.
 ## Action history and rollback
 
 Each action stores a private journal and exact preimage under
-`~/.codexmux/backups/governance-actions/<project-id>/<action-id>/`. Directories use mode `0700` and
+`~/.agentmux/backups/governance-actions/<project-id>/<action-id>/`. Directories use mode `0700` and
 manifest/preimage files use `0600`.
 
 - Rollback stops as `rollback-stale` when current output no longer matches the receipt fingerprint.
@@ -79,7 +79,7 @@ unfinished action still runs before the disabled gate is enforced.
 
 ## Next steps
 
-- [Session Operations](/codexmux/docs/session-operations/) — find the sessions connected to project work
-- [Linux service operations](/codexmux/docs/linux-service/) — backup, restart, and health
-- [Data directory](/codexmux/docs/data-directory/) — durable state and project backup boundaries
-- [Architecture](/codexmux/docs/architecture/) — worker ownership and API routing
+- [Session Operations](/agentmux/docs/session-operations/) — find the sessions connected to project work
+- [Linux service operations](/agentmux/docs/linux-service/) — backup, restart, and health
+- [Data directory](/agentmux/docs/data-directory/) — durable state and project backup boundaries
+- [Architecture](/agentmux/docs/architecture/) — worker ownership and API routing

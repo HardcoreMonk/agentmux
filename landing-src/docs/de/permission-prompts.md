@@ -6,7 +6,7 @@ permalink: /de/docs/permission-prompts/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-Codex는 tool call, 파일 쓰기, 권한이 필요한 작업에서 사용자의 승인을 기다릴 수 있습니다. Resume working directory 선택처럼 작업 재개에 필요한 입력을 물을 때도 있습니다. codexmux는 terminal prompt를 감지해 notification panel과 timeline surface에 선택지를 표시합니다.
+Codex는 tool call, 파일 쓰기, 권한이 필요한 작업에서 사용자의 승인을 기다릴 수 있습니다. Resume working directory 선택처럼 작업 재개에 필요한 입력을 물을 때도 있습니다. agentmux는 terminal prompt를 감지해 notification panel과 timeline surface에 선택지를 표시합니다.
 
 ## 감지 방식
 
@@ -30,7 +30,7 @@ Codex는 tool call, 파일 쓰기, 권한이 필요한 작업에서 사용자의
 - 모바일 push를 눌러 해당 tab으로 이동한 뒤 notification panel에서 선택.
 
 {% call callout('tip', '연속 prompt') %}
-Codex가 질문을 여러 번 이어서 하면 codexmux는 pane 내용을 다시 읽어 새 선택지를 표시합니다. 서버 재시작 뒤 resume directory prompt가 남아 있어도 needs-input으로 다시 노출합니다.
+Codex가 질문을 여러 번 이어서 하면 agentmux는 pane 내용을 다시 읽어 새 선택지를 표시합니다. 서버 재시작 뒤 resume directory prompt가 남아 있어도 needs-input으로 다시 노출합니다.
 {% endcall %}
 
 ## 실패 시 fallback
@@ -39,6 +39,6 @@ Codex가 질문을 여러 번 이어서 하면 codexmux는 pane 내용을 다시
 
 ## 다음 단계
 
-- **[세션 상태](/codexmux/de/docs/session-status/)**
-- **[라이브 세션 뷰](/codexmux/de/docs/live-session-view/)**
-- **[웹 푸시 알림](/codexmux/de/docs/web-push/)**
+- **[세션 상태](/agentmux/de/docs/session-status/)**
+- **[라이브 세션 뷰](/agentmux/de/docs/live-session-view/)**
+- **[웹 푸시 알림](/agentmux/de/docs/web-push/)**

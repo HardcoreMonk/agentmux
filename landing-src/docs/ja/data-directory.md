@@ -1,17 +1,17 @@
 ---
 title: 데이터 디렉터리
-description: ~/.codexmux/ 아래에 저장되는 파일과 삭제 기준.
+description: ~/.agentmux/ 아래에 저장되는 파일과 삭제 기준.
 eyebrow: 레퍼런스
 permalink: /ja/docs/data-directory/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux의 영속 상태는 `~/.codexmux/` 아래에 저장됩니다. Codex CLI의 원본 session JSONL은 `~/.codex/sessions/`에 있으며 codexmux는 읽기 전용으로만 접근합니다.
+agentmux의 영속 상태는 `~/.agentmux/` 아래에 저장됩니다. Codex CLI의 원본 session JSONL은 `~/.codex/sessions/`에 있으며 agentmux는 읽기 전용으로만 접근합니다.
 
 ## 구조
 
 ```text
-~/.codexmux/
+~/.agentmux/
 ├── config.json
 ├── workspaces.json
 ├── workspaces/{wsId}/layout.json
@@ -56,10 +56,10 @@ Codex tab 실행은 inline hook config로 `status-hook.sh`를 직접 호출합�
 ## 백업
 
 ```bash
-tar czf codexmux-backup.tgz -C ~ .codexmux
+tar czf agentmux-backup.tgz -C ~ .agentmux
 ```
 
-복원 전에는 codexmux를 종료하고 같은 위치에 풀어 넣습니다.
+복원 전에는 agentmux를 종료하고 같은 위치에 풀어 넣습니다.
 
 ## reset 기준
 
@@ -67,6 +67,6 @@ tar czf codexmux-backup.tgz -C ~ .codexmux
 - 모든 workspace 초기화: `workspaces.json`과 `workspaces/` 삭제.
 - 통계 재계산: `stats/` 삭제.
 - session list index 재생성: `session-index.json` 삭제.
-- 전체 초기화: `~/.codexmux/` 삭제.
+- 전체 초기화: `~/.agentmux/` 삭제.
 
-`~/.codex/`는 Codex CLI의 auth와 session history를 포함하므로 일반적인 codexmux reset에서는 삭제하지 않습니다. 이전 빌드에서 남은 원격 복사본 디렉터리는 현재 앱에서 읽지 않으며 필요하면 수동으로 삭제합니다.
+`~/.codex/`는 Codex CLI의 auth와 session history를 포함하므로 일반적인 agentmux reset에서는 삭제하지 않습니다. 이전 빌드에서 남은 원격 복사본 디렉터리는 현재 앱에서 읽지 않으며 필요하면 수동으로 삭제합니다.

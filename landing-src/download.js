@@ -1,6 +1,6 @@
 (function () {
-  var API = 'https://api.github.com/repos/HardcoreMonk/codexmux/releases/latest';
-  var FALLBACK = 'https://github.com/HardcoreMonk/codexmux/releases/latest';
+  var API = 'https://api.github.com/repos/HardcoreMonk/agentmux/releases/latest';
+  var FALLBACK = 'https://github.com/HardcoreMonk/agentmux/releases/latest';
   var releasePromise = null;
 
   var fetchRelease = function () {

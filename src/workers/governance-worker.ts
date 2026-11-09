@@ -1,14 +1,16 @@
+import '@/lib/legacy-env-bootstrap';
 import path from 'node:path';
+import { getDataDir } from '@/lib/app-identity';
 import { createGovernanceWorkerService } from '@/lib/runtime/governance/worker-service';
 import { createRuntimeReply, parseRuntimeMessage } from '@/lib/runtime/ipc';
 
-const dataDirectory = process.env.CODEXMUX_DATA_DIR || path.join(process.env.HOME || process.cwd(), '.codexmux');
-const indexPath = process.env.CODEXMUX_GOVERNANCE_INDEX || path.join(dataDirectory, 'governance', 'index.db');
+const dataDirectory = getDataDir();
+const indexPath = process.env.AGENTMUX_GOVERNANCE_INDEX || path.join(dataDirectory, 'governance', 'index.db');
 const backupRoot = path.join(dataDirectory, 'backups', 'governance-actions');
 const service = createGovernanceWorkerService({
   indexPath,
   backupRoot,
-  writesEnabled: process.env.CODEXMUX_GOVERNANCE_WRITES === '1',
+  writesEnabled: process.env.AGENTMUX_GOVERNANCE_WRITES === '1',
 });
 const initialization = service.initialize();
 

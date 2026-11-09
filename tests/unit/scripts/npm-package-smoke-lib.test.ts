@@ -11,16 +11,17 @@ describe('npm package smoke helpers', () => {
   it('extracts the single tarball filename from npm pack JSON', async () => {
     const { parsePackedFilename } = await loadLib();
 
-    expect(parsePackedFilename('[{"filename":"codexmux-0.4.22.tgz"}]'))
-      .toBe('codexmux-0.4.22.tgz');
+    expect(parsePackedFilename('[{"filename":"hardcoremonk-agentmux-0.5.0.tgz"}]'))
+      .toBe('hardcoremonk-agentmux-0.5.0.tgz');
     expect(() => parsePackedFilename('[]')).toThrow('exactly one');
     expect(() => parsePackedFilename('not-json')).toThrow('valid JSON');
   });
 
   it('validates the installed CLI package surface', async () => {
     const { assertInstalledPackage } = await loadLib();
-    const packageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codexmux-npm-contract-'));
+    const packageDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-npm-contract-'));
     const requiredFiles = [
+      'bin/agentmux.js',
       'bin/codexmux.js',
       'bin/cli.js',
       'dist/server.js',
@@ -38,10 +39,12 @@ describe('npm package smoke helpers', () => {
         await fs.writeFile(file, 'fixture', 'utf8');
       }));
       await fs.writeFile(path.join(packageDir, 'package.json'), JSON.stringify({
-        name: 'codexmux',
+        name: '@hardcoremonk/agentmux',
         bin: {
-          codexmux: 'bin/codexmux.js',
-          cmux: 'bin/codexmux.js',
+          agentmux: 'bin/agentmux.js',
+          amux: 'bin/agentmux.js',
+          codexmux: 'bin/agentmux.js',
+          cmux: 'bin/agentmux.js',
         },
         scripts: {
           postinstall: 'node scripts/postinstall-node-pty.mjs',
@@ -49,7 +52,7 @@ describe('npm package smoke helpers', () => {
       }), 'utf8');
 
       await expect(assertInstalledPackage(packageDir)).resolves.toMatchObject({
-        name: 'codexmux',
+        name: '@hardcoremonk/agentmux',
       });
 
       await fs.rm(path.join(packageDir, 'dist/server.js'));

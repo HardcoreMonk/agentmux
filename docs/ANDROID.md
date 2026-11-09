@@ -1,6 +1,6 @@
 # Android 참고 문서
 
-Android 앱은 실행 중인 Linux codexmux engine에 연결하는 Capacitor 기반 WebView
+Android 앱은 실행 중인 Linux agentmux engine에 연결하는 Capacitor 기반 WebView
 shell입니다. Android는 session/runtime authority가 아닌 선택 mobile client이므로 Linux
 engine gate를 Android smoke로 대체하지 않습니다.
 
@@ -50,8 +50,8 @@ Android 앱 버전은 root `package.json` semver를 기준으로 합니다.
 | `android-web/index.html` | 서버 URL 저장, 자동 재접속, 앱 정보/재시작 launcher |
 | `android/` | Capacitor Android native project |
 | `android/app/src/main/AndroidManifest.xml` | Android 권한과 cleartext 개발 설정 |
-| `CodexmuxAppInfo.java` | 앱 버전/기기 정보와 앱 재시작 bridge |
-| `CodexmuxWebViewClient.java` | 원격 서버 로딩 실패 시 launcher 복귀 |
+| `CodexmuxAppInfo.java` | 앱 버전/기기 정보와 앱 재시작 bridge (legacy 클래스 이름 유지) |
+| `CodexmuxWebViewClient.java` | 원격 서버 로딩 실패 시 launcher 복귀 (legacy 클래스 이름 유지) |
 
 ## 모바일 UX 기준
 
@@ -74,7 +74,7 @@ Android 앱 버전은 root `package.json` semver를 기준으로 합니다.
 
 Android WebView가 background에 들어가면 WebSocket 객체가 `OPEN`으로 남아도 실제 TCP 연결은 끊길 수 있습니다. 앱은 foreground 복귀 시 workspace/layout을 다시 동기화하고 terminal/status/timeline/sync WebSocket을 필요하면 강제로 새로 엽니다.
 
-Native shell은 `pause`/`resume` event와 `codexmux:native-app-state` event를 전달합니다. 원격 페이지에 Capacitor bridge가 없어도 최소 fallback을 설치해 lifecycle event 예외를 막습니다.
+Native shell은 `pause`/`resume` event와 legacy 호환 `codexmux:native-app-state` event를 전달합니다. 원격 페이지에 Capacitor bridge가 없어도 최소 fallback을 설치해 lifecycle event 예외를 막습니다.
 
 ## 런타임 v2 smoke
 

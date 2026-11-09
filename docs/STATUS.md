@@ -1,6 +1,6 @@
 # Codex 작업 상태 감지
 
-이 문서는 codexmux가 Codex tab의 상태를 판단하고 UI, notification, timeline에 전달하는 기준을 정리합니다.
+이 문서는 agentmux가 Codex tab의 상태를 판단하고 UI, notification, timeline에 전달하는 기준을 정리합니다.
 
 ## 흐름
 
@@ -29,7 +29,7 @@ Runtime v2에서는 Status Worker가 status polling, JSONL watch, hook applicati
 | `shadow` | legacy와 worker policy를 비교 |
 | `default` | worker status를 production source로 사용 |
 
-`CODEXMUX_RUNTIME_V2=1`에서 status mode가 unset이면 Phase 6 기준 `default`로 해석합니다. Rollback은 mode를 `off`로 두는 것입니다.
+`AGENTMUX_RUNTIME_V2=1`(legacy `CODEXMUX_RUNTIME_V2=1` 호환)에서 status mode가 unset이면 Phase 6 기준 `default`로 해석합니다. Rollback은 mode를 `off`로 두는 것입니다.
 
 ## 프로세스 상태
 
@@ -59,13 +59,38 @@ Windows에서는 process inspector adapter가 PID, command line, child/descendan
 
 Permission/input prompt는 JSONL marker가 늦거나 없을 수 있으므로 live pane capture를 함께 봅니다.
 
+## Workspace 목록의 작업 유무
+
+Desktop workspace 목록과 mobile navigation sheet의 각 workspace는 기존 탭 아이콘과
+대표 상태 문구를 함께 표시합니다. Mobile에서 workspace를 펼쳐도 문구를 유지합니다.
+
+| 대표 문구 | 기준 |
+| --- | --- |
+| 상태 확인 중 | status WebSocket 연결 전/끊김 또는 현재 연결의 첫 전체 sync 이전 |
+| 입력 대기 | Codex 탭 중 `needs-input` 존재 |
+| 작업 중 | 입력 대기가 없고 Codex 탭 중 `busy` 존재 |
+| 확인 필요 | 위 상태가 없고 Codex 탭 중 `ready-for-review` 존재 |
+| 상태 미확인 | 위 상태가 없고 Codex 탭 중 `unknown` 또는 알려진 layout 탭의 상태 누락 존재 |
+| 작업 없음 | 동기화 후 Codex 탭이 없거나 모두 `idle`/`inactive` 등 비활성 상태 |
+
+이 문구는 현재 Codex 작업의 projection입니다. 과거 대화 유무나 일반 terminal의
+server/running 상태, browser와 diff panel을 작업으로 세지 않습니다. 복수 상태가
+섞이면 표의 순서로 대표 문구를 고르고 기존 탭별 아이콘도 함께 유지합니다.
+
+`getWorkspaceActivityStatus`는 indicator가 선택한 해당 workspace의 탭만 받아 판정합니다.
+`use-tab-store.statusSynced`는 client 전용 전체 snapshot 수신 여부이며, 기존
+`statusWsConnected`와 구분합니다. 새 연결 시작/open, 연결 종료와 hook cleanup에서
+초기화하고 `syncAllFromServer` 처리와 함께 완료합니다. Incremental update만으로는
+완료하지 않으므로 재연결 중 이전 snapshot으로 작업 없음을 단정하지 않습니다.
+새 polling, 서버 상태, API나 영속 필드는 추가하지 않습니다.
+
 ## Hook event 경로
 
-Codex tab launch/resume은 `hooks={path="~/.codexmux/hooks.json"}`를 사용하지 않습니다. Browser는 workspace/pane/tab과 action만 server에 보내고, `agent-launch-service`가 현재 layout ownership, panel type, terminal process, Codex `0.144.1+` compatibility를 확인합니다. 검증된 server provider만 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override를 만들어 `~/.codexmux/status-hook.cjs`를 호출합니다.
+Codex tab launch/resume은 `hooks={path="~/.agentmux/hooks.json"}`(legacy `~/.codexmux/hooks.json`)를 사용하지 않습니다. Browser는 workspace/pane/tab과 action만 server에 보내고, `agent-launch-service`가 현재 layout ownership, panel type, terminal process, Codex `0.144.1+` compatibility를 확인합니다. 검증된 server provider만 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override를 만들어 `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출합니다.
 
 각 handler에는 HMAC capability로 canonical tab id, terminal session name, expiry가 묶입니다. Hook API는 CLI token, capability, 현재 layout ownership을 모두 확인한 event만 reducer에 전달합니다. Bridge는 bounded stdin을 읽고 loopback으로만 1초 요청하며 모든 장애에서 성공 종료하는 best-effort observer입니다. Hook 관찰 누락은 JSONL/process polling이 보정하고 Codex action 자체를 막지 않습니다.
 
-User/project/managed/plugin hook은 Codex native layer discovery에 맡깁니다. codexmux는 user TOML을 읽거나 병합하지 않고 trust bypass flag도 쓰지 않습니다. `hooks.json`은 `hooks: {}`와 statusline 설정을 담는 생성 파일이며 status hook의 기준 source가 아닙니다.
+User/project/managed/plugin hook은 Codex native layer discovery에 맡깁니다. agentmux는 user TOML을 읽거나 병합하지 않고 trust bypass flag도 쓰지 않습니다. `hooks.json`은 `hooks: {}`와 statusline 설정을 담는 생성 파일이며 status hook의 기준 source가 아닙니다.
 
 `Stop` event는 terminal session name과 sequence를 포함해 client에 전달됩니다. Matching tab의 Git generation만 증가시키고 active tab은 즉시 cache를 우회해 갱신하며 inactive tab은 선택될 때 한 번 갱신합니다. 같은 sequence는 중복 invalidation하지 않습니다. 두 Git hook은 consumed generation을 session별로 보존하므로 같은 hook instance가 tab을 전환해도 다른 session의 낮은 generation을 이미 처리한 값으로 오인하지 않습니다.
 

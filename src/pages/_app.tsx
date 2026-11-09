@@ -68,7 +68,7 @@ const CustomCSSSync = () => {
   const customCSS = useConfigStore((s) => s.customCSS);
 
   useEffect(() => {
-    const id = 'codexmux-custom-css';
+    const id = 'agentmux-custom-css';
     let el = document.getElementById(id) as HTMLStyleElement | null;
     if (!customCSS) {
       el?.remove();

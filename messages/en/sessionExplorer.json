@@ -1,6 +1,6 @@
 {
   "title": "Session Explorer",
-  "pageTitle": "Session Explorer — codexmux",
+  "pageTitle": "Session Explorer — agentmux",
   "query": "Message search",
   "queryPlaceholder": "Search user and Assistant messages",
   "model": "Model",

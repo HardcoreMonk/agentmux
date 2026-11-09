@@ -20,7 +20,7 @@ const resetConfigGlobals = () => {
   delete state.__ptConfigContentCache;
 };
 
-const configPath = () => path.join(homeDir, '.codexmux', 'config.json');
+const configPath = () => path.join(homeDir, '.agentmux', 'config.json');
 
 const writeRawConfig = async (content: string) => {
   await fs.mkdir(path.dirname(configPath()), { recursive: true });

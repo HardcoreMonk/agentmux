@@ -6,7 +6,7 @@ export type TTerminalRuntimeAdapterKind = 'tmux' | 'windows';
 
 export interface ITerminalRuntimeAdapterFactoryEnv {
   [key: string]: string | undefined;
-  CODEXMUX_RUNTIME_TERMINAL_ADAPTER?: string;
+  AGENTMUX_RUNTIME_TERMINAL_ADAPTER?: string;
 }
 
 export interface IResolveTerminalRuntimeAdapterKindOptions {
@@ -33,7 +33,7 @@ const createUnsupportedTerminalAdapterError = (value: string): Error & {
 export const resolveTerminalRuntimeAdapterKind = ({
   env = process.env,
 }: IResolveTerminalRuntimeAdapterKindOptions = {}): TTerminalRuntimeAdapterKind => {
-  const value = env.CODEXMUX_RUNTIME_TERMINAL_ADAPTER?.trim().toLowerCase();
+  const value = env.AGENTMUX_RUNTIME_TERMINAL_ADAPTER?.trim().toLowerCase();
   if (!value || value === 'tmux') return 'tmux';
   if (value === 'windows') return 'windows';
   throw createUnsupportedTerminalAdapterError(value);

@@ -101,11 +101,11 @@ const createRequest = (body: unknown): NextApiRequest => ({
 
 describe('layout tab api runtime routing', () => {
   beforeEach(() => {
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
-    process.env.CODEXMUX_RUNTIME_TERMINAL_V2_MODE = 'off';
-    process.env.CODEXMUX_RUNTIME_STORAGE_V2_MODE = 'off';
-    process.env.CODEXMUX_RUNTIME_TIMELINE_V2_MODE = 'off';
-    process.env.CODEXMUX_RUNTIME_STATUS_V2_MODE = 'off';
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'off';
+    process.env.AGENTMUX_RUNTIME_STORAGE_V2_MODE = 'off';
+    process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = 'off';
+    process.env.AGENTMUX_RUNTIME_STATUS_V2_MODE = 'off';
     Object.values(mocks).forEach((value) => {
       if (typeof value === 'function') value.mockReset();
     });
@@ -158,7 +158,7 @@ describe('layout tab api runtime routing', () => {
   });
 
   it('creates plain new terminal tabs through runtime v2 when new-tabs mode is enabled', async () => {
-    process.env.CODEXMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
     const response = createResponse();
 
     await handler(createRequest({ cwd: '/repo', panelType: 'terminal' }), response.res);
@@ -183,7 +183,7 @@ describe('layout tab api runtime routing', () => {
   });
 
   it('keeps command-start and non-terminal tabs on the legacy path', async () => {
-    process.env.CODEXMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
 
     await handler(createRequest({ cwd: '/repo', panelType: 'terminal', command: 'codex' }), createResponse().res);
     await handler(createRequest({ cwd: '/repo', panelType: 'codex' }), createResponse().res);
@@ -193,7 +193,7 @@ describe('layout tab api runtime routing', () => {
   });
 
   it('deletes the created runtime v2 tab when legacy layout append fails', async () => {
-    process.env.CODEXMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
     mocks.addExistingTabToPane.mockResolvedValueOnce(null);
     const response = createResponse();
 

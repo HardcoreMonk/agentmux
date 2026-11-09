@@ -1,13 +1,13 @@
-# codexmux 컨텍스트
+# agentmux 컨텍스트
 
-이 문서는 codexmux의 도메인 언어와 문서 경계를 정리합니다. 새 기능, 동작 변경,
+이 문서는 agentmux의 도메인 언어와 문서 경계를 정리합니다. 새 기능, 동작 변경,
 작업 흐름 계약 변경, 여러 파일에 걸친 변경을 시작할 때 `docs/agents/domain.md`의
 도메인 아키텍처 점검과 함께 읽습니다.
 
 ## 제품 정체성
 
-codexmux는 Codex CLI 전용 웹 세션 매니저입니다. 범용 터미널 대시보드가 아니라
-여러 Codex 세션을 workspace, session, tab, timeline, status 중심으로 실행,
+agentmux는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정). 범용 터미널 대시보드가 아니라
+여러 코딩 에이전트 세션을 workspace, session, tab, timeline, status 중심으로 실행,
 재개, 모니터링, 검토하는 도구입니다.
 
 현재 제품/runtime 기준은 Linux 단일 엔진 호스트입니다. 한 호스트가 custom server,
@@ -33,7 +33,7 @@ Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록된 project filesyst
 
 | 표준 용어 | 의미 | 주요 경계 |
 | --- | --- | --- |
-| Codex 중심 세션 매니저 | Codex CLI 세션을 관리하는 제품 정체성 | UI, 문서, README |
+| 코딩 에이전트 웹 세션 매니저 | 코딩 에이전트 CLI 세션을 관리하는 제품 정체성 (현재 Codex 지원, Claude Code 지원 예정) | UI, 문서, README |
 | Workspace | 여러 tab과 layout을 묶는 작업 단위 | workspace API, layout store |
 | Tab | terminal, Codex, diff, browser 등 panel 실행 단위 | `ITabState`, runtime adapter |
 | 로컬 Codex 세션 | local Codex process와 JSONL을 연결한 투영 | 감지, timeline, status |
@@ -47,7 +47,7 @@ Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록된 project filesyst
 | Knowledge Index | project-local 문서의 navigation/search를 위한 재생성 가능한 projection | Governance Worker, app-owned index DB |
 | Governance Action Run | 한 Managed Project의 scaffold preview, confirm, publish, recovery와 receipt를 묶는 aggregate | Governance Worker, action journal/backup |
 | Scaffold Artifact | versioned template catalog가 생성하거나 marker-owned block으로 갱신할 수 있는 허용 문서 | Project Governance scaffold catalog |
-| Marker-owned block | codexmux marker 사이에서만 Governance Action Run이 갱신할 수 있는 문서 영역 | scaffold marker parser, no-clobber policy |
+| Marker-owned block | `CODEXMUX:` marker 사이에서만 Governance Action Run이 갱신할 수 있는 문서 영역 | scaffold marker parser, no-clobber policy |
 | Unmarked Artifact Adoption | 기존 bytes를 비소유 prefix로 유지하고 EOF에 새 marker-owned block만 추가하는 명시적 Governance Action Run | Project Governance scaffold preview/confirm |
 | Adoption Selection | 한 preview에서 사용자가 artifact별로 명시한 adoption intent | preview token/digest, API/IPC contract |
 | Adoption Template Variant | 신규 문서 template과 분리된 compact marker block definition | scaffold template catalog |
@@ -56,18 +56,19 @@ Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록된 project filesyst
 | Workspace Activity | busy, needs-input, review, completed 상태를 모은 Workspace 내부 context panel | sidebar local state, notification projection |
 | Windows 전용 제품 | 2026년 Windows product-line 전환과 release 검증의 역사적 결정 | packaging, host, release evidence |
 | Windows 서비스 호스트 | 앱/backend 수명주기를 관리하는 host 경계 | Windows host diagnostics, future service |
-| 브라우저 인증 namespace | 같은 hostname의 sibling app과 충돌하지 않는 제품별 session cookie 경계 | `codexmux-session-token`, ADR-029 |
-| Upload ingress | 인증된 raw file request를 bounded admission하고 `~/.codexmux/uploads/` artifact로 no-replace commit하는 outer custom server 경계 | `server.ts`, upload server/storage adapter |
+| 브라우저 인증 namespace | 같은 hostname의 sibling app과 충돌하지 않는 제품별 session cookie 경계 | `agentmux-session-token` (legacy `codexmux-session-token` 호환), ADR-029, ADR-033 |
+| Upload ingress | 인증된 raw file request를 bounded admission하고 `~/.agentmux/uploads/`(legacy 실제 경로 `~/.codexmux/uploads/`) artifact로 no-replace commit하는 outer custom server 경계 | `server.ts`, upload server/storage adapter |
 | 시각 계약 | 제품 UI의 theme, layout, component 상태, 반응형/accessibility 규칙 | `DESIGN.md`, `docs/STYLE.md` |
 
 ## 거부 또는 레거시 용어
 
+- 현재 제품명으로서 `codexmux`: 현재 제품명은 `agentmux`이며, `codexmux`는 과거 릴리스 기록이나 호환 별칭을 설명할 때만 사용합니다.
 - `Windows companion integration`: 제거된 remote/sidecar 모델을 되살리는 의미로 쓰지 않습니다.
 - `Windows bridge`: 기준 runtime 용어로 쓰지 않습니다.
 - `tmux backend`: 새 도메인 경계 이름으로 쓰지 않습니다. tmux는 legacy infrastructure adapter입니다.
 - `Android primary client`: Android는 Linux engine에 접속하는 선택 client이며 primary runtime
   authority가 아닙니다.
-- 범용 `terminal dashboard`: codexmux 제품 정체성을 설명하는 기준 용어가 아닙니다.
+- 범용 `terminal dashboard`: agentmux 제품 정체성을 설명하는 기준 용어가 아닙니다.
 - 단독 `lifecycle`: Project Lifecycle, Runtime Operations, ADR Lifecycle 중 하나로 한정합니다.
 - `workspace project`: Workspace와 Managed Project를 하나의 entity로 합치는 이름으로 쓰지 않습니다.
 - `ProjectWrite`, `FileSync`: create-only scaffold보다 넓은 arbitrary write/sync를 암시하는 public
@@ -106,10 +107,10 @@ regular file을 자동 takeover하지 않고, 첫 discovery 뒤 artifact별 `Ado
 두 번째 preview에서 compact `Adoption Template Variant`만 EOF에 append하도록 구현했습니다.
 기존 bytes는 exact prefix로 보존하며 invalid UTF-8, NUL과 marker-like comment는 거부합니다.
 Live service는 systemd drop-in으로
-`CODEXMUX_GOVERNANCE_WRITES=1`을 활성화했고 Governance `writeState=ready`, private Runtime v2
-backup과 post-restart Phase 6 gate를 확인했습니다. 실제 `codexmux` Managed Project에서
+`AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환)을 활성화했고 Governance `writeState=ready`, private Runtime v2
+backup과 post-restart Phase 6 gate를 확인했습니다. 실제 `agentmux`(이전 이름 `codexmux`) Managed Project에서
 `AGENTS.md` adoption preview/confirm/rollback과 원본 SHA-256 복구까지 완료했습니다.
-[GitHub issue #19](https://github.com/HardcoreMonk/codexmux/issues/19)와 설계·운영 인계는
+이전 이름 저장소의 [GitHub issue #19](https://github.com/HardcoreMonk/codexmux/issues/19)와 설계·운영 인계는
 `docs/superpowers/specs/2026-08-21-governed-project-scaffold-design.md`, ADR-032와
 `docs/operations/2026-08-21-governed-project-scaffold-handoff.md`를 따릅니다.
 
@@ -118,9 +119,9 @@ upload ingress와 Windows stable release path는 fresh Windows package/update ga
 검증했습니다. Bootstrap은 ADR-026, upload ingress는 ADR-027, Windows stable release
 gate는 ADR-028 `Verified`입니다.
 
-- 현재 public npm package: `codexmux@0.4.23`, registry commit `ef27e297`
-- 보존된 Windows stable release: [`v0.4.22`](https://github.com/HardcoreMonk/codexmux/releases/tag/v0.4.22), commit `4af02209`
-- Windows 검증 완료 추적: [GitHub issue #16](https://github.com/HardcoreMonk/codexmux/issues/16)
+- 현재 public npm package: `@hardcoremonk/agentmux` (legacy `codexmux@0.4.23`, registry commit `ef27e297`)
+- 보존된 legacy Windows stable release: [`v0.4.22`](https://github.com/HardcoreMonk/codexmux/releases/tag/v0.4.22), commit `4af02209`
+- Windows 검증 완료 추적 (이전 이름 저장소 기록): [GitHub issue #16](https://github.com/HardcoreMonk/codexmux/issues/16)
 - 구현·복구 근거: `docs/operations/2026-07-11-pre-auth-bootstrap-security-handoff.md`,
   `docs/operations/2026-07-11-production-security-upload-integrity-handoff.md`,
   `docs/operations/2026-07-12-v0.4.20-windows-release-handoff.md`,
@@ -128,9 +129,9 @@ gate는 ADR-028 `Verified`입니다.
   `docs/operations/2026-07-12-purplemux-cookie-isolation-handoff.md`,
   `docs/operations/2026-07-13-v0.4.22-windows-release-handoff.md`,
   `docs/operations/2026-08-14-purplemux-selected-adoption-handoff.md`
-- `v0.4.22`의 browser session cookie는 ADR-029에 따라 `codexmux-session-token`이며,
-  Purplemux와 같은 hostname에서 동시 실행할 수 있습니다. 운영 계약상 처음 적용할 때
-  Codexmux 재로그인이 필요하고, Purplemux가 계속 인증에 실패하면 Purplemux에도 한 번
+- browser session cookie는 ADR-029 및 ADR-033에 따라 `agentmux-session-token`(legacy `codexmux-session-token` 호환)이며,
+  Purplemux와 같은 hostname에서 동시 실행할 수 있습니다. `v0.4.22` 운영 계약상 처음 적용할 때
+  이전 이름 Codexmux 재로그인이 필요했고, Purplemux가 계속 인증에 실패하면 Purplemux에도 한 번
   로그인합니다. Fresh CI profile은 기존 Electron cookie profile의 전환을 증명하지 않으므로
   ADR-029는 `Implemented` 상태를 유지합니다. 두 제품의 terminal/runtime data는 유지됩니다.
 - 새 runtime/API/storage 변경은 같은 lifecycle과 ADR 상태 전이를 따릅니다.

@@ -40,7 +40,7 @@ interface IIndexProps {
 const Index = ({ initialConfig, initialQuickPrompts, initialSidebarItems }: IIndexProps) => {
   const isMobile = useIsMobile();
   const { setTheme } = useTheme();
-  useBrowserTitle('codexmux');
+  useBrowserTitle('agentmux');
   const themeInitRef = useRef(false);
   useEffect(() => {
     if (!themeInitRef.current) {
@@ -57,7 +57,7 @@ const Index = ({ initialConfig, initialQuickPrompts, initialSidebarItems }: IInd
   return (
     <SWRConfig value={{ fallback: { '/api/quick-prompts': initialQuickPrompts, '/api/sidebar-items': initialSidebarItems } }}>
       <Head>
-        <title>codexmux</title>
+        <title>agentmux</title>
       </Head>
       {isMobile ? <MobileTerminalPage /> : <TerminalPage />}
     </SWRConfig>

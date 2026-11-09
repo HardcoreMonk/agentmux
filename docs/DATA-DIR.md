@@ -1,11 +1,41 @@
-# `~/.codexmux/` 데이터 디렉터리
+# `~/.agentmux/` (legacy 실제 경로 `~/.codexmux/`) 데이터 디렉터리
 
-codexmux의 앱 상태는 `~/.codexmux/`에 저장합니다. Codex CLI 원본 세션은 `~/.codex/sessions/`에서 읽기 전용으로 참조합니다.
+agentmux의 앱 상태는 기본 별칭 경로 `~/.agentmux/`(기존 설치의 legacy 실제 경로 `~/.codexmux/`)에 저장합니다. Codex CLI 원본 세션은 `~/.codex/sessions/`에서 읽기 전용으로 참조합니다.
+
+## 경로 해석과 호환 별칭 규칙
+
+이름 변경 전환기 동안 기존 SQLite WAL/SHM과 실행 중인 Codex hook bridge 경로(`~/.codexmux/status-hook.cjs`)를 안전하게 보존하기 위해 1단계에서는 실제 디렉터리를 강제 이동하지 않고 symlink 별칭과 fail-closed 검증을 사용합니다.
+
+### 환경 변수 및 기본 경로 해석 순서
+
+1. `AGENTMUX_DATA_DIR`이 설정되어 있으면 해당 경로를 사용합니다.
+2. `AGENTMUX_DATA_DIR`이 없고 legacy `CODEXMUX_DATA_DIR`이 설정되어 있으면 해당 경로를 사용합니다.
+3. 두 환경 변수가 모두 없으면 홈 디렉터리(`~/.agentmux` 별칭과 legacy `~/.codexmux`) 배치를 `lstat`/`readlink`로만 검사합니다(조회 함수는 디렉터리나 symlink를 생성하지 않고 매 호출 재평가합니다).
+
+### 홈 디렉터리 배치별 판정 및 `prepareDataDir()` 동작
+
+서버 시작 진입점(`server.ts`)에서만 `prepareDataDir()`를 호출하여 디렉터리 또는 호환 symlink를 준비합니다.
+
+| `~/.agentmux` 상태 | legacy `~/.codexmux` 상태 | 판정 (`inspectDataDirLayout`) | `resolveDataDirPath` 반환값 | `prepareDataDir` 동작 |
+| --- | --- | --- | --- | --- |
+| 없음 | 실제 디렉터리 | `legacy-only` | `~/.codexmux` | `~/.agentmux -> .codexmux` 상대 symlink 생성 후 `~/.codexmux` 반환 |
+| legacy `.codexmux`를 가리키는 유효 symlink | 실제 디렉터리 | `aliased` | `~/.codexmux` | 변경 없이 `~/.codexmux` 반환 |
+| 실제 디렉터리 | 없음 | `agentmux-only` | `~/.agentmux` | 변경 없이 `~/.agentmux` 반환 |
+| 실제 디렉터리 | `.agentmux`를 가리키는 유효 symlink | `agentmux-only` (후속 이전 완료 상태) | `~/.agentmux` | 변경 없이 `~/.agentmux` 반환 |
+| 없음 | 없음 | `fresh` | `~/.agentmux` | `~/.agentmux`(`0700`) 생성 후 반환 |
+| 실제 디렉터리 | 실제 디렉터리 | `conflict` (`both-real`) | 예외 발생 (fail closed) | 시작 중단 및 진단 메시지 출력 |
+| 그 외 symlink(외부 대상, 깨진 링크) 또는 일반 파일 | 그 외 symlink 또는 일반 파일 | `conflict` (`unexpected-symlink` / `dangling-symlink` / `not-directory`) | 예외 발생 (fail closed) | 시작 중단 및 진단 메시지 출력 |
+
+Windows(`win32`)는 이번 release에서 legacy `~\.codexmux`를 그대로 사용합니다. 별칭·`~\.agentmux`·conflict 판정을 하지 않으며 `host-paths.ts`와 Electron config 규칙과 같습니다.
+
+`~/.codexmux` 자체를 다른 디스크로 옮겨 symlink로 연결해 둔 구성은 `unexpected-symlink`로 시작이 중단됩니다. 이 경우 service 환경에 `AGENTMUX_DATA_DIR=<실제 directory 경로>`를 지정하면 홈 배치 검사 없이 그 경로를 사용합니다. CLI도 `AGENTMUX_DATA_DIR`(legacy `CODEXMUX_DATA_DIR`)의 `port`·`cli-token`을 먼저 읽습니다.
+
+Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단계에서 실제 데이터 디렉터리를 `~/.agentmux`로 이전하고 `~/.codexmux -> .agentmux` 역방향 호환 링크로 전환할 예정입니다.
 
 ## 구조
 
 ```text
-~/.codexmux/
+~/.agentmux/ (기존 호스트에서는 ~/.codexmux/를 가리키는 호환 별칭)
   config.json
   workspaces.json
   workspaces/
@@ -72,7 +102,7 @@ codexmux의 앱 상태는 `~/.codexmux/`에 저장합니다. Codex CLI 원본 �
 | `push-subscriptions.json` | Web Push 구독 정보 |
 | `approval-audit.jsonl` | sanitized approval action/push outcome event |
 | `lifecycle-actions.jsonl` | sanitized lifecycle action event |
-| `cli-token` | CLI와 hook bridge용 `x-cmux-token` |
+| `cli-token` | CLI와 hook bridge용 `x-agentmux-token` (legacy `x-cmux-token` 호환) |
 | `port` | 현재 실행 중인 server port |
 | `stats/` | usage cache와 daily report |
 | `logs/` | 서버 로그 |
@@ -98,7 +128,7 @@ token을 넣습니다.
 
 Reserved stage namespace는 committed cleanup과 분리되고 30분 age floor가 진행 중인
 transaction을 보호합니다. 강제 process kill로 남은 recent stage는 age floor가 지난 다음
-정리합니다. `CODEXMUX_UPLOADS_DISABLED=1`은 새 upload만 차단하며 기존 tree를 삭제하지
+정리합니다. `AGENTMUX_UPLOADS_DISABLED=1`(legacy `CODEXMUX_UPLOADS_DISABLED=1` 호환)은 새 upload만 차단하며 기존 tree를 삭제하지
 않습니다.
 
 ## 런타임 v2 SQLite
@@ -106,7 +136,7 @@ transaction을 보호합니다. 강제 process kill로 남은 recent stage는 ag
 Runtime v2는 `runtime-v2/state.db`를 사용합니다.
 
 - SQLite schema는 migration으로 관리합니다.
-- `CODEXMUX_RUNTIME_V2_RESET=1`은 `state.db`, `state.db-wal`, `state.db-shm`을 timestamp `.bak` 파일로 이동한 뒤 새 DB를 만듭니다.
+- `AGENTMUX_RUNTIME_V2_RESET=1`(legacy `CODEXMUX_RUNTIME_V2_RESET=1` 호환)은 `state.db`, `state.db-wal`, `state.db-shm`을 timestamp `.bak` 파일로 이동한 뒤 새 DB를 만듭니다.
 - Windows에서는 열린 SQLite handle 때문에 temp directory 삭제가 실패할 수 있으므로 test/smoke는 service와 DB handle을 닫은 뒤 cleanup합니다.
 - Runtime v2가 꺼진 install/build는 `better-sqlite3` native binding load에 의존하지 않습니다.
 - `runtime-v2/`는 `0700`, DB/WAL/SHM은 `0600`입니다. 복원 파일도 같은 권한을 적용한 뒤 service를 시작합니다.
@@ -144,11 +174,11 @@ manifest와 preimage는 `0600`이며 pending/recovery/rollback dependency가 있
 
 ## Codex CLI 원본 데이터
 
-`~/.codex/`는 Codex CLI 소유 영역입니다. codexmux는 이 디렉터리에 앱 상태를 쓰지 않습니다.
+`~/.codex/`는 Codex CLI 소유 영역입니다. agentmux는 이 디렉터리에 앱 상태를 쓰지 않습니다.
 
-Codex launch/resume command는 `~/.codexmux/hooks.json`을 `hooks={path=...}` 형태로 넘기지 않습니다. Server provider가 만든 session-scoped inline TOML override는 `status-hook.cjs`를 직접 호출합니다. 이 bridge는 project package를 import하지 않고 `port`, `cli-token`, HMAC capability만 사용해 loopback hook API에 bounded request를 보냅니다. `hooks.json`을 삭제해도 서버 재시작 때 빈 hooks/statusline 설정으로 다시 생성됩니다.
+Codex launch/resume command는 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)을 `hooks={path=...}` 형태로 넘기지 않습니다. Server provider가 만든 session-scoped inline TOML override는 `status-hook.cjs`를 직접 호출합니다. 이 bridge는 project package를 import하지 않고 `port`, `cli-token`, HMAC capability만 사용해 loopback hook API에 bounded request를 보냅니다. `hooks.json`을 삭제해도 서버 재시작 때 빈 hooks/statusline 설정으로 다시 생성됩니다.
 
-| 경로 | codexmux 처리 |
+| 경로 | agentmux 처리 |
 | --- | --- |
 | `~/.codex/sessions/` | JSONL session/timeline 원본을 읽기 전용으로 참조 |
 | `~/.codex/state_*.sqlite` | 파일 존재, schema, row count만 읽는 read-only probe 대상 |
@@ -171,7 +201,7 @@ Codex launch/resume command는 `~/.codexmux/hooks.json`을 `hooks={path=...}` �
 `config.json` missing은 최초 startup에서만 새 empty config를 만들고 setup을 시작합니다.
 Malformed JSON, 읽기 오류, valid scrypt hash만 있고 `authSecret`이 없는 상태는 자동
 복구하거나 setup으로 낮추지 않습니다. 원본 bytes를 보존한 채 startup/request가
-fail closed합니다. 저장된 `authSecret`은 codexmux가 생성하는 32-byte random value의
+fail closed합니다. 저장된 `authSecret`은 agentmux가 생성하는 32-byte random value의
 64자리 lowercase hex shape여야 하며 weak/non-canonical secret도 invalid state입니다.
 
 비밀번호만 초기화하려면 server를 먼저 멈춘 뒤 `authPassword`, `authSecret`을 함께
@@ -200,7 +230,7 @@ restart 뒤 적용됩니다.
 | `uploads/` | committed attachment와 남은 staged file 삭제. 실행 중 server를 먼저 종료해야 함 |
 | `remote/codex/` | 이전 Windows companion 데이터. 현재 앱은 읽지 않음 |
 
-`~/.codex/sessions/`는 Codex CLI 원본 데이터입니다. codexmux 초기화 목적으로 삭제하지 않습니다.
+`~/.codex/sessions/`는 Codex CLI 원본 데이터입니다. agentmux 초기화 목적으로 삭제하지 않습니다.
 
 2026-08-21 최초 Linux live 배포에서 `runtime-v2/state.db`,
 `session-catalog/index.db`, `governance/index.db`가 새로 생성됐고 DB/WAL/SHM은 모두

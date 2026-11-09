@@ -6,9 +6,10 @@ import type { ITerminalWorkerRuntime } from '@/lib/runtime/terminal/terminal-wor
 import { resolveRuntimeTmuxConfigPath } from '@/lib/runtime/worker-paths';
 import { buildShellEnv, buildShellLaunchCommand } from '@/lib/shell-env';
 import { PRISTINE_ENV } from '@/lib/pristine-env';
+import { adoptTmuxServerIntoScope, shouldIsolateTmuxServer } from '@/lib/tmux-server-scope';
+import { RUNTIME_TMUX_SOCKET } from '@/lib/tmux-sockets';
 
 const execFile = promisify(execFileCb);
-const RUNTIME_TMUX_SOCKET = 'codexmux-runtime-v2';
 const CMD_TIMEOUT = 5000;
 
 interface IAttachedPty {
@@ -94,6 +95,14 @@ const createRuntimeSession = async (input: {
   } catch (err) {
     await killRuntimeSession(input.sessionName);
     throw err;
+  }
+  if (shouldIsolateTmuxServer(process.env)) {
+    const scopeResult = await adoptTmuxServerIntoScope(RUNTIME_TMUX_SOCKET);
+    if (scopeResult.status === 'failed') {
+      console.warn(
+        `[terminal-worker-runtime] tmux scope adoption failed for ${RUNTIME_TMUX_SOCKET}: ${scopeResult.reason ?? 'unknown'}`,
+      );
+    }
   }
 };
 

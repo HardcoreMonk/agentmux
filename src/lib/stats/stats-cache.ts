@@ -1,9 +1,9 @@
 import fs from 'fs/promises';
 import { createReadStream } from 'fs';
 import path from 'path';
-import os from 'os';
 import readline from 'readline';
 import dayjs from 'dayjs';
+import { getDataDir } from '@/lib/app-identity';
 import {
   collectAgentJsonlFilePaths,
   collectAgentJsonlFiles,
@@ -22,7 +22,7 @@ import type {
 } from '@/types/stats';
 
 const CACHE_VERSION = 4;
-const CACHE_DIR = path.join(os.homedir(), '.codexmux', 'stats');
+const CACHE_DIR = path.join(getDataDir(), 'stats');
 const CACHE_PATH = path.join(CACHE_DIR, 'cache.json');
 const CONCURRENCY_LIMIT = 10;
 

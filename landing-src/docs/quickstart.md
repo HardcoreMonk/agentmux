@@ -1,17 +1,17 @@
 ---
 title: 빠른 시작
-description: Linux 단일 엔진에서 codexmux를 실행하고 최초 설정과 Session Operations를 확인합니다.
+description: Linux 단일 엔진에서 agentmux를 실행하고 최초 설정과 Session Operations를 확인합니다.
 eyebrow: 시작하기
 permalink: /docs/quickstart/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux는 여러 Codex workspace, session, tab을 관리하는 Codex 중심 session manager입니다.
+agentmux는 여러 Codex workspace, session, tab을 관리하는 Codex 중심 session manager입니다.
 현재 active runtime은 Linux 단일 엔진이며 한 host가 Runtime v2 worker, tmux, Codex JSONL,
 Session Catalog와 승인 project read를 소유합니다.
 
 {% call callout('note', '현재 배포 기준') %}
-Public npm package는 `codexmux@0.4.23`입니다. Windows Electron package는 별도 배포면의
+Public npm package는 `@hardcoremonk/agentmux@0.5.0`(이전 package `codexmux@0.4.23`)입니다. Windows Electron package는 별도 배포면의
 보존된 release surface이며 Linux engine 설치를 대체하지 않습니다.
 {% endcall %}
 
@@ -27,7 +27,7 @@ Linux engine에는 다음이 필요합니다.
 ## npm package 실행
 
 ```bash
-npx --yes codexmux@latest
+npx --yes @hardcoremonk/agentmux@latest
 ```
 
 기본 port는 `8122`입니다. Fresh setup은 저장된 network 설정보다 먼저 loopback에만
@@ -36,14 +36,14 @@ bind하므로 같은 host에서 `http://127.0.0.1:8122`를 엽니다.
 ## Source 개발 실행
 
 ```bash
-git clone https://github.com/HardcoreMonk/codexmux.git
-cd codexmux
+git clone https://github.com/HardcoreMonk/agentmux.git
+cd agentmux
 corepack enable
 corepack pnpm install
 corepack pnpm dev
 ```
 
-Production build와 장기 실행은 [설치](/codexmux/docs/installation/)의 `systemd --user`
+Production build와 장기 실행은 [설치](/agentmux/docs/installation/)의 `systemd --user`
 절차를 사용합니다.
 
 ## 최초 설정
@@ -69,7 +69,7 @@ package/update 증거 범위입니다.
 
 ## 다음으로
 
-- **[설치](/codexmux/docs/installation/)** — npm/source와 Linux user service
-- **[보안과 인증](/codexmux/docs/security-auth/)** — loopback setup과 restart 규칙
-- **[포트 & 환경 변수](/codexmux/docs/ports-env-vars/)** — port, bind와 Runtime 설정
-- **[문제 해결](/codexmux/docs/troubleshooting/)** — Linux service와 Runtime v2 진단
+- **[설치](/agentmux/docs/installation/)** — npm/source와 Linux user service
+- **[보안과 인증](/agentmux/docs/security-auth/)** — loopback setup과 restart 규칙
+- **[포트 & 환경 변수](/agentmux/docs/ports-env-vars/)** — port, bind와 Runtime 설정
+- **[문제 해결](/agentmux/docs/troubleshooting/)** — Linux service와 Runtime v2 진단

@@ -1,14 +1,14 @@
-# codexmux
+# agentmux
 
-codexmux는 여러 Codex CLI 작업을 workspace, session, tab, timeline, status 단위로
-실행하고 다시 연결하는 Codex 중심 웹 세션 매니저입니다. Next.js Pages Router UI와
-custom Node server를 함께 사용하며, 현재 active runtime은 Linux 단일 엔진 호스트입니다.
+agentmux는 여러 코딩 에이전트 CLI 작업을 workspace, session, tab, timeline, status 단위로
+실행하고 다시 연결하는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정).
+Next.js Pages Router UI와 custom Node server를 함께 사용하며, 현재 active runtime은 Linux 단일 엔진 호스트입니다.
 한 Linux host가 Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록 project read/governed write를
 소유합니다.
 
 Windows 설치형 제품 마감은 별도 제품 line인
 [`codexwinmux`](https://github.com/HardcoreMonk/codexwinmux)에서 진행합니다. 이 저장소는
-`codexmux` release identity와 원본 runtime, 아키텍처 결정, 회귀·패키지 증거를 계속
+`agentmux`(이전 이름 `codexmux`) release identity와 원본 runtime, 아키텍처 결정, 회귀·패키지 증거를 계속
 관리합니다.
 
 ## 핵심 기능
@@ -22,43 +22,68 @@ Windows 설치형 제품 마감은 별도 제품 line인
 - Runtime v2 Supervisor와 terminal/storage/timeline/status/governance worker
 - Linux tmux adapter와 `systemd --user` 운영, 선택적 Electron/Android client
 - 보존된 Electron Windows NSIS/zip packaging, installer, updater release smoke
-- `~/.codexmux/` 아래의 local-first 상태와 인증된 upload artifact 관리
+- `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`) 아래의 local-first 상태와 인증된 upload artifact 관리
 
 ## 현재 상태
 
 | 항목 | 현재 기준 |
 | --- | --- |
-| source/package.json 버전 | `0.4.24` |
+| source/package.json 버전 | `0.5.0` (`@hardcoremonk/agentmux`) |
 | active 제품/runtime | Linux 단일 엔진 호스트, ADR-031 `Verified` |
 | UI 언어 | 기본 한국어, 지원 한국어·영어 |
-| 현재 live service | `systemd --user`, authenticated `0.0.0.0:8122`, app build `a6a49588`, governance writes active |
+| 현재 live service | `systemd --user` (`agentmux.service`), authenticated `0.0.0.0:8122`, governance writes active |
 | 웹 구조 | Next.js Pages Router + custom Node server |
-| terminal 구조 | Runtime v2 Terminal Worker + Linux tmux adapter |
+| terminal 구조 | Runtime v2 Terminal Worker + Linux tmux adapter (`agentmux-tmux-<socket>.scope` 분리) |
 | 운영 데이터 | `runtime-v2/state.db`, `session-catalog/index.db`, `governance/index.db` |
 | bootstrap 보안 | ADR-026 `Verified` |
-| browser 인증 | `codexmux-session-token`; 같은 hostname의 Purplemux cookie와 분리 |
+| browser 인증 | `agentmux-session-token` (legacy `codexmux-session-token` 호환); 같은 hostname의 Purplemux cookie와 분리 |
 | upload ingress | ADR-027 `Verified` |
-| npm 배포 | `codexmux@0.4.23` public `latest`, ADR-030 `Verified` |
+| npm 배포 | `@hardcoremonk/agentmux` (legacy `codexmux@0.4.23` public `latest`, ADR-030 `Verified`) |
 | 보존된 Windows release | `v0.4.22` stable/latest; ADR-028 `Verified` |
 
 ## 시작하기
 
 active Linux engine에는 Node.js `>=20.9.0`, tmux `>=3.0`, Git, Codex CLI가 필요합니다.
-공개 npm package로 바로 실행할 수 있습니다.
+공개 npm package로 전역 설치하거나 바로 실행할 수 있습니다.
+
+> 이전 이름 전역 패키지(`codexmux`)가 설치되어 있다면 `agentmux`/`codexmux` 바이너리 충돌을 막기 위해 먼저 제거한 뒤 설치하세요.
 
 ```bash
-npx --yes codexmux@latest
+npm rm -g codexmux # 이전 이름 전역 패키지 제거
+npm i -g @hardcoremonk/agentmux
+agentmux
+```
+
+또는 `npx`로 실행할 수 있습니다.
+
+```bash
+npx --yes @hardcoremonk/agentmux@latest
 ```
 
 Source checkout 개발:
 
 ```bash
-git clone https://github.com/HardcoreMonk/codexmux.git
-cd codexmux
+git clone https://github.com/HardcoreMonk/agentmux.git
+cd agentmux
 corepack enable
 corepack pnpm install
 corepack pnpm dev
 ```
+
+## 이름 변경 및 호환성
+
+`0.5.0`부터 제품 이름이 `agentmux`로 변경되었으며, 기존 설정과 자동화 스크립트가 깨지지 않도록 아래 legacy 식별자를 호환 별칭으로 유지합니다.
+
+| 구분 | 기준 식별자 | Legacy 호환 별칭 |
+| --- | --- | --- |
+| npm 패키지 | `@hardcoremonk/agentmux` | `codexmux@0.4.x` (이전 이름 패키지) |
+| 서버/CLI 명령 | `agentmux`, `amux` | `codexmux`, `cmux` (legacy 호환 별칭) |
+| 환경 변수 | `AGENTMUX_*`, `AMUX_PORT`, `AMUX_TOKEN` | `CODEXMUX_*`, `CMUX_PORT`, `CMUX_TOKEN` |
+| 브라우저 세션 쿠키 | `agentmux-session-token` | `codexmux-session-token` |
+| CLI 인증 헤더 | `x-agentmux-token` | `x-cmux-token` |
+| 데이터 디렉터리 | `~/.agentmux` (`~/.codexmux`가 있으면 호환 symlink 생성) | `~/.codexmux` (기존 데이터 실제 경로 유지) |
+| systemd user unit | `agentmux.service` | `codexmux.service` (이전 이름 unit) |
+| tmux 소켓 | `-L codexmux`, `codexmux-runtime-v2` (실행 중 세션 보존을 위해 소켓 이름 유지) | 동일 |
 
 Production build와 Linux user service 운영은 [systemd 문서](docs/SYSTEMD.md)를 따릅니다.
 현재 unit과 실제 listener는 `HOST=0.0.0.0`, `PORT=8122`이며 browser 인증이 구성된
@@ -69,9 +94,9 @@ Windows Electron은 별도 배포면과 선택 client surface로 보존합니다
 
 ```powershell
 $env:PORT = "8122"
-$env:CODEXMUX_RUNTIME_V2 = "1"
-$env:CODEXMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
-$env:CODEXMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
+$env:AGENTMUX_RUNTIME_V2 = "1"
+$env:AGENTMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
+$env:AGENTMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
 corepack pnpm dev:electron
 ```
 
@@ -115,8 +140,8 @@ Updater local-feed와 package gate에는 현재 버전보다 낮은 실제 basel
 
 ```powershell
 corepack pnpm pack:electron
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:updater-local-feed
 corepack pnpm smoke:windows:packaged-launch
 corepack pnpm smoke:windows:upload-integrity
@@ -132,8 +157,8 @@ promotion도 진행하지 않습니다.
 
 Linux에서 Windows smoke가 `skipped`인 결과는 Windows 통과 증거가 아닙니다. `v0.4.20`에서
 fresh Windows upload/package와 실제 published updater 적용을 최초 검증했고, `v0.4.21`에서
-privacy-safe evidence를 재검증했습니다. 현재 `v0.4.22`는
-[workflow 29219010240](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240)의
+privacy-safe evidence를 재검증했습니다. 보존된 `v0.4.22`는
+legacy [workflow 29219010240](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240)의
 attempt 3에서 실제 `v0.4.21 -> v0.4.22` package/published updater와 세 artifact privacy
 gate를 통과했습니다. 현재 근거는
 [v0.4.22 release handoff](docs/operations/2026-07-13-v0.4.22-windows-release-handoff.md)에
@@ -176,17 +201,17 @@ Browser / optional Electron or Android client
             -> Timeline Worker -> JSONL + Session Catalog
             -> Status Worker -> status/notification
             -> Governance Worker -> approved project read
-       -> ~/.codexmux state, projections and upload storage
+       -> ~/.agentmux (legacy ~/.codexmux) state, projections and upload storage
 ```
 
 `/api/upload-image`와 `/api/upload-file`은 Next proxy나 Pages API route가 아니라 outer
 custom server가 인증, Origin, framing, admission, streaming, no-replace publish까지
-소유합니다. 장애 시 `CODEXMUX_UPLOADS_DISABLED=1`로 두 route만 `503` 처리하며 제거된
+소유합니다. 장애 시 `AGENTMUX_UPLOADS_DISABLED=1`(legacy `CODEXMUX_UPLOADS_DISABLED=1` 호환)로 두 route만 `503` 처리하며 제거된
 Pages route로 fallback하지 않습니다.
 
 ## 저장소 경계
 
-- `codexmux`: Linux 단일 엔진 제품/runtime, npm package, 기존 release identity와 검증 자산
+- `agentmux` (이전 이름 `codexmux`): Linux 단일 엔진 제품/runtime, `@hardcoremonk/agentmux` npm package, 기존 release identity와 검증 자산
 - `codexwinmux`: 별도 productName/app id/data dir/updater channel을 소유하는 Windows 제품 line
 - Linux tmux/systemd: active runtime과 운영 surface
 - Electron/Windows package와 Android/macOS package: 선택 client 또는 역사적 release surface
@@ -218,7 +243,7 @@ Pages route로 fallback하지 않습니다.
 | [npm distribution handoff](docs/operations/2026-08-20-npm-npx-distribution-handoff.md) | npm 0.4.23 publish, registry smoke와 보류된 tag/Trusted Publisher |
 | [Session Operations/Governance handoff](docs/operations/2026-08-21-session-operations-governance-integration-handoff.md) | 통합 구현, live 배포·restart와 rollback 증거 |
 | [Navigation Selection Clarity handoff](docs/operations/2026-08-23-navigation-selection-clarity-handoff.md) | 고정 1차 탐색, lifecycle IPC hotfix, live 배포·restart와 browser/Runtime 검증 |
-| [제품 line migration](docs/operations/codexwinmux-product-line-migration.md) | `codexmux`와 `codexwinmux` 분리 기준 |
+| [제품 line migration](docs/operations/codexwinmux-product-line-migration.md) | 이전 이름 `codexmux`와 `codexwinmux` 분리 기준 |
 
 ## 라이선스
 

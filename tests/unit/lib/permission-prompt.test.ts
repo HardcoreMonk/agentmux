@@ -227,9 +227,12 @@ describe('parsePermissionOptions', () => {
 
   it('command approval metadata에서 추가 민감 정보를 제거한다', () => {
     const panes = [
+      "x-agentmux-token=eq-agentmux-secret",
+      "x-agentmux-token space-agentmux-secret",
       "x-cmux-token=eq-secret",
       "x-cmux-token space-secret",
       '{"token":"json-secret"}',
+      '~/.agentmux/cli-token',
       '~/.codexmux/cli-token',
       'C:\\Users\\bob\\secret.txt',
       '/data/projects/codexmux/sessions/secret.jsonl',
@@ -250,9 +253,12 @@ describe('parsePermissionOptions', () => {
       .join('\n');
 
     expect(metadataText).toContain('curl');
+    expect(metadataText).not.toContain('eq-agentmux-secret');
+    expect(metadataText).not.toContain('space-agentmux-secret');
     expect(metadataText).not.toContain('eq-secret');
     expect(metadataText).not.toContain('space-secret');
     expect(metadataText).not.toContain('json-secret');
+    expect(metadataText).not.toContain('~/.agentmux/cli-token');
     expect(metadataText).not.toContain('~/.codexmux/cli-token');
     expect(metadataText).not.toContain('C:\\Users\\bob\\secret.txt');
     expect(metadataText).not.toContain('/data/projects');
@@ -343,7 +349,7 @@ describe('parsePermissionOptions', () => {
     const pane = [
       'Would you like to run the following command?',
       '  1. Yes, proceed (y)',
-      '❯ 2. Yes, and don\'t ask again for commands that start with `curl -H "Authorization: Bearer \\"quoted-bearer\\"" -H "x-cmux-token \\"quoted-cmux\\"" /status` (p)',
+      '❯ 2. Yes, and don\'t ask again for commands that start with `curl -H "Authorization: Bearer \\"quoted-bearer\\"" -H "x-agentmux-token=\\"quoted-agentmux\\"" -H "x-cmux-token \\"quoted-cmux\\"" /status` (p)',
       '  3. No',
     ].join('\n');
 
@@ -351,6 +357,7 @@ describe('parsePermissionOptions', () => {
 
     expect(metadataText).toContain('curl');
     expect(metadataText).not.toContain('quoted-bearer');
+    expect(metadataText).not.toContain('quoted-agentmux');
     expect(metadataText).not.toContain('quoted-cmux');
   });
 

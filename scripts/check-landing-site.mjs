@@ -6,7 +6,7 @@ import { checkLandingSite } from './landing-site-check-lib.mjs';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const result = await checkLandingSite({
   siteDir: path.join(rootDir, '_site'),
-  canonicalBase: 'https://hardcoremonk.github.io/codexmux',
+  canonicalBase: 'https://hardcoremonk.github.io/agentmux',
   requiredPaths: [
     'index.html',
     'ko/index.html',

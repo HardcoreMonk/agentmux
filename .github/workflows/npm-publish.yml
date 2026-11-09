@@ -63,10 +63,10 @@ jobs:
         id: registry
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          if PUBLISHED_RESULT=$(npm view "codexmux@$PACKAGE_VERSION" gitHead --json 2>/dev/null); then
+          if PUBLISHED_RESULT=$(npm view "@hardcoremonk/agentmux@$PACKAGE_VERSION" gitHead --json 2>/dev/null); then
             PUBLISHED_GIT_HEAD=$(node -p "JSON.parse(process.argv[1]) || ''" "$PUBLISHED_RESULT")
             if [ "$PUBLISHED_GIT_HEAD" != "$GITHUB_SHA" ]; then
-              echo "codexmux@$PACKAGE_VERSION already exists from a different commit" >&2
+              echo "@hardcoremonk/agentmux@$PACKAGE_VERSION already exists from a different commit" >&2
               exit 1
             fi
             echo 'publish=false' >> "$GITHUB_OUTPUT"

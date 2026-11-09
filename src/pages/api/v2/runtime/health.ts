@@ -8,7 +8,7 @@ import { getRuntimeTimelineV2Mode } from '@/lib/runtime/timeline-mode';
 import { getRuntimeStatusV2Mode } from '@/lib/runtime/status-mode';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (process.env.CODEXMUX_RUNTIME_V2 !== '1') {
+  if (process.env.AGENTMUX_RUNTIME_V2 !== '1') {
     return sendRuntimeDisabled(res);
   }
 

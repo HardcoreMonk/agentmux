@@ -5,7 +5,7 @@ import { parseRuntimeApiBody, sendRuntimeApiError, sendRuntimeDisabled } from '@
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (process.env.CODEXMUX_RUNTIME_V2 !== '1') return sendRuntimeDisabled(res);
+  if (process.env.AGENTMUX_RUNTIME_V2 !== '1') return sendRuntimeDisabled(res);
   const authorization = await authorizeRuntimeV2ApiRequest(req);
   if (!authorization.authorized) return res.status(authorization.statusCode).json({ error: authorization.reason });
   if (req.method !== 'GET') {

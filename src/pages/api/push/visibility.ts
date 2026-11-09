@@ -4,7 +4,7 @@ import { getRuntimeStatusV2Mode } from '@/lib/runtime/status-mode';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 
 const shouldUseRuntimeStatusLive = (): boolean =>
-  process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
+  process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'POST') {

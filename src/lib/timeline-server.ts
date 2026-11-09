@@ -63,7 +63,7 @@ const MAX_WATCHER_RETRIES = 3;
 const runtimeConnections = new Set<WebSocket>();
 
 const shouldUseRuntimeStatusLive = (): boolean =>
-  process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
+  process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
 const notifyStatusLastUserMessage = (sessionName: string, message: string): void => {
   if (shouldUseRuntimeStatusLive()) {

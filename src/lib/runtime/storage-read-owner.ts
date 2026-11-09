@@ -1,5 +1,5 @@
-import os from 'os';
 import path from 'path';
+import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
 import { parseRuntimeStorageV2Mode } from '@/lib/runtime/storage-mode';
 import { createStorageRepository } from '@/lib/runtime/storage/repository';
@@ -15,16 +15,16 @@ export interface IRuntimeStorageReadOwnerOptions {
 const log = createLogger('runtime-storage');
 
 const getDefaultDataDir = (): string =>
-  process.env.CODEXMUX_RUNTIME_V2_STORAGE_MIRROR_DATA_DIR
-  || path.join(os.homedir(), '.codexmux');
+  process.env.AGENTMUX_RUNTIME_V2_STORAGE_MIRROR_DATA_DIR
+  || getDataDir();
 
 const getDefaultDbPath = (dataDir = getDefaultDataDir()): string =>
-  process.env.CODEXMUX_RUNTIME_DB
+  process.env.AGENTMUX_RUNTIME_DB
   || path.join(dataDir, 'runtime-v2', 'state.db');
 
 export const shouldReadRuntimeStorageV2 = ({
-  runtimeV2Enabled = process.env.CODEXMUX_RUNTIME_V2 === '1',
-  storageMode = process.env.CODEXMUX_RUNTIME_STORAGE_V2_MODE,
+  runtimeV2Enabled = process.env.AGENTMUX_RUNTIME_V2 === '1',
+  storageMode = process.env.AGENTMUX_RUNTIME_STORAGE_V2_MODE,
 }: IRuntimeStorageReadOwnerOptions = {}): boolean =>
   runtimeV2Enabled && parseRuntimeStorageV2Mode(storageMode) === 'default';
 

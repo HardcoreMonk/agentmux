@@ -3596,7 +3596,7 @@ footer .foot-links a:hover { color: var(--foreground); }
 .site-footer nav { display: flex; gap: 1.15rem; }
 .site-footer a:hover { color: var(--foreground); }
 
-/* Reference-inspired codexmux home */
+/* Reference-inspired agentmux home */
 .ocx-home {
   width: min(1180px, calc(100% - 2rem));
   max-width: none;

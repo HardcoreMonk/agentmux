@@ -2,7 +2,7 @@ import { buildAgentSessionRelationship, type IAgentSessionRelationship } from '@
 import type { ITimelineAssistantMessage, ITimelineEntry, ITimelineUserMessage, TCliState } from '@/types/timeline';
 
 export const APP_SERVER_PROVIDER_ID = 'codex-app-server';
-export const APP_SERVER_ENV_NAME = 'CODEXMUX_CODEX_APP_SERVER';
+export const APP_SERVER_ENV_NAME = 'AGENTMUX_CODEX_APP_SERVER';
 
 export type TCodexAppServerMode = 'disabled' | 'experimental';
 export type TCodexAppServerCapabilityStatus = 'disabled' | 'fixture-only';

@@ -1,10 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 import { collectAgentJsonlFiles } from '@/lib/stats/agent-jsonl-files';
 
-const CACHE_PATH = path.join(os.homedir(), '.codexmux', 'stats', 'cache.json');
+const CACHE_PATH = path.join(getDataDir(), 'stats', 'cache.json');
 
 const countJsonlFiles = async (): Promise<number> => {
   const files = await collectAgentJsonlFiles();

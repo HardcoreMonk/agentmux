@@ -6,15 +6,15 @@ permalink: /ko/docs/linux-service/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux의 운영 기준은 한 Linux 사용자 계정이 custom server, Runtime v2 worker, tmux,
+agentmux의 운영 기준은 한 Linux 사용자 계정이 custom server, Runtime v2 worker, tmux,
 Codex JSONL과 app DB를 소유하는 단일 엔진입니다. Browser와 선택 client는 이 engine에
 접속합니다.
 
 ## Source build
 
 ```bash
-git clone https://github.com/HardcoreMonk/codexmux.git
-cd codexmux
+git clone https://github.com/HardcoreMonk/agentmux.git
+cd agentmux
 corepack enable
 corepack pnpm install --frozen-lockfile
 corepack pnpm build
@@ -27,20 +27,20 @@ Node.js 20.9 이상, tmux 3.0 이상과 로그인된 Codex CLI가 필요합니�
 
 ```ini
 [Unit]
-Description=codexmux Linux single-engine session manager
+Description=agentmux Linux single-engine session manager
 After=network.target
 
 [Service]
 Type=simple
-WorkingDirectory=/absolute/path/to/codexmux
+WorkingDirectory=/absolute/path/to/agentmux
 Environment=NODE_ENV=production
 Environment=NEXT_TELEMETRY_DISABLED=1
-Environment=CODEXMUX_RUNTIME_V2=1
-Environment=CODEXMUX_SESSION_CATALOG_MODE=default
+Environment=AGENTMUX_RUNTIME_V2=1
+Environment=AGENTMUX_SESSION_CATALOG_MODE=default
 Environment=HOST=localhost
 Environment=PORT=8122
 Environment=PATH=/absolute/node/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/absolute/path/to/node /absolute/path/to/codexmux/bin/codexmux.js
+ExecStart=/absolute/path/to/node /absolute/path/to/agentmux/bin/agentmux.js
 Restart=on-failure
 RestartSec=3
 KillSignal=SIGINT
@@ -51,12 +51,12 @@ TimeoutStopSec=20
 WantedBy=default.target
 ```
 
-`~/.config/systemd/user/codexmux.service`에 저장한 뒤 시작합니다. `PATH`에는 실제 Node,
+`~/.config/systemd/user/agentmux.service`에 저장한 뒤 시작합니다. `PATH`에는 실제 Node,
 Codex CLI와 tmux를 찾을 수 있는 directory를 지정합니다.
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now codexmux.service
+systemctl --user enable --now agentmux.service
 ```
 
 {% call callout('warning', 'Fresh setup은 loopback 전용') %}
@@ -71,28 +71,28 @@ password setup을 완료한 뒤 별도 network/security 승인을 거쳐 `HOST`�
 `state.db`, WAL, SHM을 일부만 섞어 복원하지 않습니다.
 
 ```bash
-systemctl --user stop codexmux.service
+systemctl --user stop agentmux.service
 corepack pnpm runtime-v2:storage-backup
 ```
 
-생성된 `~/.codexmux/backups/runtime-v2-storage-<timestamp>/`의 directory는 `0700`, file은
+생성된 `~/.agentmux/backups/runtime-v2-storage-<timestamp>/`의 directory는 `0700`, file은
 `0600`이어야 합니다. Build가 실패하면 검증된 이전 artifact로 service를 다시 시작합니다.
 
 ## Build, restart, health
 
 ```bash
 corepack pnpm build
-systemctl --user restart codexmux.service
+systemctl --user restart agentmux.service
 curl -fsS http://127.0.0.1:8122/api/health
 ```
 
 인증된 worker 상태:
 
 ```bash
-IFS= read -r codexmux_cli_token < ~/.codexmux/cli-token
-curl -fsS -H "x-cmux-token: $codexmux_cli_token" \
+IFS= read -r agentmux_cli_token < ~/.agentmux/cli-token
+curl -fsS -H "x-agentmux-token: $agentmux_cli_token" \
   http://127.0.0.1:8122/api/v2/runtime/health
-curl -fsS -H "x-cmux-token: $codexmux_cli_token" \
+curl -fsS -H "x-agentmux-token: $agentmux_cli_token" \
   http://127.0.0.1:8122/api/sessions/health
 ```
 
@@ -113,5 +113,5 @@ DNS와 certificate 변경은 service deploy와 분리해 검토합니다.
 4. durable storage가 손상됐을 때만 같은 backup의 DB/WAL/SHM 전체를 복원합니다.
 5. service start, public/authenticated health와 browser reconnect를 확인합니다.
 
-전체 운영 계약은 [repository SYSTEMD 문서](https://github.com/HardcoreMonk/codexmux/blob/main/docs/SYSTEMD.md)를
+전체 운영 계약은 [repository SYSTEMD 문서](https://github.com/HardcoreMonk/agentmux/blob/main/docs/SYSTEMD.md)를
 따릅니다.

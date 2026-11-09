@@ -6,7 +6,7 @@ permalink: /ru/docs/custom-css/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux는 CSS 변수 시스템 위에 만들어져 있습니다. 소스를 건드리지 않고도 거의 모든 시각 요소를 바꿀 수 있습니다. **외형** 탭에 규칙을 붙여넣고 Apply를 누르면 연결된 모든 클라이언트에 즉시 반영됩니다.
+agentmux는 CSS 변수 시스템 위에 만들어져 있습니다. 소스를 건드리지 않고도 거의 모든 시각 요소를 바꿀 수 있습니다. **외형** 탭에 규칙을 붙여넣고 Apply를 누르면 연결된 모든 클라이언트에 즉시 반영됩니다.
 
 ## 어디에 작성하나요
 
@@ -16,7 +16,7 @@ codexmux는 CSS 변수 시스템 위에 만들어져 있습니다. 소스를 건
 2. **Apply**를 누르면 모든 페이지의 `<style>` 태그에 주입됩니다.
 3. **초기화**로 전체 초기화.
 
-작성한 CSS는 서버의 `~/.codexmux/config.json`(`customCSS`)에 저장되므로, 접속하는 모든 디바이스에 동일하게 적용됩니다.
+작성한 CSS는 서버의 `~/.agentmux/config.json`(`customCSS`)에 저장되므로, 접속하는 모든 디바이스에 동일하게 적용됩니다.
 
 {% call callout('note', '디바이스별이 아닌 서버 단위') %}
 커스텀 CSS는 서버 설정에 저장되어 어떤 브라우저로 접속하든 따라옵니다. 디바이스별로 다른 외형을 원한다면 현재는 지원하지 않습니다.
@@ -24,7 +24,7 @@ codexmux는 CSS 변수 시스템 위에 만들어져 있습니다. 소스를 건
 
 ## 동작 원리
 
-codexmux의 컬러·서피스·악센트는 대부분 `:root`(라이트)와 `.dark`(다크) 아래의 CSS 변수로 노출됩니다. 변수 하나만 덮어쓰면 그 변수를 참조하는 모든 컴포넌트(사이드바·다이얼로그·차트·상태 배지)가 한 번에 따라 바뀝니다.
+agentmux의 컬러·서피스·악센트는 대부분 `:root`(라이트)와 `.dark`(다크) 아래의 CSS 변수로 노출됩니다. 변수 하나만 덮어쓰면 그 변수를 참조하는 모든 컴포넌트(사이드바·다이얼로그·차트·상태 배지)가 한 번에 따라 바뀝니다.
 
 컴포넌트 셀렉터를 직접 오버라이드하는 것보다 변수를 바꾸는 편이 거의 항상 낫습니다. 컴포넌트 클래스는 안정적인 API가 아니지만 변수는 그렇습니다.
 
@@ -65,7 +65,7 @@ codexmux의 컬러·서피스·악센트는 대부분 `:root`(라이트)와 `.da
 - **Palette** — `--ui-blue`, `--ui-teal`, `--ui-coral`, `--ui-amber`, `--ui-purple`, `--ui-pink`, `--ui-green`, `--ui-gray`, `--ui-red`
 - **Semantic** — `--positive`, `--negative`, `--accent-color`, `--brand`, `--focus-indicator`, `--agent-active`
 
-전체 토큰 목록과 기본 oklch 값, 디자인 의도는 저장소의 [`docs/STYLE.md`](https://github.com/HardcoreMonk/codexmux/blob/main/docs/STYLE.md)에 정리되어 있습니다. 이 문서가 단일 소스입니다.
+전체 토큰 목록과 기본 oklch 값, 디자인 의도는 저장소의 [`docs/STYLE.md`](https://github.com/HardcoreMonk/agentmux/blob/main/docs/STYLE.md)에 정리되어 있습니다. 이 문서가 단일 소스입니다.
 
 ## 모드별로만 적용하기
 
@@ -85,10 +85,10 @@ codexmux의 컬러·서피스·악센트는 대부분 `:root`(라이트)와 `.da
 
 ## 터미널은요?
 
-xterm.js 터미널은 위 CSS 변수가 아니라 별도의 큐레이션된 팔레트를 씁니다. **터미널** 탭에서 전환하세요. [터미널 테마](/codexmux/ru/docs/terminal-themes/) 참고.
+xterm.js 터미널은 위 CSS 변수가 아니라 별도의 큐레이션된 팔레트를 씁니다. **터미널** 탭에서 전환하세요. [터미널 테마](/agentmux/ru/docs/terminal-themes/) 참고.
 
 ## 다음으로
 
-- **[테마 & 폰트](/codexmux/ru/docs/themes-fonts/)** — 라이트/다크/시스템, 폰트 크기 프리셋
-- **[터미널 테마](/codexmux/ru/docs/terminal-themes/)** — 터미널 영역 전용 팔레트
-- **[사이드바 & Codex 옵션](/codexmux/ru/docs/sidebar-options/)** — 항목 정렬, Codex 플래그 토글
+- **[테마 & 폰트](/agentmux/ru/docs/themes-fonts/)** — 라이트/다크/시스템, 폰트 크기 프리셋
+- **[터미널 테마](/agentmux/ru/docs/terminal-themes/)** — 터미널 영역 전용 팔레트
+- **[사이드바 & Codex 옵션](/agentmux/ru/docs/sidebar-options/)** — 항목 정렬, Codex 플래그 토글

@@ -10,7 +10,7 @@ import type { ITab } from '@/types/terminal';
 const log = createLogger('layout');
 
 const shouldUseRuntimeStatusLive = (): boolean =>
-  process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
+  process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const wsId = (req.query.workspace as string) || await getActiveWorkspaceId();

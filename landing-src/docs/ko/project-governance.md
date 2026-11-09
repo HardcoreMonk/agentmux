@@ -16,8 +16,8 @@ lifecycle와 audit를 한 화면에서 읽고 관리합니다. Workspace와 Mana
 authenticated runtime health에서 Governance Worker 상태를 확인합니다.
 
 ```bash
-IFS= read -r codexmux_cli_token < ~/.codexmux/cli-token
-curl -fsS -H "x-cmux-token: $codexmux_cli_token" \
+IFS= read -r agentmux_cli_token < ~/.agentmux/cli-token
+curl -fsS -H "x-agentmux-token: $agentmux_cli_token" \
   http://127.0.0.1:8122/api/v2/runtime/health
 ```
 
@@ -42,7 +42,7 @@ Scaffold create/update/adoption과 rollback은 기본 off입니다. 별도 운�
 
 ```ini
 [Service]
-Environment=CODEXMUX_GOVERNANCE_WRITES=1
+Environment=AGENTMUX_GOVERNANCE_WRITES=1
 ```
 
 {% call callout('warning', 'Write gate는 권한 우회가 아닙니다') %}
@@ -64,7 +64,7 @@ force merge, delete/move/full sync는 제공하지 않습니다.
 
 ## Action history와 rollback
 
-각 action은 `~/.codexmux/backups/governance-actions/<project-id>/<action-id>/`에 private journal과
+각 action은 `~/.agentmux/backups/governance-actions/<project-id>/<action-id>/`에 private journal과
 exact preimage를 남깁니다. Directory는 `0700`, manifest/preimage는 `0600`입니다.
 
 - 현재 output fingerprint가 receipt와 다르면 rollback은 `rollback-stale`로 중단됩니다.
@@ -77,6 +77,6 @@ startup recovery는 먼저 수행합니다.
 
 ## 다음 단계
 
-- [Linux 서비스 운영](/codexmux/ko/docs/linux-service/) — backup, restart와 health
-- [데이터 디렉터리](/codexmux/ko/docs/data-directory/) — durable/project backup 경계
-- [아키텍처](/codexmux/ko/docs/architecture/) — worker ownership과 API routing
+- [Linux 서비스 운영](/agentmux/ko/docs/linux-service/) — backup, restart와 health
+- [데이터 디렉터리](/agentmux/ko/docs/data-directory/) — durable/project backup 경계
+- [아키텍처](/agentmux/ko/docs/architecture/) — worker ownership과 API routing

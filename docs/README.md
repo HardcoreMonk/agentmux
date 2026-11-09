@@ -1,6 +1,6 @@
 # 문서 맵
 
-이 디렉터리는 codexmux의 내부 설계, 운영, 플랫폼 전환 기준 문서를 모읍니다. 현재 기준 문서 언어는 한국어입니다.
+이 디렉터리는 agentmux(이전 이름 `codexmux`)의 내부 설계, 운영, 플랫폼 전환 기준 문서를 모읍니다. 현재 기준 문서 언어는 한국어입니다.
 
 `landing-src/docs/`는 GitHub Pages에 배포하는 사용자 가이드 surface이며 canonical 제품 계약은
 아닙니다. Root landing과 신규 핵심 guide는 English, `/ko/`는 Korean을 사용합니다. 기존 root
@@ -18,26 +18,27 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `PROJECT-DESIGN.md` | 제품/아키텍처 설계 요약과 주요 구성 |
 | `WINDOWS-ONLY-GAP-AUDIT.md` | ADR-023 기간의 Windows 전환 gap과 release 증거 보존 |
 | `PURPLEMUX-ADOPTION-AUDIT.md` | Purplemux 계보, 보안/구조 차이, 선택 이식 우선순위 |
+| `HERDR-ADOPTION-AUDIT.md` | Herdr 기능 인벤토리, agentmux(이전 이름 `codexmux`) 대비 비교, 차용 후보와 제외 범위 |
 | `ARCHITECTURE-LOGIC.md` | Linux engine, runtime worker, Session Catalog, Project Governance와 API 흐름 |
 | `RUNTIME-V2-CUTOVER.md` | runtime v2 production 전환 단계와 rollback 기준 |
 | `RUNTIME-V2-PARITY.md` | runtime v2 surface별 parity와 증거 |
 | `STATUS.md` | Codex 작업 상태 감지, notification, timeline metadata |
 | `TMUX.md` | Linux tmux adapter와 terminal WebSocket 계약 |
-| `DATA-DIR.md` | `~/.codexmux/` 저장 구조와 삭제 기준 |
+| `DATA-DIR.md` | `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`) 저장 구조와 삭제 기준 |
 | `TESTING.md` | unit/type/lint/build, Linux engine, Playwright와 별도 package smoke 기준 |
 | `ELECTRON.md` | Electron desktop shell, Windows packaging, updater smoke |
 | `PERFORMANCE.md` | 성능 스냅샷, cache, polling, render 최적화 기준 |
 | `STYLE.md` | theme, color, terminal/mobile UI 규칙 |
 | `GITHUB-PAGES.md` | 공개 랜딩/가이드 작성, artifact 검증, Pages 배포와 rollback |
 | `FOLLOW-UP.md` | release 전 확인, 내부 배포 단계, post-MVP backlog |
-| `operations/codexwinmux-product-line-migration.md` | `codexmux`와 `codexwinmux` 제품 line 분리, data migration 기준 |
+| `operations/codexwinmux-product-line-migration.md` | 이전 이름 `codexmux`와 `codexwinmux` 제품 line 분리, data migration 기준 |
 | `operations/windows-release-update-repeat-checklist.md` | 다음 버전마다 반복할 Windows release/update smoke 순서 |
 | `operations/2026-07-11-pre-auth-bootstrap-security-handoff.md` | setup/install 보안 구현, 검증 증거, 복구와 잔여 경계 |
 | `operations/2026-07-11-production-security-upload-integrity-handoff.md` | production dependency와 outer upload ingress 구현, 검증, Windows 증거 경계 |
 | `operations/2026-07-12-v0.4.20-windows-release-handoff.md` | 최초 Windows 기능 검증과 published artifact privacy 교정 |
 | `operations/2026-07-12-v0.4.21-windows-release-handoff.md` | 이전 privacy-safe Windows release 증거 |
 | `operations/2026-07-13-v0.4.22-windows-release-handoff.md` | 보존된 Windows stable release, cookie namespace와 update 증거 |
-| `operations/2026-07-12-purplemux-cookie-isolation-handoff.md` | 동일 hostname의 Purplemux/Codexmux cookie 충돌 원인, source 수정과 release 경계 |
+| `operations/2026-07-12-purplemux-cookie-isolation-handoff.md` | 동일 hostname의 Purplemux/이전 이름 Codexmux cookie 충돌 원인, source 수정과 release 경계 |
 | `operations/2026-08-14-purplemux-selected-adoption-handoff.md` | Purplemux 선택 기능 수동 도입, 자동 검증과 Linux service 재시작 근거 |
 | `operations/2026-08-20-npm-npx-distribution-handoff.md` | npm 0.4.23 publish, 0.4.24 release gate와 보류된 tag/Trusted Publisher |
 | `operations/2026-08-21-session-operations-governance-integration-handoff.md` | Session Catalog/Project Governance 구현, 검증, rollback과 운영 진입 경계 |
@@ -57,7 +58,7 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 증거를 확보할 때까지 `Implemented` 상태를 유지합니다. 기존 upload/package와 published
 updater 인수 조건은 `v0.4.20`에서 기능 검증하고 `v0.4.21`에서 privacy-safe evidence로
 재검증했습니다.
-[GitHub issue #16](https://github.com/HardcoreMonk/codexmux/issues/16)은 해당 완료 조건과
+이전 이름 저장소의 [GitHub issue #16](https://github.com/HardcoreMonk/codexmux/issues/16)은 해당 완료 조건과
 workflow/asset 증거를 보존하는 추적 기록입니다.
 
 2026-08-14에는 Purplemux 비교 감사에서 선택한 rate-limit, bounded rich timeline,
@@ -68,7 +69,7 @@ ADR-025는 자동 검증과 실제 Linux service 재시작을 근거로 `Verifie
 2026-08-21에는 `codexmux@0.4.23` public npm publish와 registry package smoke를 완료했고,
 Session Operations/Project Governance 구현 commit `d405f683`, `9d32d049`, `f46410b4`를 Linux
 user service에 순차 배포했습니다. Browser 인증, `HOST=0.0.0.0`과
-`CODEXMUX_GOVERNANCE_WRITES=1` drop-in을 적용해 listener와 governed writer를 활성화했습니다.
+`AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환) drop-in을 적용해 listener와 governed writer를 활성화했습니다.
 2026-08-22에는 실제 Managed Project의 adoption/rollback, 실제 JSONL Session Catalog와 301초
 동일 세션 재연결 관찰을 완료해 ADR-031과 ADR-032를 `Verified`로 전환했습니다.
 같은 날 annotation-aware pagination commit `322ccfb7`, version `0.4.24`를 Linux user service에

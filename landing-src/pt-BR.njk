@@ -1,10 +1,10 @@
 ---
 layout: layouts/base.njk
 lang: pt-BR
-title: "codexmux — Um multiplexador de terminal web-nativo para Codex"
+title: "agentmux — Um multiplexador de terminal web-nativo para Codex"
 description: "Rode várias sessões do Codex em um único painel. Baseado em tmux, web-nativo, pronto pra mobile. Open source MIT."
-canonical: https://hardcoremonk.github.io/codexmux/pt-BR/
-ogUrl: https://hardcoremonk.github.io/codexmux/pt-BR/
+canonical: https://hardcoremonk.github.io/agentmux/pt-BR/
+ogUrl: https://hardcoremonk.github.io/agentmux/pt-BR/
 ogLocale: pt_BR
 ogLocaleAlternate: en_US
 permalink: /pt-BR/index.html
@@ -14,7 +14,7 @@ isRoot: false
   <nav class="nav" data-ph-capture-attribute-location="nav">
     <a href="#top" class="nav-brand is-hidden">
       <svg class="brand-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
-      <span class="wordmark"><strong>codex</strong>mux</span>
+      <span class="wordmark"><strong>agent</strong>mux</span>
     </a>
     <div class="nav-links">
       <a href="#mobile">Mobile</a>
@@ -26,7 +26,7 @@ isRoot: false
       <a href="#faq">FAQ</a>
     </div>
     <div class="nav-spacer"></div>
-    <a href="/codexmux/pt-BR/docs/" class="nav-docs">Docs</a>
+    <a href="/agentmux/pt-BR/docs/" class="nav-docs">Docs</a>
     <details class="nav-lang">
       <summary aria-label="Selecionar idioma">
         <span class="lang-current">PT</span>
@@ -46,7 +46,7 @@ isRoot: false
         <a href="../tr/" class="lang-opt" lang="tr" hreflang="tr">Türkçe</a>
       </div>
     </details>
-    <a href="https://github.com/HardcoreMonk/codexmux" class="nav-github" data-ph-capture-attribute-cta="github" target="_blank" rel="noopener" aria-label="GitHub">
+    <a href="https://github.com/HardcoreMonk/agentmux" class="nav-github" data-ph-capture-attribute-cta="github" target="_blank" rel="noopener" aria-label="GitHub">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
         <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.69-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.09-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.62 1.58.23 2.75.11 3.04.74.8 1.18 1.83 1.18 3.09 0 4.42-2.69 5.4-5.26 5.68.41.35.78 1.05.78 2.12 0 1.53-.01 2.77-.01 3.15 0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/>
       </svg>
@@ -62,7 +62,7 @@ isRoot: false
         <div class="hero-text">
           <div class="hero-eyebrow">
             <svg class="brand-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/></svg>
-            <span class="eyebrow-mark"><strong>codex</strong>mux</span>
+            <span class="eyebrow-mark"><strong>agent</strong>mux</span>
             <span class="eyebrow-sep">/</span>
             <span class="eyebrow-sub">for Codex</span>
           </div>
@@ -81,10 +81,10 @@ isRoot: false
           <div class="install-block">
             <div class="install-cmd">
               <span class="prompt">$</span>
-              <span>npx --yes codexmux@latest</span>
-              <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="Copiar" onclick="(function(b){navigator.clipboard.writeText('npx --yes codexmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
+              <span>npx --yes @hardcoremonk/agentmux@latest</span>
+              <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="Copiar" onclick="(function(b){navigator.clipboard.writeText('npx --yes @hardcoremonk/agentmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
             </div>
-            <a href="https://github.com/HardcoreMonk/codexmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
+            <a href="https://github.com/HardcoreMonk/agentmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
               Baixar instalador do Windows
             </a>
           </div>
@@ -107,7 +107,7 @@ isRoot: false
             <div class="stack-card-inner">
               <header class="card-head">
                 <span class="card-dot busy"></span>
-                <span class="card-name">codexmux</span>
+                <span class="card-name">agentmux</span>
                 <span class="card-time">02:14</span>
               </header>
               <div class="card-body">
@@ -164,7 +164,7 @@ isRoot: false
         <div class="shot shot--desktop preview-desktop">
           <div class="swiper">
             <div class="swiper-wrapper">
-              <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-busy.webp" type="image/webp" /><img src="../images/screenshot-desktop-busy.png" alt="painel codexmux no desktop" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
+              <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-busy.webp" type="image/webp" /><img src="../images/screenshot-desktop-busy.png" alt="painel agentmux no desktop" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-diff.webp" type="image/webp" /><img src="../images/screenshot-desktop-diff.png" alt="" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-desktop-codex.webp" type="image/webp" /><img src="../images/screenshot-desktop-codex.png" alt="" width="2832" height="1552" loading="lazy" decoding="async" /></picture></div>
             </div>
@@ -174,7 +174,7 @@ isRoot: false
         <div class="shot shot--mobile preview-mobile">
           <div class="swiper">
             <div class="swiper-wrapper">
-              <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-push.webp" type="image/webp" /><img src="../images/screenshot-mobile-push.png" alt="codexmux no mobile" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
+              <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-push.webp" type="image/webp" /><img src="../images/screenshot-mobile-push.png" alt="agentmux no mobile" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-done.webp" type="image/webp" /><img src="../images/screenshot-mobile-done.png" alt="" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-new-tab.webp" type="image/webp" /><img src="../images/screenshot-mobile-new-tab.png" alt="" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
               <div class="swiper-slide"><picture><source srcset="../images/screenshot-mobile-input.webp" type="image/webp" /><img src="../images/screenshot-mobile-input.png" alt="" width="1206" height="2622" loading="lazy" decoding="async" /></picture></div>
@@ -188,11 +188,11 @@ isRoot: false
 
     <!-- ── Why ── -->
     <section id="why">
-      <div class="eyebrow">Por que codexmux</div>
+      <div class="eyebrow">Por que agentmux</div>
       <h2>Cada sessão, em um painel só.</h2>
       <p class="lead">
         Quanto mais sessões, mais difícil fica acompanhar o estado.<br />
-        O codexmux junta todas numa só tela pra você ver <strong>o que está rodando e onde precisa da sua ação</strong> num piscar.
+        O agentmux junta todas numa só tela pra você ver <strong>o que está rodando e onde precisa da sua ação</strong> num piscar.
       </p>
 
       <div class="pain-highlight">
@@ -231,7 +231,7 @@ isRoot: false
             Enquanto espera o próximo reset, o trabalho fica parado.
           </p>
           <p>
-            O codexmux deixa as cotas de 5 horas e 7 dias fixas na barra lateral.
+            O agentmux deixa as cotas de 5 horas e 7 dias fixas na barra lateral.
             As cores mudam em <span class="hl amber">50%</span> e <span class="hl red">80%</span>, pra você dosar o ritmo antes de bater no teto.
           </p>
         </div>
@@ -243,7 +243,7 @@ isRoot: false
             <div class="mockup mockup-dashboard">
               <div class="tile">
                 <span class="indicator busy"></span>
-                <div class="meta"><span class="name">codexmux</span><span class="sub">in progress</span></div>
+                <div class="meta"><span class="name">agentmux</span><span class="sub">in progress</span></div>
               </div>
               <div class="tile">
                 <span class="indicator input"></span>
@@ -381,7 +381,7 @@ isRoot: false
         <div class="mobile-showcase">
           <picture class="shot shot--mobile">
             <source srcset="../images/mobile-push.webp" type="image/webp" />
-            <img src="../images/mobile-push.png" alt="notificação push do codexmux no mobile" width="1206" height="2622" loading="lazy" decoding="async" />
+            <img src="../images/mobile-push.png" alt="notificação push do agentmux no mobile" width="1206" height="2622" loading="lazy" decoding="async" />
           </picture>
         </div>
 
@@ -490,7 +490,7 @@ isRoot: false
       <div class="stats-showcase">
         <picture class="stats-screen">
           <source srcset="../images/stat.webp" type="image/webp" />
-          <img src="../images/stat.png" alt="painel de estatísticas de uso do codexmux" width="2068" height="1682" loading="lazy" decoding="async" />
+          <img src="../images/stat.png" alt="painel de estatísticas de uso do agentmux" width="2068" height="1682" loading="lazy" decoding="async" />
         </picture>
 
         <div class="stats-callout" style="--x:22%; --y:20%">
@@ -544,11 +544,11 @@ isRoot: false
           </div>
           <div class="notes-mockup-body">
             <div class="md-brief">
-              Rascunhada a landing do codexmux. Seção mobile / PWA conectada ao dashboard de stats. Copy unificada no tom Apple e todos os mockups de feature cards substituídos.
+              Rascunhada a landing do agentmux. Seção mobile / PWA conectada ao dashboard de stats. Copy unificada no tom Apple e todos os mockups de feature cards substituídos.
             </div>
             <div class="md-collapse">∧ Collapse</div>
 
-            <div class="md-project">codexmux</div>
+            <div class="md-project">agentmux</div>
 
             <div class="md-h3">Rascunho da landing</div>
             <ul class="md-ul">
@@ -673,7 +673,7 @@ isRoot: false
       <div class="eyebrow coral">Arquitetura</div>
       <h2>Navegador ↔ Node.js ↔ tmux · Codex.</h2>
       <p class="lead">
-        O xterm.js conecta no node-pty via WebSocket, e o node-pty gruda numa sessão tmux no socket dedicado <code>codexmux</code>.
+        O xterm.js conecta no node-pty via WebSocket, e o node-pty gruda numa sessão tmux no socket dedicado <code>agentmux</code>.
         State is tracked by process detection and Codex JSONL watchers.
       </p>
 
@@ -751,14 +751,14 @@ isRoot: false
           </div>
           <div class="arch-split">
             <div class="arch-group">
-              <div class="arch-group-label">tmux · codexmux socket</div>
+              <div class="arch-group-label">tmux · agentmux socket</div>
               <div class="arch-mini-row">
                 <span class="arch-mini">session 1</span>
                 <span class="arch-mini">session 2</span>
                 <span class="arch-mini">…</span>
               </div>
               <div class="arch-highlights arch-highlights--inline">
-                <span class="arch-hl">Socket codexmux isolado</span>
+                <span class="arch-hl">Socket agentmux isolado</span>
                 <span class="arch-hl">Restore paralelo após reboot</span>
               </div>
             </div>
@@ -780,7 +780,7 @@ isRoot: false
       <h2>Além do controle remoto — um workspace unificado.</h2>
       <p class="lead">
         O Remote Control oficial é uma ferramenta de acesso remoto pra <em>continuar sessões do Codex em outro dispositivo</em>.
-        O codexmux põe por cima <em>um painel multi-sessão, extensões de terminal e analytics de uso</em> — um ambiente operacional self-hosted.
+        O agentmux põe por cima <em>um painel multi-sessão, extensões de terminal e analytics de uso</em> — um ambiente operacional self-hosted.
       </p>
 
       <table class="compare">
@@ -788,7 +788,7 @@ isRoot: false
           <tr>
             <th>Item</th>
             <th>Remote Control oficial</th>
-            <th>codexmux</th>
+            <th>agentmux</th>
           </tr>
         </thead>
         <tbody>
@@ -845,7 +845,7 @@ isRoot: false
           <div class="step-body">
             <h3>Executar o servidor web legado</h3>
             <p>No macOS ou Linux com Node.js 20+ e tmux, execute diretamente o pacote publicado.</p>
-<pre class="code"><span class="c">$</span> npx --yes codexmux@latest</pre>
+<pre class="code"><span class="c">$</span> npx --yes @hardcoremonk/agentmux@latest</pre>
           </div>
         </div>
 
@@ -872,7 +872,7 @@ isRoot: false
           <div class="step-body">
             <h3>Instalador do Windows (principal)</h3>
             <p>No Windows, use o instalador Electron. O comando npm não instala o aplicativo desktop do Windows.</p>
-            <a href="https://github.com/HardcoreMonk/codexmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" style="margin-top:0.5rem" data-ph-capture-attribute-cta="download">
+            <a href="https://github.com/HardcoreMonk/agentmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" style="margin-top:0.5rem" data-ph-capture-attribute-cta="download">
               Baixar o instalador do Windows →
             </a>
           </div>
@@ -894,20 +894,20 @@ isRoot: false
 
         <details>
           <summary>Dá pra aprovar permission prompts do celular?</summary>
-          <p>Dá. O codexmux intercepta os diálogos de permissão do Codex no terminal e encaminha pra dashboard e pras notificações mobile.
+          <p>Dá. O agentmux intercepta os diálogos de permissão do Codex no terminal e encaminha pra dashboard e pras notificações mobile.
             Aprove de qualquer lugar — sem tarefa parada.</p>
         </details>
 
         <details>
           <summary>Se o sistema travar, perco as sessões?</summary>
           <p>Fechar o navegador ou perder a rede não é problema — o tmux mantém as sessões vivas.
-            Mesmo após um reboot completo, o codexmux varre o layout do workspace e <strong>restaura as sessões Codex anteriores em paralelo</strong>.
+            Mesmo após um reboot completo, o agentmux varre o layout do workspace e <strong>restaura as sessões Codex anteriores em paralelo</strong>.
             Sem restore manual.</p>
         </details>
 
         <details>
           <summary>Onde meus dados ficam?</summary>
-          <p>Todas as configurações e dados de sessão ficam localmente em <code>~/.codexmux/</code>.
+          <p>Todas as configurações e dados de sessão ficam localmente em <code>~/.agentmux/</code>.
             Nada é enviado pra servidores externos. A autenticação é guardada como hash scrypt em <code>config.json</code>.</p>
         </details>
 
@@ -918,7 +918,7 @@ isRoot: false
 
         <details>
           <summary>Conflita com minhas sessões tmux existentes?</summary>
-          <p>O codexmux sobe uma instância tmux isolada num socket <code>codexmux</code> dedicado.
+          <p>O agentmux sobe uma instância tmux isolada num socket <code>agentmux</code> dedicado.
             É completamente independente das suas sessões tmux e do <code>~/.tmux.conf</code>.</p>
         </details>
 
@@ -930,7 +930,7 @@ isRoot: false
 
         <details>
           <summary>Tem algum custo?</summary>
-          <p>O codexmux em si é open source MIT e gratuito. O uso do Codex é cobrado à parte.</p>
+          <p>O agentmux em si é open source MIT e gratuito. O uso do Codex é cobrado à parte.</p>
         </details>
 
         <details>
@@ -957,10 +957,10 @@ isRoot: false
         <div class="install-block cta-install">
           <div class="install-cmd">
             <span class="prompt">$</span>
-            <span>npx --yes codexmux@latest</span>
-            <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="Copiar" onclick="(function(b){navigator.clipboard.writeText('npx --yes codexmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
+            <span>npx --yes @hardcoremonk/agentmux@latest</span>
+            <button class="copy-btn" type="button" data-ph-capture-attribute-cta="copy_install" aria-label="Copiar" onclick="(function(b){navigator.clipboard.writeText('npx --yes @hardcoremonk/agentmux@latest');b.classList.add('copied');b.textContent='✓';clearTimeout(b._t);b._t=setTimeout(function(){b.classList.remove('copied');b.textContent='⧉';},1800);})(this)">⧉</button>
           </div>
-          <a href="https://github.com/HardcoreMonk/codexmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
+          <a href="https://github.com/HardcoreMonk/agentmux/releases/latest" class="btn-primary" target="_blank" rel="noopener" data-ph-capture-attribute-cta="download" data-download-windows>
             Baixar instalador do Windows
           </a>
         </div>
@@ -974,8 +974,8 @@ isRoot: false
           <div class="eyebrow amber">Self-hosted · open source</div>
           <h2>Na sua máquina, seu.</h2>
           <p class="lead">
-            O codexmux é uma ferramenta self-hosted que roda localmente.
-            Dados de sessão, configurações e histórico ficam só em <code>~/.codexmux/</code> e nunca saem da sua máquina.
+            O agentmux é uma ferramenta self-hosted que roda localmente.
+            Dados de sessão, configurações e histórico ficam só em <code>~/.agentmux/</code> e nunca saem da sua máquina.
             O código é MIT — leia, modifique, contribua.
           </p>
           <div class="selfhost-badges">
@@ -987,7 +987,7 @@ isRoot: false
         <div class="selfhost-visual">
           <div class="mockup mockup-selfhost">
             <div class="tree">
-              <div class="tline root">~/.codexmux/</div>
+              <div class="tline root">~/.agentmux/</div>
               <div class="tline sub">├─ config.json</div>
               <div class="tline sub">├─ workspaces.json</div>
               <div class="tline sub">└─ sessions/</div>

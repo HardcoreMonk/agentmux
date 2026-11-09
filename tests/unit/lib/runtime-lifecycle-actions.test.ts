@@ -73,6 +73,14 @@ describe('runtime lifecycle actions', () => {
 
     const result = await service.runAction({ actionId: 'restart-service', confirmation: 'restart' });
 
+    expect(service.getDefinitions()).toContainEqual(
+      expect.objectContaining({
+        id: 'restart-service',
+        command: 'systemctl',
+        args: ['--user', 'restart', 'agentmux.service'],
+        confirmationPhrase: 'restart agentmux.service',
+      }),
+    );
     expect(result.ok).toBe(false);
     expect(result.event).toMatchObject({
       actionId: 'restart-service',
@@ -115,7 +123,7 @@ describe('runtime lifecycle actions', () => {
     });
 
     const result = await service.runAction({ actionId: 'phase6-gate' });
-    const raw = await fs.readFile(path.join(tempHome, '.codexmux', 'lifecycle-actions.jsonl'), 'utf-8');
+    const raw = await fs.readFile(path.join(tempHome, '.agentmux', 'lifecycle-actions.jsonl'), 'utf-8');
 
     expect(result.ok).toBe(false);
     expect(result.event.error).toBe('action-execution-failed');
@@ -140,7 +148,7 @@ describe('runtime lifecycle actions', () => {
     });
 
     const result = await service.runAction({ actionId: 'deploy-local', confirmation: 'deploy local' });
-    const raw = await fs.readFile(path.join(tempHome, '.codexmux', 'lifecycle-actions.jsonl'), 'utf-8');
+    const raw = await fs.readFile(path.join(tempHome, '.agentmux', 'lifecycle-actions.jsonl'), 'utf-8');
 
     expect(result.ok).toBe(false);
     expect(result.event.error).toBe('exit-code-1');

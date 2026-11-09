@@ -1,6 +1,6 @@
 # 테스트와 smoke 가이드
 
-이 문서는 codexmux 변경을 검증하는 기준입니다. 현재 release 판단은 Linux 단일 엔진,
+이 문서는 agentmux 변경을 검증하는 기준입니다. 현재 release 판단은 Linux 단일 엔진,
 Runtime v2 worker, Session Operations와 Project Governance를 중심으로 합니다. Windows
 package/updater는 해당 배포면을 변경할 때 별도 gate로 검증합니다.
 
@@ -26,7 +26,7 @@ corepack pnpm check:landing
 ```
 
 `check:landing`은 `_site/`의 필수 landing/docs/404/robots/sitemap/search/shared-shell/hero artifact,
-GitHub Pages canonical URL, `/codexmux/` local link, path containment와 English/Korean product
+GitHub Pages canonical URL, `/agentmux/` local link, path containment와 English/Korean product
 content contract를 검사합니다. Theme/search/mobile-menu hook 또는 Session Operations/Project
 Governance/Runtime Operations 핵심 용어가 없거나 Swiper, purplemux와 legacy mobile-primary
 claim이 current home에 다시 들어오면 실패합니다.
@@ -81,7 +81,7 @@ Windows package/updater 배포에서 중요한 smoke입니다. Sanitized evidenc
 지정합니다.
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
 corepack pnpm audit:windows-platform
 corepack pnpm smoke:runtime-v2:terminal-windows
 corepack pnpm smoke:windows:preflight
@@ -96,7 +96,7 @@ corepack pnpm smoke:windows:release-gate
 패키지 산출물 검증:
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
 corepack pnpm pack:electron
 corepack pnpm smoke:windows:zip-artifact
 corepack pnpm smoke:windows:update-metadata
@@ -127,8 +127,8 @@ Fresh Windows runner에서 local-feed와 package gate를 실행할 때는 현재
 installer를 지정합니다. Synthetic fallback은 release evidence로 인정하지 않습니다.
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:updater-local-feed
 corepack pnpm smoke:windows:package-gate
 ```
@@ -140,14 +140,14 @@ installer 값으로 갱신합니다. npm과 legacy macOS package는 Windows stab
 Prerelease 게시 전에 실패하면 Release와 asset이 생기지 않고, 게시 뒤 실패하면 candidate가
 prerelease로 남습니다.
 
-2026-07-12 `v0.4.20` workflow
-([run 29161183240](https://github.com/HardcoreMonk/codexmux/actions/runs/29161183240))는
+2026-07-12 `v0.4.20`
+(legacy [run 29161183240](https://github.com/HardcoreMonk/codexmux/actions/runs/29161183240))는
 fresh Windows package/release gate와 실제 published updater 기능 경로를 최초
 검증했습니다. 후속 재감사에서 published-updater JSON 2개가 privacy scanner에 실패해
 privacy-safe evidence에서는 제외했습니다.
 
-현재 기준인 `v0.4.22` workflow
-([run 29219010240 attempt 3](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240))는
+보존된 기준인 `v0.4.22`
+(legacy [run 29219010240 attempt 3](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240))는
 실제 `v0.4.21` installer를 baseline으로 package `394584ms`, packaged upload integrity
 `11724ms`, local updater `240046ms`, release gate `17878ms`, exact target-tag published updater
 `254840ms`를 통과했습니다. Baseline installer SHA-256은
@@ -186,7 +186,7 @@ Root에서는 no-INIT setup-open startup 거절을 먼저 확인하고 INIT 흐�
 
 ## 동일 hostname 제품 공존
 
-Browser cookie는 port를 구분하지 않습니다. Codexmux와 Purplemux 같은 sibling app을 같은
+Browser cookie는 port를 구분하지 않습니다. agentmux(이전 이름 Codexmux)와 Purplemux 같은 sibling app을 같은
 hostname의 다른 port에서 실행하는 회귀는 cookie 이름과 실제 Chromium 두 계층에서 확인합니다.
 
 ```bash
@@ -194,14 +194,14 @@ corepack pnpm exec vitest run tests/unit/lib/auth.test.ts tests/unit/lib/upload-
 corepack pnpm smoke:browser-reconnect
 ```
 
-Unit gate는 `codexmux-session-token`만 Codexmux 인증에 사용하고 legacy `session-token`만 있는
+Unit gate는 `agentmux-session-token`과 legacy 호환 `codexmux-session-token`만 agentmux 인증에 사용하고 legacy `session-token`만 있는
 request는 거부하며, 두 cookie가 함께 있으면 새 cookie를 선택하는지 확인합니다. Runtime v2
 HTTP/WebSocket query에는 새 이름과 legacy 이름 모두 credential로 전달할 수 없습니다.
-Chromium smoke는 Codexmux login cookie를 넣은 뒤 같은 hostname에 legacy cookie를 추가하고,
+Chromium smoke는 agentmux login cookie를 넣은 뒤 같은 hostname에 legacy cookie를 추가하고,
 두 cookie 공존 상태에서 page 인증과 terminal WebSocket recovery가 유지되는지 확인합니다.
-업데이트 전 browser session은 새 namespace가 없으므로 첫 요청에서 login으로 이동하는 것이
+`v0.4.22` 업데이트 전 browser session은 새 namespace가 없으므로 첫 요청에서 login으로 이동하는 것이
 정상이며, 한 번 재로그인한 뒤에는 기존 tmux/runtime session에 다시 접근할 수 있어야 합니다.
-Legacy cookie가 이전 Codexmux JWT라 Purplemux가 계속 `401`이면 Purplemux에도 한 번 로그인한
+Legacy cookie가 이전 이름 Codexmux JWT라 Purplemux가 계속 `401`이면 Purplemux에도 한 번 로그인한
 뒤 두 앱을 다시 확인합니다. `v0.4.22` Windows updater smoke는 fresh HOME/profile을 사용하므로
 실제 기존 Electron profile의 legacy cookie, 1회 재로그인과 재연결을 검증하지 않습니다. 이
 old-profile 경로가 통과하기 전까지 ADR-029는 `Implemented`입니다.
@@ -249,8 +249,8 @@ Fresh Windows package는 Linux 결과로 대체하지 않습니다.
 
 ```powershell
 corepack pnpm pack:electron
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:upload-integrity
 corepack pnpm smoke:windows:package-gate
 ```
@@ -350,9 +350,9 @@ corepack pnpm smoke:runtime-v2:storage-backup
 production build, scaffold/Linux/browser governance smoke, storage backup과 Runtime v2 Phase 6
 gate를 통과했습니다. 이전 Session Operations/Governance의 5,000-session performance와 npm
 tarball smoke 근거도 유지합니다.
-Phase 3 build commit `9d32d049` 당시 live user service는 `CODEXMUX_GOVERNANCE_WRITES=1`, Governance
+Phase 3 build commit `9d32d049` 당시 live user service는 `AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환), Governance
 `writeState=ready`, private Runtime v2 backup, scaffold 7-check, Linux 10-check, 한국어/영어 browser와
-post-restart Phase 6 12-check gate를 통과했습니다. 2026-08-22에는 실제 `codexmux` Managed
+post-restart Phase 6 12-check gate를 통과했습니다. 2026-08-22에는 실제 `agentmux`(이전 이름 `codexmux`) Managed
 Project에서 unmarked `AGENTS.md`를 2-pass preview, exact confirm, latest-first rollback해 원본
 SHA-256과 Git clean 복구 및 private `0600` preimage를 확인했습니다.
 

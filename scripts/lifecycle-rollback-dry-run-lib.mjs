@@ -2,18 +2,18 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 
-const runtimeEnvRe = /^Environment=(CODEXMUX_RUNTIME_[A-Z0-9_]+)=(.*)$/;
+const runtimeEnvRe = /^Environment=((?:AGENTMUX|CODEXMUX)_RUNTIME_[A-Z0-9_]+)=(.*)$/;
 
 export const runtimeV2RollbackEnv = {
-  CODEXMUX_RUNTIME_V2: '0',
-  CODEXMUX_RUNTIME_TERMINAL_V2_MODE: 'off',
-  CODEXMUX_RUNTIME_STORAGE_V2_MODE: 'off',
-  CODEXMUX_RUNTIME_TIMELINE_V2_MODE: 'off',
-  CODEXMUX_RUNTIME_STATUS_V2_MODE: 'off',
+  AGENTMUX_RUNTIME_V2: '0',
+  AGENTMUX_RUNTIME_TERMINAL_V2_MODE: 'off',
+  AGENTMUX_RUNTIME_STORAGE_V2_MODE: 'off',
+  AGENTMUX_RUNTIME_TIMELINE_V2_MODE: 'off',
+  AGENTMUX_RUNTIME_STATUS_V2_MODE: 'off',
 };
 
 export const getDefaultRuntimeDropInPath = (homeDir = os.homedir()) =>
-  path.join(homeDir, '.config', 'systemd', 'user', 'codexmux.service.d', 'runtime-v2-shadow.conf');
+  path.join(homeDir, '.config', 'systemd', 'user', 'agentmux.service.d', 'runtime-v2-shadow.conf');
 
 export const parseRuntimeDropIn = (content) => {
   const env = {};
@@ -41,7 +41,7 @@ export const buildLifecycleRollbackDryRun = async ({
   return {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
-    service: 'codexmux.service',
+    service: 'agentmux.service',
     dropInPath,
     dropInExists,
     runtimeEnv,
@@ -51,11 +51,11 @@ export const buildLifecycleRollbackDryRun = async ({
       ? [
         `rm ${dropInPath}`,
         'systemctl --user daemon-reload',
-        'systemctl --user restart codexmux.service',
+        'systemctl --user restart agentmux.service',
       ]
       : [
         'systemctl --user daemon-reload',
-        'systemctl --user restart codexmux.service',
+        'systemctl --user restart agentmux.service',
       ],
     warnings: dropInExists ? [] : ['runtime drop-in not found; rollback may already be applied'],
   };

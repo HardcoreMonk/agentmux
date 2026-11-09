@@ -12,7 +12,7 @@ import { recordPerfCounter } from '@/lib/perf-metrics';
 const log = createLogger('hooks');
 
 const shouldUseRuntimeStatusLive = (): boolean =>
-  process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
+  process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
 const verifyHookTarget = async (sessionName: string, capability: string): Promise<boolean> => {
   const parsed = parseSessionName(sessionName);

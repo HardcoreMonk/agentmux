@@ -33,9 +33,9 @@ describe('Windows service host baseline', () => {
         args: ['pnpm', 'start'],
         cwd: 'D:\\apps\\codexmux',
         env: {
-          CODEXMUX_RUNTIME_V2: '1',
-          CODEXMUX_RUNTIME_TERMINAL_ADAPTER: 'windows',
-          CODEXMUX_PROCESS_INSPECTOR_ADAPTER: 'windows',
+          AGENTMUX_RUNTIME_V2: '1',
+          AGENTMUX_RUNTIME_TERMINAL_ADAPTER: 'windows',
+          AGENTMUX_PROCESS_INSPECTOR_ADAPTER: 'windows',
           HOST: '127.0.0.1',
           PORT: '8122',
         },
@@ -54,8 +54,8 @@ describe('Windows service host baseline', () => {
       platform: 'win32',
       env: {
         ...env,
-        CODEXMUX_WINDOWS_HOST_OWNER: 'service',
-        CODEXMUX_WINDOWS_SERVICE_NAME: 'codexmux-dev',
+        AGENTMUX_WINDOWS_HOST_OWNER: 'service',
+        AGENTMUX_WINDOWS_SERVICE_NAME: 'codexmux-dev',
         PORT: '9133',
       },
       appDir: 'D:\\apps\\codexmux',
@@ -69,7 +69,7 @@ describe('Windows service host baseline', () => {
   });
 
   it('keeps owner parsing fail-closed for unsupported host owners', () => {
-    expect(resolveWindowsServiceHostOwner({ CODEXMUX_WINDOWS_HOST_OWNER: 'systemd' })).toEqual({
+    expect(resolveWindowsServiceHostOwner({ AGENTMUX_WINDOWS_HOST_OWNER: 'systemd' })).toEqual({
       ok: false,
       error: 'unsupported-windows-host-owner',
       value: 'systemd',
@@ -81,7 +81,7 @@ describe('Windows service host baseline', () => {
       platform: 'win32',
       env: {
         ...env,
-        CODEXMUX_WINDOWS_HOST_OWNER: 'systemd',
+        AGENTMUX_WINDOWS_HOST_OWNER: 'systemd',
       },
       appDir: 'D:\\apps\\codexmux',
     })).toMatchObject({

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// codexmux CLI — workspace-scoped HTTP API wrapper
-// Falls back to ~/.codexmux/{port,cli-token} when env vars absent.
+// agentmux CLI — workspace-scoped HTTP API wrapper
+// Falls back to ~/.agentmux/{port,cli-token} (or legacy ~/.codexmux/{port,cli-token}) when env vars absent.
 
 'use strict';
 
@@ -16,8 +16,27 @@ const readFileOrNull = (file) => {
   }
 };
 
-const PORT = process.env.CMUX_PORT || readFileOrNull(path.join(os.homedir(), '.codexmux', 'port'));
-const TOKEN = process.env.CMUX_TOKEN || readFileOrNull(path.join(os.homedir(), '.codexmux', 'cli-token'));
+const dataDirCandidates = () => {
+  const dirs = [process.env.AGENTMUX_DATA_DIR, process.env.CODEXMUX_DATA_DIR]
+    .map((dir) => dir && dir.trim())
+    .filter(Boolean);
+  dirs.push(path.join(os.homedir(), '.agentmux'), path.join(os.homedir(), '.codexmux')); // legacy fallback
+  return dirs;
+};
+
+const readDataFile = (name) => {
+  for (const dir of dataDirCandidates()) {
+    const value = readFileOrNull(path.join(dir, name));
+    if (value) return value;
+  }
+  return null;
+};
+
+const describeDataFile = (name) =>
+  dataDirCandidates().map((dir) => path.join(dir, name)).join(', ');
+
+const PORT = process.env.AMUX_PORT || process.env.CMUX_PORT || readDataFile('port');
+const TOKEN = process.env.AMUX_TOKEN || process.env.CMUX_TOKEN || readDataFile('cli-token');
 const BASE = `http://localhost:${PORT}`;
 
 const die = (msg) => {
@@ -26,8 +45,8 @@ const die = (msg) => {
 };
 
 const requireEnv = () => {
-  if (!PORT) die('CMUX_PORT not set and ~/.codexmux/port missing (is the server running?)');
-  if (!TOKEN) die('CMUX_TOKEN not set and ~/.codexmux/cli-token missing (is the server running?)');
+  if (!PORT) die(`AMUX_PORT (or legacy alias CMUX_PORT) not set and port file missing (checked ${describeDataFile('port')}; is the server running?)`);
+  if (!TOKEN) die(`AMUX_TOKEN (or legacy alias CMUX_TOKEN) not set and cli-token file missing (checked ${describeDataFile('cli-token')}; is the server running?)`);
 };
 
 const out = (body) => {
@@ -38,7 +57,7 @@ const api = async (method, path, data) => {
   const url = `${BASE}${path}`;
   const opts = {
     method,
-    headers: { 'X-Cmux-Token': TOKEN, 'Content-Type': 'application/json' },
+    headers: { 'x-agentmux-token': TOKEN, 'Content-Type': 'application/json' },
   };
   if (data !== undefined) opts.body = JSON.stringify(data);
   const resp = await fetch(url, opts);
@@ -56,7 +75,7 @@ const apiRaw = async (method, path) => {
   const url = `${BASE}${path}`;
   const resp = await fetch(url, {
     method,
-    headers: { 'X-Cmux-Token': TOKEN },
+    headers: { 'x-agentmux-token': TOKEN },
   });
   if (!resp.ok) {
     const ct = resp.headers.get('content-type') || '';
@@ -230,7 +249,7 @@ const cmdTabBrowser = async (args) => {
 const cmdApiGuide = async () => {
   requireEnv();
   const resp = await fetch(`${BASE}/api/cli/api-guide`, {
-    headers: { 'X-Cmux-Token': TOKEN },
+    headers: { 'x-agentmux-token': TOKEN },
   });
   if (!resp.ok) die(`HTTP ${resp.status}`);
   process.stdout.write((await resp.text()) + '\n');
@@ -257,9 +276,9 @@ const stripFlags = (args, names) => {
 };
 
 const usage = () => {
-  process.stdout.write(`codexmux CLI
+  process.stdout.write(`agentmux CLI
 
-Usage: codexmux <command> [args...]
+Usage: agentmux <command> [args...]
 
 Commands:
   workspaces                               List workspaces
@@ -281,8 +300,8 @@ Commands:
   help                                     Show this usage
 
 Environment:
-  CMUX_PORT       Server port (required)
-  CMUX_TOKEN      CLI token (required)
+  AMUX_PORT       Server port (legacy alias: CMUX_PORT)
+  AMUX_TOKEN      CLI token (legacy alias: CMUX_TOKEN)
 `);
 };
 
@@ -304,7 +323,7 @@ const main = async () => {
         case 'result': return cmdTabResult(rest);
         case 'close': return cmdTabClose(rest);
         case 'browser': return cmdTabBrowser(rest);
-        default: die(`unknown tab command: ${sub || '(none)'}. Run 'codexmux help' for usage.`);
+        default: die(`unknown tab command: ${sub || '(none)'}. Run 'agentmux help' for usage.`);
       }
       break;
     case 'api-guide':
@@ -314,7 +333,7 @@ const main = async () => {
     case '--help':
       return usage();
     default:
-      die(`unknown command: ${cmd}. Run 'codexmux help' for usage.`);
+      die(`unknown command: ${cmd}. Run 'agentmux help' for usage.`);
   }
 };
 

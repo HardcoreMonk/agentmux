@@ -63,6 +63,6 @@ Sync가 실패하면 에러 토스트에 **Ask Codex** 버튼이 함께 떠오�
 
 ## 다음으로
 
-- **[탭 & 창](/codexmux/zh-TW/docs/tabs-panes/)** — Codex 세션 옆에 diff 패널 분할로 띄우기
-- **[첫 세션](/codexmux/zh-TW/docs/first-session/)** — 권한/입력 프롬프트가 대시보드에 어떻게 노출되는지
-- **[웹 브라우저 패널](/codexmux/zh-TW/docs/web-browser-panel/)** — 터미널 옆에 두면 좋은 또 하나의 패널 타입
+- **[탭 & 창](/agentmux/zh-TW/docs/tabs-panes/)** — Codex 세션 옆에 diff 패널 분할로 띄우기
+- **[첫 세션](/agentmux/zh-TW/docs/first-session/)** — 권한/입력 프롬프트가 대시보드에 어떻게 노출되는지
+- **[웹 브라우저 패널](/agentmux/zh-TW/docs/web-browser-panel/)** — 터미널 옆에 두면 좋은 또 하나의 패널 타입

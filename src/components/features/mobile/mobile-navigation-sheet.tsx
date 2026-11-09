@@ -306,6 +306,7 @@ const MobileNavigationSheet = ({
             onClick={() => handleToggleWorkspace(ws.id)}
             aria-expanded={isExpanded}
             aria-label={isActive ? `${ws.name}, ${tn('currentWorkspace')}` : ws.name}
+            aria-describedby={`mobile-workspace-status-${ws.id}`}
           >
             {isActive && <span aria-hidden="true" className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-focus-indicator" />}
             {isExpanded ? (
@@ -316,14 +317,15 @@ const MobileNavigationSheet = ({
             <div className="min-w-0 flex-1">
               <span className="block truncate">{ws.name}</span>
               <WorkspacePortsLabel workspaceId={ws.id} />
-              {!isExpanded && (
-                <WorkspaceStatusIndicator
-                  workspaceId={ws.id}
-                  tabs={(workspaceLayouts[ws.id] ?? []).flatMap((pane) =>
+              <WorkspaceStatusIndicator
+                id={`mobile-workspace-status-${ws.id}`}
+                workspaceId={ws.id}
+                tabs={workspaceLayouts[ws.id]?.length
+                  ? workspaceLayouts[ws.id].flatMap((pane) =>
                     [...pane.tabs].sort((a, b) => a.order - b.order),
-                  )}
-                />
-              )}
+                  )
+                  : undefined}
+              />
             </div>
           </button>
           <button

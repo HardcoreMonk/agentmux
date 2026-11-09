@@ -8,7 +8,7 @@ permalink: /docs/troubleshooting/index.html
 
 문제를 보고할 때는 실행 경로(npm/source/systemd 또는 선택 Electron), Linux distribution,
 `/api/health`의 version/commit과 재현 순서를 적어
-[이슈를 열어주세요](https://github.com/HardcoreMonk/codexmux/issues). Runtime log 원본 전체를
+[이슈를 열어주세요](https://github.com/HardcoreMonk/agentmux/issues). Runtime log 원본 전체를
 업로드하지 말고 token, path, workspace, command와 사용자 내용을 지운 최소 error excerpt만
 첨부합니다.
 
@@ -22,8 +22,8 @@ Active runtime은 Linux 단일 엔진이고 public npm package는 `0.4.23`입니
 ### Linux service가 시작되지 않아요
 
 ```bash
-systemctl --user status codexmux.service
-journalctl --user -u codexmux.service -n 100 --no-pager
+systemctl --user status agentmux.service
+journalctl --user -u agentmux.service -n 100 --no-pager
 curl -fsS http://127.0.0.1:8122/api/health
 ```
 
@@ -39,8 +39,8 @@ Unit의 `WorkingDirectory`, `ExecStart` Node 절대 경로, `PATH`, tmux와 Code
 
 ```powershell
 corepack pnpm pack:electron
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:packaged-launch
 corepack pnpm smoke:windows:upload-integrity
 corepack pnpm smoke:windows:package-gate
@@ -72,24 +72,24 @@ corepack pnpm dev:electron
 corepack pnpm build:electron
 ```
 
-`bin/codexmux.js`와 packaged Electron local server는 build 완료 상태를 전제로 합니다.
+`bin/agentmux.js`와 packaged Electron local server는 build 완료 상태를 전제로 합니다.
 
 ### Windows에서 tmux preflight가 나타나거나 terminal이 열리지 않아요
 
 Windows source path가 Runtime v2/Windows adapter로 시작했는지 확인합니다.
 
 ```powershell
-$env:CODEXMUX_RUNTIME_V2 = "1"
-$env:CODEXMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
-$env:CODEXMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
+$env:AGENTMUX_RUNTIME_V2 = "1"
+$env:AGENTMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
+$env:AGENTMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
 corepack pnpm dev:electron
 ```
 
-Windows Runtime v2에는 tmux가 필요하지 않습니다. `CODEXMUX_RUNTIME_TERMINAL_ADAPTER`가 없으면 runtime v2 adapter factory의 legacy default는 `tmux`이므로 source 검증에서는 세 변수를 명시합니다.
+Windows Runtime v2에는 tmux가 필요하지 않습니다. `AGENTMUX_RUNTIME_TERMINAL_ADAPTER`가 없으면 runtime v2 adapter factory의 legacy default는 `tmux`이므로 source 검증에서는 세 변수를 명시합니다.
 
-### "codexmux is already running"이 나와요
+### "agentmux is already running"이 나와요
 
-`~/.codexmux/cmux.lock`의 process가 살아 있고 `/api/health`에 응답하는지 확인합니다.
+`~/.agentmux/cmux.lock`의 process가 살아 있고 `/api/health`에 응답하는지 확인합니다.
 
 ```powershell
 $lockPath = Join-Path $HOME ".codexmux\cmux.lock"
@@ -105,7 +105,7 @@ Remove-Item (Join-Path $HOME ".codexmux\cmux.lock")
 
 ### `Port 8122 is in use, finding an available port...`
 
-Packaged Electron의 local server는 기본 port `8122`가 사용 중이면 빈 port로 다시 시도하고 실제 값을 `~/.codexmux/port`에 기록합니다. Direct server도 빈 port로 fallback할 수 있습니다.
+Packaged Electron의 local server는 기본 port `8122`가 사용 중이면 빈 port로 다시 시도하고 실제 값을 `~/.agentmux/port`에 기록합니다. Direct server도 빈 port로 fallback할 수 있습니다.
 
 반면 `dev:electron` wrapper는 시작할 때 선택한 `PORT`만 polling하며 server fallback을 따라가지 않습니다. Source 실행에서는 시작 전에 빈 port를 선택하세요.
 
@@ -139,7 +139,7 @@ daemon reload/restart합니다.
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user restart codexmux.service
+systemctl --user restart agentmux.service
 ```
 
 Remote onboarding은 지원하지 않습니다. Open internet에 직접 bind하지 말고 HTTPS/Tailscale
@@ -152,20 +152,20 @@ Server/Electron을 먼저 종료하고 `authPassword`와 `authSecret`을 함께 
 ```powershell
 $path = Join-Path $HOME ".codexmux\config.json"
 Copy-Item $path "$path.bak"
-node -e 'const fs=require("fs"),os=require("os"),path=require("path");const p=path.join(os.homedir(),".codexmux","config.json");const c=JSON.parse(fs.readFileSync(p,"utf8"));delete c.authPassword;delete c.authSecret;c.updatedAt=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n")'
+node -e 'const fs=require("fs"),os=require("os"),path=require("path");const p=path.join(os.homedir(),".agentmux","config.json");const c=JSON.parse(fs.readFileSync(p,"utf8"));delete c.authPassword;delete c.authSecret;c.updatedAt=new Date().toISOString();fs.writeFileSync(p,JSON.stringify(c,null,2)+"\n")'
 ```
 
 재시작한 새 process에서 onboarding을 완료합니다. Malformed JSON이나 hash-only auth state는 setup으로 downgrade되지 않고 fail closed하므로 원본을 백업한 뒤 수정해야 합니다.
 
 ### Purplemux와 함께 실행하면 로그인 또는 session 연결이 끊겨요
 
-같은 hostname의 다른 port도 browser cookie를 공유합니다. `codexmux-session-token`이 포함된
-build로 업데이트한 뒤 Codexmux에 한 번 다시 로그인하세요. 이후 Purplemux의
-`session-token`과 Codexmux cookie는 함께 존재하며 각 제품이 자기 cookie만 읽습니다.
-Purplemux가 계속 로그인 화면이나 `401`을 보이면 전환 전 legacy cookie가 Codexmux JWT였던
+같은 hostname의 다른 port도 browser cookie를 공유합니다. `agentmux-session-token`이 포함된
+build로 업데이트한 뒤 agentmux에 한 번 다시 로그인하세요. 이후 Purplemux의
+`session-token`과 agentmux cookie는 함께 존재하며 각 제품이 자기 cookie만 읽습니다.
+Purplemux가 계속 로그인 화면이나 `401`을 보이면 전환 전 legacy cookie가 codexmux JWT였던
 상태이므로 Purplemux에도 한 번 로그인하세요. 로그인 순서는 그 뒤부터 서로 영향을 주지 않습니다.
 
-`~/.codexmux/`, `~/.purplemux/`, tmux/runtime session을 삭제하지 마세요. Browser의 모든
+`~/.agentmux/`, `~/.purplemux/`, tmux/runtime session을 삭제하지 마세요. Browser의 모든
 localhost cookie를 일괄 삭제할 필요도 없습니다. 이전 build로 downgrade하면 generic cookie
 충돌이 다시 발생할 수 있습니다.
 
@@ -177,14 +177,14 @@ Linux terminal persistence는 Runtime v2 Terminal Worker와 tmux adapter가 담�
 layout/message history는 runtime v2 SQLite에 저장됩니다. 다음 순서로 확인합니다.
 
 1. `/api/health`가 응답하는지 확인합니다.
-2. `~/.codexmux/logs/`에서 runtime worker startup error를 확인합니다.
+2. `~/.agentmux/logs/`에서 runtime worker startup error를 확인합니다.
 3. 중앙 recovery overlay가 `session-not-found`를 표시하면 단순 WebSocket reconnect 대신 tab session을 재시작합니다.
 
 Linux engine의 tmux adapter 상태는 `tmux -L codexmux ls`로 확인합니다.
 
 ### Codex session이 resume되지 않아요
 
-저장된 `agentSessionId`와 `~/.codex/sessions/**/*.jsonl`이 있어야 `codex resume <sessionId>`를 사용할 수 있습니다. JSONL이 삭제됐거나 project가 이동했다면 새 Codex session을 시작하세요. `~/.codex/`는 Codex CLI 소유 영역이므로 codexmux reset 과정에서 삭제하지 않습니다.
+저장된 `agentSessionId`와 `~/.codex/sessions/**/*.jsonl`이 있어야 `codex resume <sessionId>`를 사용할 수 있습니다. JSONL이 삭제됐거나 project가 이동했다면 새 Codex session을 시작하세요. `~/.codex/`는 Codex CLI 소유 영역이므로 agentmux reset 과정에서 삭제하지 않습니다.
 
 ### CODEX 화면이 계속 연결 중이에요
 
@@ -207,12 +207,12 @@ Image는 10MiB, 일반 file은 50MiB까지입니다. Browser에서 미리 검사
 
 ### Upload가 `401` 또는 `403`으로 실패해요
 
-Browser upload는 유효한 session cookie와 server와 같은 authority의 Origin이 필요합니다. Login을 다시 하고, reverse proxy가 `Host`/Origin authority를 바꾸지 않는지 확인하세요. Custom client는 유효한 `x-cmux-token`을 사용할 수 있습니다.
+Browser upload는 유효한 session cookie와 server와 같은 authority의 Origin이 필요합니다. Login을 다시 하고, reverse proxy가 `Host`/Origin authority를 바꾸지 않는지 확인하세요. Custom client는 유효한 `x-agentmux-token`을 사용할 수 있습니다.
 
 ### Upload가 `429` 또는 `503`으로 실패해요
 
 - `429`: active upload 8개 또는 reserved 200MiB budget 초과. Queue가 없으므로 진행 중 upload가 끝난 뒤 다시 시도합니다.
-- `503`: shutdown 중이거나 `CODEXMUX_UPLOADS_DISABLED=1`입니다.
+- `503`: shutdown 중이거나 `AGENTMUX_UPLOADS_DISABLED=1`입니다.
 
 ### `.upload.part`가 남아 있어요
 
@@ -243,28 +243,28 @@ Background 복귀 문제는 terminal/status/timeline/sync WebSocket을 다시 �
 
 ### Web Push가 오지 않아요
 
-HTTPS, browser notification permission, 앱의 알림 설정, `~/.codexmux/push-subscriptions.json`을 확인합니다. iOS는 Safari 16.4 이상에서 홈 화면에 추가한 PWA가 필요합니다.
+HTTPS, browser notification permission, 앱의 알림 설정, `~/.agentmux/push-subscriptions.json`을 확인합니다. iOS는 Safari 16.4 이상에서 홈 화면에 추가한 PWA가 필요합니다.
 
 ## 데이터와 privacy
 
 ### 데이터는 어디에 있나요?
 
-앱 상태는 Linux service user의 `~/.codexmux/`, Codex 원본 session은 `~/.codex/`에 있습니다. Upload artifact는 `~/.codexmux/uploads/<workspace>/<tab>/`에 저장되고 기본 24시간 TTL cleanup 대상입니다.
+앱 상태는 Linux service user의 `~/.agentmux/`, Codex 원본 session은 `~/.codex/`에 있습니다. Upload artifact는 `~/.agentmux/uploads/<workspace>/<tab>/`에 저장되고 기본 24시간 TTL cleanup 대상입니다.
 
 ### 외부 network request가 있나요?
 
-사용 행동 telemetry나 codexmux cloud storage는 없습니다. 다만 Codex CLI의 OpenAI 통신, Web Push delivery, CLI update notifier, Electron updater metadata 요청은 발생할 수 있습니다. CLI version 확인은 `NO_UPDATE_NOTIFIER=1`로 끌 수 있습니다.
+사용 행동 telemetry나 agentmux cloud storage는 없습니다. 다만 Codex CLI의 OpenAI 통신, Web Push delivery, CLI update notifier, Electron updater metadata 요청은 발생할 수 있습니다. CLI version 확인은 `NO_UPDATE_NOTIFIER=1`로 끌 수 있습니다.
 
 ## Linux tmux adapter
 
 ### `tmux: command not found`
 
-Active Linux engine에는 tmux 3.0 이상이 필요합니다. 전용 `codexmux` socket과 repository
+Active Linux engine에는 tmux 3.0 이상이 필요합니다. 전용 `-L codexmux` socket과 repository
 `tmux.conf`를 사용하며 사용자의 `~/.tmux.conf`는 읽지 않습니다.
 
 ## 다음으로
 
-- **[설치](/codexmux/docs/installation/)** — Linux npm/source와 systemd service
-- **[보안과 인증](/codexmux/docs/security-auth/)** — bootstrap, auth, HTTPS
-- **[데이터 디렉터리](/codexmux/docs/data-directory/)** — runtime DB와 upload cleanup
-- **[아키텍처](/codexmux/docs/architecture/)** — outer server와 Runtime v2 흐름
+- **[설치](/agentmux/docs/installation/)** — Linux npm/source와 systemd service
+- **[보안과 인증](/agentmux/docs/security-auth/)** — bootstrap, auth, HTTPS
+- **[데이터 디렉터리](/agentmux/docs/data-directory/)** — runtime DB와 upload cleanup
+- **[아키텍처](/agentmux/docs/architecture/)** — outer server와 Runtime v2 흐름

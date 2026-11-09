@@ -9,6 +9,7 @@ interface IBuildInfoFile {
 
 export interface IBuildInfo {
   app: 'codexmux';
+  product: 'agentmux';
   version: string;
   commit: string | null;
   buildTime: string | null;
@@ -41,6 +42,7 @@ export const getBuildInfo = (): IBuildInfo => {
 
   return {
     app: 'codexmux',
+    product: 'agentmux',
     version: packageJson.version,
     commit: process.env.NEXT_PUBLIC_COMMIT_HASH || process.env.COMMIT_HASH || fileInfo.commit || null,
     buildTime: process.env.NEXT_PUBLIC_BUILD_TIME || process.env.BUILD_TIME || fileInfo.buildTime || null,

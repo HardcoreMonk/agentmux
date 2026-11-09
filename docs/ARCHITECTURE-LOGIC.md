@@ -1,7 +1,7 @@
 # 아키텍처와 서비스 로직
 
-codexmux는 Next.js Pages Router와 custom Node server를 함께 사용하는 Codex 세션
-매니저입니다. Active runtime은 Linux 단일 엔진 호스트이며 Runtime v2 worker와 Linux tmux
+agentmux는 Next.js Pages Router와 custom Node server를 함께 사용하는 코딩 에이전트 웹 세션
+매니저입니다 (현재 Codex 지원, Claude Code 지원 예정). Active runtime은 Linux 단일 엔진 호스트이며 Runtime v2 worker와 Linux tmux
 adapter가 함께 동작합니다. Windows installer/updater 기록은 별도 배포면의 역사적 근거로
 보존합니다.
 
@@ -27,7 +27,7 @@ runtime v2 Supervisor
 Linux engine-owned sources
   | tmux terminal adapter
   | ~/.codex/sessions/**/*.jsonl (read-only)
-  | ~/.codexmux/**/*.db (app-owned)
+  | ~/.agentmux/**/*.db (legacy ~/.codexmux/**/*.db, app-owned)
   | approved project roots (governed scaffold write)
 ```
 
@@ -45,7 +45,7 @@ Runtime v2는 Supervisor와 worker process로 terminal, storage, timeline, statu
 | Status Worker | Codex process/status policy, notification side effect | status mode `off` |
 | Governance Worker | 승인 project read, Knowledge Index, scaffold transaction/journal/recovery | core worker는 유지하고 governance만 degraded |
 
-`CODEXMUX_RUNTIME_V2=1`에서 surface mode가 unset이면 Phase 6 기준 fallback을 적용합니다. 잘못된 명시 값은 fail closed로 legacy/off에 가깝게 처리합니다.
+`AGENTMUX_RUNTIME_V2=1`(legacy `CODEXMUX_RUNTIME_V2=1` 호환)에서 surface mode가 unset이면 Phase 6 기준 fallback을 적용합니다. 잘못된 명시 값은 fail closed로 legacy/off에 가깝게 처리합니다.
 
 ## 서버 시작 흐름
 
@@ -96,15 +96,15 @@ queue 256 frame/1MiB, 출력 buffered amount 1MiB를 제한합니다.
 
 ## 인증 쿠키 격리
 
-Browser session cookie는 `codexmux-session-token`입니다. Cookie는 hostname과 path를 기준으로
+Browser session cookie는 `agentmux-session-token`이며 기존 세션 유지를 위해 legacy `codexmux-session-token`도 호환 검증합니다. Cookie는 hostname과 path를 기준으로
 전송되고 port로 격리되지 않으므로, 같은 `localhost`에서 서로 다른 port를 쓰는 sibling app과
-generic `session-token`을 공유하면 로그인이나 refresh 때 서로의 JWT를 덮어씁니다. Codexmux의
-HTTP, SSR, WebSocket, install, upload 경로는 공통 `SESSION_COOKIE`만 검증합니다.
+generic `session-token`을 공유하면 로그인이나 refresh 때 서로의 JWT를 덮어씁니다. agentmux의
+HTTP, SSR, WebSocket, install, upload 경로는 공통 `SESSION_COOKIE` 및 legacy 호환 쿠키만 검증합니다.
 
-Legacy `session-token`은 Purplemux 같은 sibling app의 session일 수 있으므로 Codexmux가 읽거나
-login/logout에서 생성·삭제하지 않습니다. Namespace 변경 뒤 기존 Codexmux browser/Electron
-session은 한 번 다시 로그인해야 하며, tmux/runtime session과 `~/.codexmux/` 데이터는 그대로
-유지됩니다. 남은 legacy cookie가 이전 Codexmux JWT라 Purplemux 인증이 실패하면 Purplemux에도
+Legacy `session-token`은 Purplemux 같은 sibling app의 session일 수 있으므로 agentmux(이전 이름 Codexmux)가 읽거나
+login/logout에서 생성·삭제하지 않습니다. `v0.4.22`에서 namespace를 분리할 때 기존 이전 이름 Codexmux browser/Electron
+session은 한 번 다시 로그인해야 했으며, tmux/runtime session과 `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`) 데이터는 그대로
+유지됩니다. 남은 legacy cookie가 이전 이름 Codexmux JWT라 Purplemux 인증이 실패하면 Purplemux에도
 한 번 로그인해 legacy cookie를 복구합니다. Query string으로 전달된 새 cookie 이름과 legacy
 이름은 모두 credential leak 방지를 위해 fail closed합니다.
 
@@ -130,7 +130,7 @@ Admission은 process-scoped UploadServer 한 개가 소유합니다.
 - absolute transaction timeout: 270초
 - image/file policy: 10MiB/50MiB
 
-Storage는 `~/.codexmux/uploads/<workspace>/<tab>/` 아래에
+Storage는 `~/.agentmux/uploads/<workspace>/<tab>/`(legacy 실제 경로 `~/.codexmux/uploads/<workspace>/<tab>/`) 아래에
 `.<32 lowercase hex>.upload.part`를 `wx`, `0o600`으로 생성합니다. Application-observed
 byte가 Content-Length와 같고 request가 complete인 경우에만 writer를 닫습니다. Final
 filename도 128-bit random token을 포함하며, `fs.link(stage, final)` 성공을 no-replace
@@ -140,7 +140,7 @@ artifact는 보존하고 TTL cleanup이 소유합니다.
 
 Active/recent stage는 committed cleanup에서 제외합니다. Reserved staged namespace만 최소
 30분 age 뒤 startup/30분 maintenance/manual stale cleanup 대상이 됩니다. 정상 committed
-`.part` 파일은 stage로 오인하지 않습니다. `CODEXMUX_UPLOADS_DISABLED=1`은 두 exact route만
+`.part` 파일은 stage로 오인하지 않습니다. `AGENTMUX_UPLOADS_DISABLED=1`(legacy `CODEXMUX_UPLOADS_DISABLED=1` 호환)은 두 exact route만
 `503`으로 닫고 Next fallback, health, 인증된 non-upload API는 유지합니다.
 
 Production embedded Next server에는 `NEXT_MANUAL_SIG_HANDLE=true`를 require 전에 설정합니다.
@@ -153,10 +153,10 @@ Legacy store는 JSON 파일을 사용합니다. Runtime v2 store는 SQLite를 �
 
 | Store | 위치 | 용도 |
 | --- | --- | --- |
-| Legacy JSON | `~/.codexmux/workspaces.json`, `workspaces/*/layout.json` | rollback, migration fallback |
-| Runtime v2 SQLite | `~/.codexmux/runtime-v2/state.db` | workspace/layout/tab/message-history projection |
-| Session Catalog SQLite | `~/.codexmux/session-catalog/index.db` | JSONL metadata/message FTS/cursor/health projection. 삭제 후 rebuild 가능 |
-| Knowledge Index SQLite | `~/.codexmux/governance/index.db` | 문서 metadata/headings/fingerprint/link projection. 삭제 후 refresh 가능 |
+| Legacy JSON | `~/.agentmux/workspaces.json`(legacy `~/.codexmux/workspaces.json`), `workspaces/*/layout.json` | rollback, migration fallback |
+| Runtime v2 SQLite | `~/.agentmux/runtime-v2/state.db`(legacy `~/.codexmux/runtime-v2/state.db`) | workspace/layout/tab/message-history projection |
+| Session Catalog SQLite | `~/.agentmux/session-catalog/index.db`(legacy `~/.codexmux/session-catalog/index.db`) | JSONL metadata/message FTS/cursor/health projection. 삭제 후 rebuild 가능 |
+| Knowledge Index SQLite | `~/.agentmux/governance/index.db`(legacy `~/.codexmux/governance/index.db`) | 문서 metadata/headings/fingerprint/link projection. 삭제 후 refresh 가능 |
 | Codex JSONL | `~/.codex/sessions/**/*.jsonl` | Codex 원본 timeline/status source. read-only |
 
 Approved Project Root, Managed Project, import 결과, session annotation/saved filter와 sanitized governance audit는 `runtime-v2/state.db`의 durable app state입니다. Runtime v2 default read가 켜져도 rollback용 JSON write는 유지합니다. 세 SQLite 디렉터리는 `0700`, DB/WAL/SHM은 `0600`으로 유지합니다.
@@ -288,7 +288,7 @@ Storage Worker는 Approved Project Root와 Managed Project의 canonical path를 
 
 상태 전이는 pure helper에서 계산하고, `StatusManager`와 worker는 polling, watch, broadcast 같은 부수효과를 담당합니다. Provider adapter는 `statusBehavior`로 JSONL watch 유지와 stop hook 지연 여부를 명시하며, legacy manager와 runtime v2 worker IPC는 같은 shape를 소비합니다.
 
-Codex hook event는 server provider가 만든 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override가 standalone `~/.codexmux/status-hook.cjs`를 호출해 들어옵니다. Bridge는 CLI token과 tab/session/expiry capability를 loopback API에 전달하고 실패 시에도 Codex action을 막지 않습니다. User/project/managed/plugin hook은 native Codex layer discovery가 보존하며 codexmux가 사용자 TOML을 병합하지 않습니다.
+Codex hook event는 server provider가 만든 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override가 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출해 들어옵니다. Bridge는 CLI token과 tab/session/expiry capability를 loopback API에 전달하고 실패 시에도 Codex action을 막지 않습니다. User/project/managed/plugin hook은 native Codex layer discovery가 보존하며 agentmux가 사용자 TOML을 병합하지 않습니다.
 
 JSONL tail의 `token_count/rate_limits` observation은 작업 상태 scan과 같은 read에서 추출합니다. Window별 `observed_at`을 기준으로 newest merge/dedupe하고 reset 뒤 관찰이 없으면 `갱신 대기` 상태를 유지합니다.
 
@@ -319,7 +319,7 @@ package와 updater 근거는 Linux engine acceptance를 대체하지 않습니�
 
 - Runtime worker가 죽으면 worker counter와 sanitized last error를 남깁니다.
 - Governance Worker가 죽으면 terminal/session operation을 유지한 채 governance UI를 degraded read model로 전환합니다.
-- Governance write 장애는 먼저 `CODEXMUX_GOVERNANCE_WRITES`를 제거하고 restart해 새 action만
+- Governance write 장애는 먼저 `AGENTMUX_GOVERNANCE_WRITES`(legacy `CODEXMUX_GOVERNANCE_WRITES` 포함)를 제거하고 restart해 새 action만
   차단합니다. Pending journal recovery와 action history read는 gate off에서도 유지합니다.
 - Terminal session이 사라지면 stale ready tab으로 숨기지 않고 failed/diagnostic 상태를 표시합니다.
 - Storage migration 실패는 DB handle을 닫고 rollback 가능한 오류로 반환합니다.
@@ -328,7 +328,7 @@ package와 updater 근거는 Linux engine acceptance를 대체하지 않습니�
 - Linux engine gate 또는 live terminal/reconnect 실패는 active release blocker입니다.
 - Windows package smoke 실패는 Windows 배포면을 변경하는 release의 blocker입니다.
 - Upload 장애는 취약한 Pages route나 dependency로 되돌리지 않습니다. 먼저
-  `CODEXMUX_UPLOADS_DISABLED=1`로 ingress만 중지하고, patched dependency와 outer route
+  `AGENTMUX_UPLOADS_DISABLED=1`(legacy `CODEXMUX_UPLOADS_DISABLED=1` 호환)로 ingress만 중지하고, patched dependency와 outer route
   ownership을 유지한 forward fix를 배포합니다.
 - malformed/hash-only config는 원본 bytes를 보존한 채 startup을 중단합니다. 비밀번호 reset은 server를 멈춘 뒤 `authPassword`와 `authSecret`을 함께 제거하고 restart해야 하며, 실행 중 config 제거로 claim을 다시 열지 않습니다.
 

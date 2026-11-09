@@ -3,6 +3,7 @@ import { createReadStream } from 'fs';
 import path from 'path';
 import readline from 'readline';
 import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
 import { shouldUseRuntimeTimelineV2Reads, type IRuntimeTimelineV2ModeOptions } from '@/lib/runtime/timeline-mode';
 import { buildAgentSessionRelationship, type IAgentSessionRelationship } from '@/lib/agent-session-relationship';
@@ -88,7 +89,7 @@ const getCodexSessionsDir = (): string =>
   path.join(getHomeDir(), '.codex', 'sessions');
 
 const getIndexFilePath = (): string =>
-  path.join(getHomeDir(), '.codexmux', 'session-index.json');
+  path.join(getDataDir(), 'session-index.json');
 
 const getRootKey = (): string => getCodexSessionsDir();
 

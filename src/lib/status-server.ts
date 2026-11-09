@@ -18,7 +18,7 @@ import type {
 const log = createLogger('status');
 
 const shouldUseRuntimeStatusLive = (): boolean =>
-  process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
+  process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
 const sendJson = (ws: WebSocket, event: object): void => {
   if (ws.readyState === WebSocket.OPEN) {

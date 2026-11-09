@@ -1,6 +1,6 @@
 {
   "title": "세션 검색",
-  "pageTitle": "세션 검색 — codexmux",
+  "pageTitle": "세션 검색 — agentmux",
   "query": "메시지 검색",
   "queryPlaceholder": "사용자·Assistant 메시지 검색",
   "model": "모델",

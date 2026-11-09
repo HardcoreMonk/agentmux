@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getDataDir, prepareDataDir } from '@/lib/app-identity';
 import { createRuntimeCommand, runtimeCommandRegistry } from '@/lib/runtime/ipc';
 import { createGovernanceWorkerService } from '@/lib/runtime/governance/worker-service';
 
@@ -19,6 +20,7 @@ describe('governance worker service', () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     service?.close();
     await fs.rm(dir, { recursive: true, force: true });
   });
@@ -188,5 +190,77 @@ describe('governance worker service', () => {
       payload: { projectId: 'project-1', path: 'AGENTS.md' },
     }));
     expect(linked).toMatchObject({ ok: false, error: { code: 'project-document-not-regular' } });
+  });
+
+  it('keeps writeState ready when aliased HOME has pre-rename action.json with real .codexmux preimagePath', async () => {
+    service.close();
+    const homeDir = path.join(dir, 'home-legacy-gov');
+    const legacyDataDir = path.join(homeDir, '.codexmux');
+    await fs.mkdir(legacyDataDir, { recursive: true });
+    prepareDataDir({ homeDir, env: {} });
+    vi.stubEnv('HOME', homeDir);
+    vi.stubEnv('AGENTMUX_DATA_DIR', '');
+    vi.stubEnv('CODEXMUX_DATA_DIR', '');
+
+    const backupRoot = path.join(getDataDir(), 'backups', 'governance-actions');
+    const actionDir = path.join(backupRoot, 'project-1', 'action-legacy-1');
+    const preimageDir = path.join(actionDir, 'preimage');
+    await fs.mkdir(preimageDir, { recursive: true });
+    const preimagePath = path.join(preimageDir, 'agents.md');
+    await fs.writeFile(preimagePath, '# Legacy Agents\n', 'utf8');
+
+    const projectRoot = path.join(dir, 'project');
+    await fs.writeFile(
+      path.join(actionDir, 'action.json'),
+      JSON.stringify({
+        version: 1,
+        id: 'action-legacy-1',
+        projectId: 'project-1',
+        projectTitle: 'Demo',
+        canonicalProjectPath: projectRoot,
+        state: 'committed',
+        artifacts: [
+          {
+            id: 'agents',
+            path: 'AGENTS.md',
+            absolutePath: path.join(projectRoot, 'AGENTS.md'),
+            state: 'marker-update',
+            templateId: 'project-agents-adopted',
+            fromVersion: null,
+            toVersion: 1,
+            baseFingerprint: `sha256:${'a'.repeat(64)}`,
+            outputFingerprint: `sha256:${'b'.repeat(64)}`,
+            preimagePath,
+            stagePath: path.join(projectRoot, '.codexmux-stage-action-legacy-1-agents'),
+            targetMode: 0o644,
+            published: true,
+          },
+        ],
+        createdDirectories: [],
+        createdAt: '2026-08-21T10:00:00.000Z',
+        updatedAt: '2026-08-21T10:00:01.000Z',
+        errorCode: null,
+        indexState: 'ready',
+      }),
+      'utf8',
+    );
+
+    service = createGovernanceWorkerService({
+      indexPath: path.join(getDataDir(), 'governance', 'index.db'),
+      backupRoot,
+      writesEnabled: true,
+      readMountInfo: async () => '',
+    });
+    await service.initialize();
+
+    const health = await service.handleCommand(createRuntimeCommand({
+      source: 'supervisor', target: 'governance', type: 'governance.health', payload: {},
+    }));
+    expect(health).toMatchObject({
+      ok: true,
+      payload: {
+        writeState: 'ready',
+      },
+    });
   });
 });

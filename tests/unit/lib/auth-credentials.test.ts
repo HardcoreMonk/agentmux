@@ -106,10 +106,10 @@ describe('auth credential bootstrap', () => {
     process.env.INIT_PASSWORD = 'abc';
     const { store, credentials } = await importModules();
     const config = await store.initConfigStore();
-    const before = await fs.readFile(path.join(homeDir, '.codexmux', 'config.json'), 'utf8');
+    const before = await fs.readFile(path.join(homeDir, '.agentmux', 'config.json'), 'utf8');
 
     await expect(credentials.initAuthCredentials(config)).rejects.toThrow(/INIT_PASSWORD/);
-    await expect(fs.readFile(path.join(homeDir, '.codexmux', 'config.json'), 'utf8')).resolves.toBe(before);
+    await expect(fs.readFile(path.join(homeDir, '.agentmux', 'config.json'), 'utf8')).resolves.toBe(before);
   });
 
   it('does not let INIT_PASSWORD bypass invalid stored auth state', async () => {

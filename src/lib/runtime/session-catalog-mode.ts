@@ -13,19 +13,19 @@ export const parseSessionCatalogMode = (value: unknown): TSessionCatalogMode => 
 export const resolveSessionCatalogMode = (
   options: ISessionCatalogModeOptions = {},
 ): TSessionCatalogMode => {
-  const runtimeV2Enabled = options.runtimeV2Enabled ?? process.env.CODEXMUX_RUNTIME_V2 === '1';
+  const runtimeV2Enabled = options.runtimeV2Enabled ?? process.env.AGENTMUX_RUNTIME_V2 === '1';
   if (!runtimeV2Enabled) return 'off';
   const catalogMode = Object.hasOwn(options, 'catalogMode')
     ? options.catalogMode
-    : process.env.CODEXMUX_SESSION_CATALOG_MODE;
+    : process.env.AGENTMUX_SESSION_CATALOG_MODE;
   if (catalogMode === undefined) return 'shadow';
   return parseSessionCatalogMode(catalogMode);
 };
 
 export const getSessionCatalogMode = (env: NodeJS.ProcessEnv = process.env): TSessionCatalogMode =>
   resolveSessionCatalogMode({
-    runtimeV2Enabled: env.CODEXMUX_RUNTIME_V2 === '1',
-    catalogMode: env.CODEXMUX_SESSION_CATALOG_MODE,
+    runtimeV2Enabled: env.AGENTMUX_RUNTIME_V2 === '1',
+    catalogMode: env.AGENTMUX_SESSION_CATALOG_MODE,
   });
 
 export const shouldRunSessionCatalogShadow = (options: ISessionCatalogModeOptions = {}): boolean =>

@@ -1,27 +1,25 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
-import { STATUSLINE_SCRIPT_PATH, STATUSLINE_SCRIPT_CONTENT } from '@/lib/statusline-script';
+import { STATUSLINE_SCRIPT_PATH, buildStatuslineScriptContent } from '@/lib/statusline-script';
 import { CODEXMUX_STATUS_HOOK_BRIDGE_PATH } from '@/lib/providers/codex/session-hooks';
 
 const log = createLogger('hooks');
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const HOOKS_FILE = path.join(BASE_DIR, 'hooks.json');
-const PORT_FILE = path.join(BASE_DIR, 'port');
 const HOOK_BRIDGE = CODEXMUX_STATUS_HOOK_BRIDGE_PATH;
 
 export const HOOK_SETTINGS_PATH = HOOKS_FILE;
 
-const HOOK_BRIDGE_CONTENT = `'use strict';
+export const getStatusHookBridgeSource = (baseDir = getDataDir()): string => `'use strict';
 const fs = require('fs');
 const http = require('http');
-const os = require('os');
 const path = require('path');
 
 const MAX_STDIN_BYTES = 64 * 1024;
-const baseDir = path.join(os.homedir(), '.codexmux');
+const baseDir = ${JSON.stringify(baseDir)};
 const event = typeof process.argv[2] === 'string' ? process.argv[2] : 'poll';
 const session = typeof process.argv[3] === 'string' ? process.argv[3] : '';
 const capability = typeof process.argv[4] === 'string' ? process.argv[4] : '';
@@ -50,7 +48,7 @@ process.stdin.on('end', () => {
       headers: {
         'content-type': 'application/json',
         'content-length': Buffer.byteLength(body),
-        'x-cmux-token': token,
+        'x-agentmux-token': token,
       },
     }, (response) => {
       response.resume();
@@ -67,8 +65,6 @@ process.stdin.on('end', () => {
 process.stdin.resume();
 setTimeout(() => process.exit(0), 1500).unref();
 `;
-
-export const getStatusHookBridgeSource = (): string => HOOK_BRIDGE_CONTENT;
 
 export const buildHookSettings = () => ({
   hooks: {},
@@ -91,20 +87,26 @@ const writeIfChanged = async (filePath: string, content: string, mode: number): 
 };
 
 export const ensureHookSettings = async (port: number): Promise<void> => {
-  await fs.mkdir(BASE_DIR, { recursive: true });
+  const baseDir = getDataDir();
+  const hooksFile = path.join(baseDir, 'hooks.json');
+  const portFile = path.join(baseDir, 'port');
+  const statuslineScriptPath = path.join(baseDir, 'statusline.sh');
+  const statuslineScriptContent = buildStatuslineScriptContent(baseDir);
 
-  await fs.writeFile(PORT_FILE, String(port), { mode: 0o600 });
+  await fs.mkdir(baseDir, { recursive: true });
 
-  await writeIfChanged(HOOK_BRIDGE, getStatusHookBridgeSource(), 0o700);
+  await fs.writeFile(portFile, String(port), { mode: 0o600 });
+
+  await writeIfChanged(HOOK_BRIDGE, getStatusHookBridgeSource(baseDir), 0o700);
 
   // Create statusline script
   try {
-    const existing = await fs.readFile(STATUSLINE_SCRIPT_PATH, 'utf-8');
-    if (existing !== STATUSLINE_SCRIPT_CONTENT) {
-      await fs.writeFile(STATUSLINE_SCRIPT_PATH, STATUSLINE_SCRIPT_CONTENT, { mode: 0o755 });
+    const existing = await fs.readFile(statuslineScriptPath, 'utf-8');
+    if (existing !== statuslineScriptContent) {
+      await fs.writeFile(statuslineScriptPath, statuslineScriptContent, { mode: 0o755 });
     }
   } catch {
-    await fs.writeFile(STATUSLINE_SCRIPT_PATH, STATUSLINE_SCRIPT_CONTENT, { mode: 0o755 });
+    await fs.writeFile(statuslineScriptPath, statuslineScriptContent, { mode: 0o755 });
   }
 
   // Create hooks.json
@@ -112,19 +114,19 @@ export const ensureHookSettings = async (port: number): Promise<void> => {
   const content = JSON.stringify(settings, null, 2) + '\n';
 
   try {
-    const existing = await fs.readFile(HOOKS_FILE, 'utf-8');
+    const existing = await fs.readFile(hooksFile, 'utf-8');
     if (existing === content) return;
   } catch {
     // file doesn't exist yet
   }
 
-  await fs.writeFile(HOOKS_FILE, content, { mode: 0o600 });
-  log.debug(`${HOOKS_FILE} created`);
+  await fs.writeFile(hooksFile, content, { mode: 0o600 });
+  log.debug(`${hooksFile} created`);
 };
 
 export const removePortFile = async (): Promise<void> => {
   try {
-    await fs.unlink(PORT_FILE);
+    await fs.unlink(path.join(getDataDir(), 'port'));
   } catch {
     // already removed
   }

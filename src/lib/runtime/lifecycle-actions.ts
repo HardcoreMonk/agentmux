@@ -1,9 +1,9 @@
 import fs from 'fs/promises';
-import os from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
+import { getDataDir, getServiceUnitName } from '@/lib/app-identity';
 import { sanitizeLifecycleDiagnosticText } from '@/lib/runtime/lifecycle-control';
 
 const execFile = promisify(execFileCb);
@@ -73,8 +73,8 @@ const definitions: ILifecycleActionDefinition[] = [
     label: 'Restart Service',
     description: 'Restart the Linux user service with systemd.',
     command: 'systemctl',
-    args: ['--user', 'restart', 'codexmux.service'],
-    confirmationPhrase: 'restart codexmux.service',
+    args: ['--user', 'restart', getServiceUnitName()],
+    confirmationPhrase: `restart ${getServiceUnitName()}`,
   },
   {
     id: 'deploy-local',
@@ -90,11 +90,8 @@ const definitionById = new Map<TLifecycleActionId, ILifecycleActionDefinition>(
   definitions.map((definition) => [definition.id, definition]),
 );
 
-const getHomeDir = (): string =>
-  process.env.HOME || process.env.USERPROFILE || os.homedir() || '/';
-
 const getAuditFilePath = (): string =>
-  path.join(getHomeDir(), '.codexmux', 'lifecycle-actions.jsonl');
+  path.join(getDataDir(), 'lifecycle-actions.jsonl');
 
 const getActionCwd = (): string =>
   process.env.__CMUX_APP_DIR || process.env.INIT_CWD || process.cwd();

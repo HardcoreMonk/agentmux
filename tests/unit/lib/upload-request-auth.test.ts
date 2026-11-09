@@ -14,6 +14,7 @@ interface IRequestOptions {
   additionalHosts?: string[];
   origins?: string[];
   cliTokens?: string[];
+  legacyCliTokens?: string[];
   cookies?: string[];
 }
 
@@ -22,6 +23,7 @@ const request = ({
   additionalHosts = [],
   origins = [],
   cliTokens = [],
+  legacyCliTokens = [],
   cookies = [],
 }: IRequestOptions = {}): Pick<IncomingMessage, 'headers' | 'rawHeaders'> => {
   const rawHeaders: string[] = [];
@@ -36,8 +38,11 @@ const request = ({
   for (const origin of origins) rawHeaders.push('Origin', origin);
   if (origins.length === 1) headers.origin = origins[0];
 
-  for (const token of cliTokens) rawHeaders.push('x-cmux-token', token);
-  if (cliTokens.length === 1) headers['x-cmux-token'] = cliTokens[0];
+  for (const token of cliTokens) rawHeaders.push('x-agentmux-token', token);
+  if (cliTokens.length === 1) headers['x-agentmux-token'] = cliTokens[0];
+
+  for (const token of legacyCliTokens) rawHeaders.push('x-cmux-token', token);
+  if (legacyCliTokens.length === 1) headers['x-cmux-token'] = legacyCliTokens[0];
 
   for (const cookie of cookies) rawHeaders.push('Cookie', cookie);
   if (cookies.length === 1) headers.cookie = cookies[0];
@@ -72,6 +77,8 @@ describe('upload request authorization', () => {
   it.each([
     request({ cookies: ['codexmux-session-token=valid-session', 'theme=dark'], cliTokens: ['valid-cli'] }),
     request({ cliTokens: ['invalid-cli', 'valid-cli'], cookies: ['codexmux-session-token=valid-session'] }),
+    request({ legacyCliTokens: ['invalid-cli', 'valid-cli'], cookies: ['codexmux-session-token=valid-session'] }),
+    request({ cookies: ['agentmux-session-token=one; agentmux-session-token=two'], cliTokens: ['valid-cli'] }),
     request({ cookies: ['codexmux-session-token=one; codexmux-session-token=two'], cliTokens: ['valid-cli'] }),
   ])('rejects structurally ambiguous credentials before verification', async (input) => {
     await expect(authorizeUploadRequest(input, deps)).resolves.toEqual({
@@ -81,6 +88,31 @@ describe('upload request authorization', () => {
     });
     expect(deps.verifyCliToken).not.toHaveBeenCalled();
     expect(deps.verifySessionToken).not.toHaveBeenCalled();
+  });
+
+  it('prefers x-agentmux-token over x-cmux-token and falls back from invalid new cookie to valid legacy cookie', async () => {
+    await expect(authorizeUploadRequest(request({
+      cliTokens: ['valid-cli'],
+      legacyCliTokens: ['invalid-cli'],
+    }), deps)).resolves.toEqual({
+      authorized: true,
+      credential: { kind: 'cli' },
+      refreshSession: false,
+    });
+    expect(deps.verifyCliToken).toHaveBeenCalledWith('valid-cli');
+
+    await expect(authorizeUploadRequest(request({
+      cookies: ['agentmux-session-token=invalid-session; codexmux-session-token=valid-session'],
+    }), deps)).resolves.toEqual({
+      authorized: true,
+      credential: {
+        kind: 'session',
+        expiresAtEpochSeconds: NOW_EPOCH_SECONDS + MAX_AGE,
+      },
+      refreshSession: false,
+    });
+    expect(deps.verifySessionToken).toHaveBeenNthCalledWith(1, 'invalid-session');
+    expect(deps.verifySessionToken).toHaveBeenNthCalledWith(2, 'valid-session');
   });
 
   it('rejects missing and invalid credentials', async () => {

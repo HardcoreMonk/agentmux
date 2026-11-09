@@ -5,13 +5,25 @@ import Spinner from '@/components/ui/spinner';
 import useTabStore, { selectTabDisplayStatus } from '@/hooks/use-tab-store';
 import ProcessIcon from '@/components/icons/process-icon';
 import { isAgentPanelType } from '@/lib/panel-type';
+import { cn } from '@/lib/utils';
+import { getWorkspaceActivityStatus } from '@/lib/workspace-activity';
 import type { TTabDisplayStatus, TTerminalStatus } from '@/types/status';
 import type { ITab, TPanelType } from '@/types/terminal';
 
 interface IWorkspaceStatusIndicatorProps {
   workspaceId: string;
   tabs?: ITab[];
+  id?: string;
 }
+
+const ACTIVITY_LABEL = {
+  checking: 'activityChecking',
+  'needs-input': 'activityNeedsInput',
+  busy: 'activityBusy',
+  'ready-for-review': 'activityNeedsReview',
+  unknown: 'activityUnknown',
+  idle: 'activityIdle',
+} as const;
 
 const DotByStatus = ({ status, panelType, terminalStatus, process }: { status: TTabDisplayStatus; panelType?: TPanelType; terminalStatus?: TTerminalStatus; process?: string | null }) => {
   let inner: React.ReactNode;
@@ -41,22 +53,24 @@ const DotByStatus = ({ status, panelType, terminalStatus, process }: { status: T
   }
 
   return (
-    <span className="flex h-3 w-3 items-center justify-center">
+    <span className="flex h-3 w-3 shrink-0 items-center justify-center">
       {inner}
     </span>
   );
 };
 
-const WorkspaceStatusIndicator = ({ workspaceId, tabs: layoutTabs }: IWorkspaceStatusIndicatorProps) => {
+const WorkspaceStatusIndicator = ({ workspaceId, tabs: layoutTabs, id }: IWorkspaceStatusIndicatorProps) => {
   const t = useTranslations('terminal');
+  const tw = useTranslations('workspace');
   const wsConnected = useTabStore((state) => state.statusWsConnected);
+  const statusSynced = useTabStore((state) => state.statusSynced);
   const tabs = useTabStore((state) => state.tabs);
   const tabOrder = useTabStore((state) => state.tabOrders[workspaceId]);
   const tabEntries = useMemo(() => {
     if (layoutTabs) {
       return layoutTabs.map((tab) => ({
         tabId: tab.id,
-        status: selectTabDisplayStatus(tabs, tab.id),
+        status: tabs[tab.id]?.workspaceId === workspaceId ? selectTabDisplayStatus(tabs, tab.id) : 'unknown' as const,
         panelType: tab.panelType ?? tabs[tab.id]?.panelType,
         terminalStatus: tabs[tab.id]?.terminalStatus,
         currentProcess: tabs[tab.id]?.currentProcess,
@@ -82,13 +96,27 @@ const WorkspaceStatusIndicator = ({ workspaceId, tabs: layoutTabs }: IWorkspaceS
     }));
   }, [tabs, tabOrder, workspaceId, layoutTabs]);
 
-  if (wsConnected && tabEntries.length === 0) return null;
+  const activity = getWorkspaceActivityStatus(tabEntries, wsConnected && statusSynced);
+  const label = tw(ACTIVITY_LABEL[activity]);
 
   return (
-    <span className="mt-1 flex h-3 items-center gap-0.5" aria-label={t('tabStatus')}>
-      {tabEntries.map(({ tabId, status, panelType, terminalStatus, currentProcess }) => (
-        <DotByStatus key={tabId} status={status} panelType={panelType} terminalStatus={terminalStatus} process={currentProcess} />
-      ))}
+    <span id={id} role="group" className="mt-1 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1" aria-label={`${t('tabStatus')}: ${label}`}>
+      <span className={cn(
+        'max-w-full text-xs font-normal leading-tight',
+        activity === 'needs-input' ? 'text-ui-amber'
+          : activity === 'ready-for-review' ? 'text-agent-active'
+          : activity === 'busy' ? 'text-foreground'
+          : 'text-muted-foreground',
+      )}>
+        {label}
+      </span>
+      {tabEntries.length > 0 && (
+        <span className="flex max-w-full flex-wrap items-center gap-0.5" aria-hidden="true">
+          {tabEntries.map(({ tabId, status, panelType, terminalStatus, currentProcess }) => (
+            <DotByStatus key={tabId} status={status} panelType={panelType} terminalStatus={terminalStatus} process={currentProcess} />
+          ))}
+        </span>
+      )}
     </span>
   );
 };

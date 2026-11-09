@@ -5,7 +5,7 @@ import { DEFAULT_LOCALE, normalizeLocale, type TSupportedLocale } from '@/lib/lo
 
 const STALE_CHUNK_RELOAD_SCRIPT = `
 (function(){
-  var key='codexmux:stale-chunk-reload-at';
+  var key='agentmux:stale-chunk-reload-at';
   var isChunkUrl=function(value){
     return typeof value==='string'&&value.indexOf('/_next/static/chunks/')!==-1&&/\\.js(?:\\?|$)/.test(value);
   };

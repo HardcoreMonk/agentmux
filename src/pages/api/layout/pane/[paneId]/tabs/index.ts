@@ -15,7 +15,7 @@ const log = createLogger('layout');
 const SHELL_READY_DELAY_MS = 500;
 
 const shouldUseRuntimeStatusLive = (): boolean =>
-  process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
+  process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
 const isPlainTerminalTabRequest = (input: {
   panelType?: unknown;

@@ -1,7 +1,7 @@
 # GitHub Pages 운영 가이드
 
-이 문서는 codexmux 공개 랜딩과 사용자 가이드를 작성하고 GitHub Pages artifact로 검증하는
-기준입니다. 공개 기준 URL은 `https://hardcoremonk.github.io/codexmux/`이며 custom domain이나
+이 문서는 agentmux 공개 랜딩과 사용자 가이드를 작성하고 GitHub Pages artifact로 검증하는
+기준입니다. 공개 기준 URL은 `https://hardcoremonk.github.io/agentmux/`이며 custom domain이나
 `CNAME`은 사용하지 않습니다.
 
 ## 소스와 산출물 경계
@@ -60,7 +60,7 @@ locale만 `landing-src/_data/docsNav.js`의 `locales`로 선언해야 합니다.
 - Search는 generated `search-index.json`과 Fuse.js를 사용하며 hosted backend를 추가하지 않습니다.
 - Legacy 9개 locale home은 URL 호환용 snapshot을 유지하고, docs에는 공통 shell과 실제 존재하는
   locale link만 제공합니다. 신규 핵심 운영 문서는 English로 안전하게 fallback할 수 있습니다.
-- Hero artwork는 codexmux용 original asset만 사용합니다. Text, logo, watermark, 실제 사용자 path와
+- Hero artwork는 agentmux용 original asset만 사용합니다. Text, logo, watermark, 실제 사용자 path와
   session content를 이미지에 넣지 않습니다.
 
 ## 문서 추가
@@ -80,7 +80,7 @@ permalink: /docs/example/index.html
 `docsNav.js` 항목에 `locales: ['en', 'ko']`를 선언합니다. 존재하지 않는 locale link를 sidebar나
 이전/다음 pagination에 노출하지 않습니다.
 
-내부 link와 asset은 Pages subpath를 포함한 `/codexmux/...` 절대 경로를 사용합니다. Canonical과
+내부 link와 asset은 Pages subpath를 포함한 `/agentmux/...` 절대 경로를 사용합니다. Canonical과
 Open Graph URL은 `landing-src/_data/site.js`의 `baseUrl` 아래여야 합니다. 실제 hostname, IP,
 password, token, 사용자 home path와 production log를 example에 넣지 않습니다.
 
@@ -92,8 +92,8 @@ corepack pnpm check:landing
 corepack pnpm dev:landing
 ```
 
-개발 server는 기본 `http://localhost:8181/codexmux/`에서 확인합니다. `check:landing`은 필수
-page와 asset, GitHub Pages canonical, `/codexmux/` 내부 link, path traversal과 핵심 product
+개발 server는 기본 `http://localhost:8181/agentmux/`에서 확인합니다. `check:landing`은 필수
+page와 asset, GitHub Pages canonical, `/agentmux/` 내부 link, path traversal과 핵심 product
 term/금지된 stale claim을 fail closed로 검사합니다. `_site/`를 수동 수정해 통과시키지 않습니다.
 
 메인 product preview는 live API를 호출하지 않는 code-native 설명 surface입니다. 실제 기능에
@@ -125,15 +125,15 @@ landing-src → Eleventy build → _site → artifact check → Pages upload →
 
 Workflow가 성공해도 실제 URL에서 다음을 확인해야 배포가 끝납니다.
 
-- `/codexmux/`와 `/codexmux/ko/`의 설치 기준
-- `/codexmux/docs/`와 신규 guide
-- `/codexmux/docs/session-operations/`와 `/codexmux/ko/docs/session-operations/`
+- `/agentmux/`와 `/agentmux/ko/`의 설치 기준
+- `/agentmux/docs/`와 신규 guide
+- `/agentmux/docs/session-operations/`와 `/agentmux/ko/docs/session-operations/`
 - canonical URL, stylesheet와 image load
 - desktop/mobile navigation, theme persistence, search와 404
 - Home의 hero/quickstart/product proof/bento/docs map과 docs의 active sidebar 상태
 
 App runtime과 Linux user service는 Pages 배포면과 독립입니다. 공개 문서 배포 때문에
-`codexmux.service`를 재시작하지 않습니다.
+`agentmux.service`를 재시작하지 않습니다.
 
 ## 실패와 rollback
 

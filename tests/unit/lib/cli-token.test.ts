@@ -34,14 +34,57 @@ describe('cli token verification', () => {
     tmpDirs = [];
   });
 
-  it('accepts the codexmux CLI token header', async () => {
+  it('exposes new and legacy CLI token header constants', async () => {
+    const { CLI_TOKEN_HEADER, LEGACY_CLI_TOKEN_HEADER } = await importCliTokenWithTempHome();
+    expect(CLI_TOKEN_HEADER).toBe('x-agentmux-token');
+    expect(LEGACY_CLI_TOKEN_HEADER).toBe('x-cmux-token');
+  });
+
+  it('accepts either x-agentmux-token or legacy x-cmux-token alone', async () => {
     const { getCliToken, verifyCliToken } = await importCliTokenWithTempHome();
     const token = getCliToken();
 
+    expect(verifyCliToken(requestWithHeaders({ 'x-agentmux-token': token }))).toBe(true);
     expect(verifyCliToken(requestWithHeaders({ 'x-cmux-token': token }))).toBe(true);
   });
 
-  it('rejects requests without the codexmux CLI token header', async () => {
+  it('prefers x-agentmux-token when both headers are present with different values', async () => {
+    const { getCliToken, readCliTokenHeader, verifyCliToken } = await importCliTokenWithTempHome();
+    const token = getCliToken();
+
+    expect(
+      readCliTokenHeader({
+        'x-agentmux-token': 'new-val',
+        'x-cmux-token': 'legacy-val',
+      }),
+    ).toBe('new-val');
+
+    const webHeaders = new Headers({
+      'x-agentmux-token': 'new-web',
+      'x-cmux-token': 'legacy-web',
+    });
+    expect(readCliTokenHeader(webHeaders)).toBe('new-web');
+
+    expect(
+      verifyCliToken(
+        requestWithHeaders({
+          'x-agentmux-token': token,
+          'x-cmux-token': 'wrong-legacy-token',
+        }),
+      ),
+    ).toBe(true);
+
+    expect(
+      verifyCliToken(
+        requestWithHeaders({
+          'x-agentmux-token': 'wrong-new-token',
+          'x-cmux-token': token,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects requests without any CLI token header', async () => {
     const { verifyCliToken } = await importCliTokenWithTempHome();
 
     expect(verifyCliToken(requestWithHeaders({}))).toBe(false);

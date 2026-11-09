@@ -6,7 +6,7 @@ permalink: /zh-CN/docs/first-session/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-이 문서는 codexmux가 이미 실행 중이라고 가정합니다. 아직 실행하지 않았다면 [빠른 시작](/codexmux/zh-CN/docs/quickstart/)부터 진행하세요.
+이 문서는 agentmux가 이미 실행 중이라고 가정합니다. 아직 실행하지 않았다면 [빠른 시작](/agentmux/zh-CN/docs/quickstart/)부터 진행하세요.
 
 ## workspace 만들기
 
@@ -25,7 +25,7 @@ permalink: /zh-CN/docs/first-session/index.html
 - **Diff**: Git 변경 사항 확인.
 - **Web browser**: Electron browser panel.
 
-Codex 템플릿은 terminal을 열고 `codex`를 실행하는 shortcut입니다. 터미널 tab에서 직접 `codex`를 실행해도 codexmux가 감지합니다.
+Codex 템플릿은 terminal을 열고 `codex`를 실행하는 shortcut입니다. 터미널 tab에서 직접 `codex`를 실행해도 agentmux가 감지합니다.
 
 ## 상태 badge
 
@@ -38,7 +38,7 @@ Codex 템플릿은 terminal을 열고 `codex`를 실행하는 shortcut입니다.
 
 ## permission/input prompt
 
-Codex가 tool 실행, 파일 변경 허가, resume directory 선택을 요청하면 codexmux는 notification panel과 timeline에 prompt를 표시합니다. notification panel은 prompt type과 risk badge를 함께 보여주며, option을 클릭하거나 숫자 key를 누르거나 모바일 push를 눌러 해당 tab으로 이동한 뒤 선택할 수 있습니다.
+Codex가 tool 실행, 파일 변경 허가, resume directory 선택을 요청하면 agentmux는 notification panel과 timeline에 prompt를 표시합니다. notification panel은 prompt type과 risk badge를 함께 보여주며, option을 클릭하거나 숫자 key를 누르거나 모바일 push를 눌러 해당 tab으로 이동한 뒤 선택할 수 있습니다.
 
 ## 복구
 
@@ -46,6 +46,6 @@ Codex가 tool 실행, 파일 변경 허가, resume directory 선택을 요청하
 
 ## 다음 단계
 
-- **[세션 상태](/codexmux/zh-CN/docs/session-status/)**
-- **[권한/입력 프롬프트](/codexmux/zh-CN/docs/permission-prompts/)**
-- **[브라우저 지원](/codexmux/zh-CN/docs/browser-support/)**
+- **[세션 상태](/agentmux/zh-CN/docs/session-status/)**
+- **[권한/입력 프롬프트](/agentmux/zh-CN/docs/permission-prompts/)**
+- **[브라우저 지원](/agentmux/zh-CN/docs/browser-support/)**

@@ -16,10 +16,10 @@ describe('session catalog runtime mode', () => {
   });
 
   it('defaults to shadow when Runtime v2 is enabled', () => {
-    expect(getSessionCatalogMode({ CODEXMUX_RUNTIME_V2: '1' } as unknown as NodeJS.ProcessEnv)).toBe('shadow');
+    expect(getSessionCatalogMode({ AGENTMUX_RUNTIME_V2: '1' } as unknown as NodeJS.ProcessEnv)).toBe('shadow');
     expect(getSessionCatalogMode({
-      CODEXMUX_RUNTIME_V2: '1',
-      CODEXMUX_SESSION_CATALOG_MODE: 'default',
+      AGENTMUX_RUNTIME_V2: '1',
+      AGENTMUX_SESSION_CATALOG_MODE: 'default',
     } as unknown as NodeJS.ProcessEnv)).toBe('default');
     expect(getSessionCatalogMode({} as unknown as NodeJS.ProcessEnv)).toBe('off');
   });

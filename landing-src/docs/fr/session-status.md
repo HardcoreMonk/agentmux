@@ -6,7 +6,7 @@ permalink: /fr/docs/session-status/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-sidebar의 session dot은 Codex가 무엇을 하고 있는지 보여줍니다. codexmux는 process, JSONL, terminal state를 조합해 상태를 유지합니다.
+sidebar의 session dot은 Codex가 무엇을 하고 있는지 보여줍니다. agentmux는 process, JSONL, terminal state를 조합해 상태를 유지합니다.
 
 ## 상태
 
@@ -31,7 +31,7 @@ Codex hook event는 inline hook config가 `status-hook.sh`를 호출해 전달�
 
 ## JSONL watcher
 
-Codex는 `~/.codex/sessions/` 아래에 transcript JSONL을 씁니다. codexmux는 active tab의 JSONL을 감시해 last assistant message, current action, token count를 갱신합니다. 사용자가 실행 중 <kbd>Esc</kbd>를 누른 경우 interruption marker를 감지해 tab이 `busy`에 갇히지 않게 합니다. JSONL marker 없이 `Conversation interrupted` prompt만 live pane에 남아도 stale `busy`를 `idle`로 보정합니다.
+Codex는 `~/.codex/sessions/` 아래에 transcript JSONL을 씁니다. agentmux는 active tab의 JSONL을 감시해 last assistant message, current action, token count를 갱신합니다. 사용자가 실행 중 <kbd>Esc</kbd>를 누른 경우 interruption marker를 감지해 tab이 `busy`에 갇히지 않게 합니다. JSONL marker 없이 `Conversation interrupted` prompt만 live pane에 남아도 stale `busy`를 `idle`로 보정합니다.
 
 Codex CLI가 process 시작 후 JSONL을 늦게 쓰는 경우를 고려해 session id, 같은 cwd의 process start time, live process 확인 후 cwd fallback 순서로 transcript를 연결합니다. 일반 JSONL 검색은 cwd만으로 최신 파일을 고르지 않습니다.
 
@@ -45,6 +45,6 @@ Codex CLI가 process 시작 후 JSONL을 늦게 쓰는 경우를 고려해 sessi
 
 ## 다음 단계
 
-- **[권한/입력 프롬프트](/codexmux/fr/docs/permission-prompts/)**
-- **[라이브 세션 뷰](/codexmux/fr/docs/live-session-view/)**
-- **[데이터 디렉터리](/codexmux/fr/docs/data-directory/)**
+- **[권한/입력 프롬프트](/agentmux/fr/docs/permission-prompts/)**
+- **[라이브 세션 뷰](/agentmux/fr/docs/live-session-view/)**
+- **[데이터 디렉터리](/agentmux/fr/docs/data-directory/)**

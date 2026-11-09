@@ -10,7 +10,7 @@ permalink: /docs/quick-prompts-attachments/index.html
 
 ## 퀵 프롬프트
 
-퀵 프롬프트는 `~/.codexmux/quick-prompts.json`에 저장되는 짧은 이름이 붙은 항목입니다. 입력 바 위에 칩으로 나타나며 — 한 번 클릭하면 직접 입력한 것처럼 프롬프트가 전송됩니다.
+퀵 프롬프트는 `~/.agentmux/quick-prompts.json`에 저장되는 짧은 이름이 붙은 항목입니다. 입력 바 위에 칩으로 나타나며 — 한 번 클릭하면 직접 입력한 것처럼 프롬프트가 전송됩니다.
 
 기본 제공되는 빌트인이 있고, 언제든 비활성화할 수 있습니다:
 
@@ -30,7 +30,7 @@ permalink: /docs/quick-prompts-attachments/index.html
 
 ## 이미지 드래그 앤 드롭
 
-이미지 파일(PNG, JPG, GIF, WebP)을 입력 바 어디에든 드롭하면 첨부됩니다. Browser는 인증된 raw body를 `/api/upload-image`로 보내고, codexmux는 `~/.codexmux/uploads/<workspace>/<tab>/`에 artifact를 저장한 뒤 프롬프트에 경로를 삽입합니다. 이미지 한 개의 최대 크기는 **10MiB**입니다.
+이미지 파일(PNG, JPG, GIF, WebP)을 입력 바 어디에든 드롭하면 첨부됩니다. Browser는 인증된 raw body를 `/api/upload-image`로 보내고, agentmux는 `~/.agentmux/uploads/<workspace>/<tab>/`에 artifact를 저장한 뒤 프롬프트에 경로를 삽입합니다. 이미지 한 개의 최대 크기는 **10MiB**입니다.
 
 추가로:
 
@@ -61,7 +61,7 @@ permalink: /docs/quick-prompts-attachments/index.html
 - 비어 있는 입력 바에서 <kbd>↑</kbd>로 최근 메시지 순회
 - 또는 검색 가능한 목록을 위해 **History** 피커를 열기
 
-오래된 항목은 피커에서 삭제할 수 있습니다. 히스토리는 다른 워크스페이스 데이터와 함께 `~/.codexmux/` 아래에 저장되며, 머신 외부로 전송되지 않습니다.
+오래된 항목은 피커에서 삭제할 수 있습니다. 히스토리는 다른 워크스페이스 데이터와 함께 `~/.agentmux/` 아래에 저장되며, 머신 외부로 전송되지 않습니다.
 
 ## 키보드
 
@@ -75,6 +75,6 @@ permalink: /docs/quick-prompts-attachments/index.html
 
 ## 다음으로
 
-- **[라이브 세션 뷰](/codexmux/docs/live-session-view/)** — 프롬프트와 Codex의 답변이 표시되는 곳
-- **[키보드 단축키](/codexmux/docs/keyboard-shortcuts/)** — 전체 바인딩 표
-- **[권한/입력 프롬프트](/codexmux/docs/permission-prompts/)** — 승인이 필요한 요청을 보낸 뒤 일어나는 일
+- **[라이브 세션 뷰](/agentmux/docs/live-session-view/)** — 프롬프트와 Codex의 답변이 표시되는 곳
+- **[키보드 단축키](/agentmux/docs/keyboard-shortcuts/)** — 전체 바인딩 표
+- **[권한/입력 프롬프트](/agentmux/docs/permission-prompts/)** — 승인이 필요한 요청을 보낸 뒤 일어나는 일

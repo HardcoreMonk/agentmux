@@ -76,10 +76,10 @@ Linux/Windows에서 <kbd>Ctrl+D</kbd>는 터미널과 Codex CLI의 EOF 입력으
 
 탭을 닫으면 해당 tmux 세션이 종료됩니다. *브라우저*를 닫거나, 새로고침하거나, 네트워크가 끊어져도 탭은 종료되지 않고 서버에서 계속 돌아갑니다. 다시 열면 같은 창, 분할, 탭이 그대로 돌아옵니다.
 
-서버 재부팅 이후의 복구 동작은 [레이아웃 저장 & 복원](/codexmux/fr/docs/save-restore/)에서 다룹니다.
+서버 재부팅 이후의 복구 동작은 [레이아웃 저장 & 복원](/agentmux/fr/docs/save-restore/)에서 다룹니다.
 
 ## 다음으로
 
-- **[레이아웃 저장 & 복원](/codexmux/fr/docs/save-restore/)** — 이 레이아웃이 어떻게 유지되는지
-- **[키보드 단축키](/codexmux/fr/docs/keyboard-shortcuts/)** — 전체 바인딩
-- **[Git 워크플로 패널](/codexmux/fr/docs/git-workflow/)** — 분할에 띄워두면 유용한 탭 타입
+- **[레이아웃 저장 & 복원](/agentmux/fr/docs/save-restore/)** — 이 레이아웃이 어떻게 유지되는지
+- **[키보드 단축키](/agentmux/fr/docs/keyboard-shortcuts/)** — 전체 바인딩
+- **[Git 워크플로 패널](/agentmux/fr/docs/git-workflow/)** — 분할에 띄워두면 유용한 탭 타입

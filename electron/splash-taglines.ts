@@ -6,7 +6,7 @@ const HOLIDAY_TAGLINES = {
   stPatricks: "May your builds be green, your logs be clean, and your deploys land where you mean.",
   aprilFools: "This terminal has mass: it bends time, light, and deadlines around it.",
   halloween: "Spooky season: haunted processes, cursed configs, and the ghost of node_modules past.",
-  christmas: "Santa uses codexmux—how else would he manage a billion deliveries in one night?",
+  christmas: "Santa uses agentmux—how else would he manage a billion deliveries in one night?",
 } as const;
 
 const TAGLINES: string[] = [
@@ -30,7 +30,7 @@ const TAGLINES: string[] = [
   "A terminal so nice you'll forget it's a terminal.",
   "Ctrl+C your old workflow. Ctrl+V into something better.",
   "Where every pixel earns its keep.",
-  "You had me at 'codexmux'.",
+  "You had me at 'agentmux'.",
   "All your sessions in one place. Finally.",
   // vibe coding
   "Vibe coding: where the cursor moves and the code just happens.",

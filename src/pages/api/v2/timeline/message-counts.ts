@@ -8,7 +8,7 @@ const firstQueryValue = (value: string | string[] | undefined): string | undefin
   Array.isArray(value) ? value[0] : value;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
-  if (process.env.CODEXMUX_RUNTIME_V2 !== '1') {
+  if (process.env.AGENTMUX_RUNTIME_V2 !== '1') {
     return sendRuntimeDisabled(res);
   }
 

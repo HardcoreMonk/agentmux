@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
+import { getDataDir } from '@/lib/app-identity';
 import { ACTIONS } from '@/lib/keyboard-shortcuts';
 
 export type TKeybindingOverride = string | null;
@@ -9,7 +9,7 @@ export interface IKeybindingsFile {
   overrides: Record<string, TKeybindingOverride>;
 }
 
-const BASE_DIR = path.join(os.homedir(), '.codexmux');
+const BASE_DIR = getDataDir();
 const FILE_PATH = path.join(BASE_DIR, 'keybindings.json');
 
 const EMPTY: IKeybindingsFile = { overrides: {} };

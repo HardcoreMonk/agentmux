@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">codexmux</string>
-    <string name="title_activity_main">codexmux</string>
+    <string name="app_name">agentmux</string>
+    <string name="title_activity_main">agentmux</string>
     <string name="package_name">com.hardcoremonk.codexmux</string>
     <string name="custom_url_scheme">com.hardcoremonk.codexmux</string>
 </resources>

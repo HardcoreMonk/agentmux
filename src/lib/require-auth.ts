@@ -1,5 +1,10 @@
 import type { GetServerSidePropsContext, GetServerSidePropsResult } from 'next';
-import { verifySessionToken, SESSION_COOKIE } from '@/lib/auth';
+import {
+  LEGACY_SESSION_COOKIE,
+  SESSION_COOKIE,
+  verifySessionCookies,
+  verifySessionToken,
+} from '@/lib/auth';
 import { getCachedRuntimePreflight } from '@/lib/preflight';
 import { isRuntimeOk } from '@/types/preflight';
 
@@ -12,8 +17,16 @@ export const requireAuth = async <T extends Record<string, unknown>>(
   handler?: () => Promise<GetServerSidePropsResult<T>>,
   options?: IRequireAuthOptions,
 ): Promise<GetServerSidePropsResult<T>> => {
-  const token = context.req.cookies[SESSION_COOKIE];
-  if (!token || !(await verifySessionToken(token))) {
+  const fallbackCookieHeader = [
+    context.req.cookies?.[SESSION_COOKIE]
+      ? `${SESSION_COOKIE}=${context.req.cookies[SESSION_COOKIE]}`
+      : '',
+    context.req.cookies?.[LEGACY_SESSION_COOKIE]
+      ? `${LEGACY_SESSION_COOKIE}=${context.req.cookies[LEGACY_SESSION_COOKIE]}`
+      : '',
+  ].filter(Boolean).join('; ');
+  const cookieHeader = context.req.headers?.cookie ?? (fallbackCookieHeader || undefined);
+  if (!(await verifySessionCookies(cookieHeader, verifySessionToken))) {
     return { redirect: { destination: '/login', permanent: false } };
   }
 

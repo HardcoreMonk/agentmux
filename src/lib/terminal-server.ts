@@ -15,6 +15,7 @@ import { reconcileTabCwd } from '@/lib/layout-store';
 import { createLogger } from '@/lib/logger';
 import { recordPerfCounter } from '@/lib/perf-metrics';
 import { createTerminalOutputBuffer, type ITerminalOutputBuffer } from '@/lib/terminal-output-buffer';
+import { LEGACY_TMUX_SOCKET } from '@/lib/tmux-sockets';
 
 const log = createLogger('terminal');
 
@@ -34,7 +35,7 @@ const THROTTLE_FLUSH_INTERVAL_MS = 250;
 const STDOUT_FLUSH_DELAY_MS = 8;
 const STDOUT_MAX_BUFFER_BYTES = 64 * 1024;
 
-const TMUX_SOCKET = 'codexmux';
+const TMUX_SOCKET = LEGACY_TMUX_SOCKET;
 const textDecoder = new TextDecoder();
 
 interface IActiveConnection {

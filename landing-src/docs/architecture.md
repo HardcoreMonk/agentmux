@@ -6,7 +6,7 @@ permalink: /docs/architecture/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux는 browser/선택 client, outer custom Node server, Next.js Pages Router, Runtime v2
+agentmux는 browser/선택 client, outer custom Node server, Next.js Pages Router, Runtime v2
 worker와 Linux tmux adapter로 구성됩니다. Active Linux engine이 Codex process/JSONL,
 app-owned DB와 승인 project read를 소유합니다.
 
@@ -29,7 +29,7 @@ runtime v2 Supervisor
   └─ governance worker -> approved project read + Knowledge Index
 ```
 
-외부 client는 하나의 port를 사용합니다. production에서는 outer server가 internal Next standalone server를 proxy하며, internal port는 upload fallback surface가 아닙니다. WebSocket은 역할별로 분리되고 upgrade 시 `codexmux-session-token` cookie로 인증합니다. Browser cookie는 port로 격리되지 않으므로 이 제품별 이름이 같은 hostname의 Purplemux `session-token`과 충돌하지 않게 합니다. `/api/debug/perf`는 public health check가 아니라 session cookie 또는 `x-cmux-token`을 요구하는 진단 endpoint입니다.
+외부 client는 하나의 port를 사용합니다. production에서는 outer server가 internal Next standalone server를 proxy하며, internal port는 upload fallback surface가 아닙니다. WebSocket은 역할별로 분리되고 upgrade 시 `agentmux-session-token` (legacy `codexmux-session-token` 호환) cookie로 인증합니다. Browser cookie는 port로 격리되지 않으므로 이 제품별 이름이 같은 hostname의 Purplemux `session-token`과 충돌하지 않게 합니다. `/api/debug/perf`는 public health check가 아니라 session cookie 또는 `x-agentmux-token` (legacy `x-cmux-token` 호환)을 요구하는 진단 endpoint입니다.
 
 ## 브라우저
 
@@ -44,7 +44,7 @@ runtime v2 Supervisor
 
 ## 서버
 
-`server.ts`는 public HTTP/WebSocket lifecycle을 소유하고 Next.js를 같은 외부 port 뒤에 둡니다. 최초 설정 POST는 `/api/auth/setup`이 처리합니다. `/api/install`은 setup-local 또는 authenticated admission을 통과한 install PTY WebSocket이며, `/api/cli/*`는 `x-cmux-token`을 요구합니다.
+`server.ts`는 public HTTP/WebSocket lifecycle을 소유하고 Next.js를 같은 외부 port 뒤에 둡니다. 최초 설정 POST는 `/api/auth/setup`이 처리합니다. `/api/install`은 setup-local 또는 authenticated admission을 통과한 install PTY WebSocket이며, `/api/cli/*`는 `x-agentmux-token` (legacy `x-cmux-token` 호환)을 요구합니다.
 
 | 경로 | 용도 |
 |---|---|
@@ -68,12 +68,12 @@ runtime v2 Supervisor
 
 `/api/upload-image`와 `/api/upload-file`은 development Next handler나 production standalone proxy보다 먼저 outer server가 소비합니다. Browser request는 유효한 session cookie와 same-authority Origin이 필요하고, CLI token request는 Origin을 생략할 수 있습니다. `Content-Length`가 없는 chunked request, 중복/비정규 framing과 non-identity content encoding은 body를 읽기 전에 거절합니다.
 
-Upload는 최대 8개/예약 200MiB를 동시에 admission하고 queue 없이 초과 request를 `429`로 닫습니다. 성공한 body는 `~/.codexmux/uploads/<workspace>/<tab>/`의 stage에 stream한 뒤 same-directory hard link로 no-replace publish합니다.
+Upload는 최대 8개/예약 200MiB를 동시에 admission하고 queue 없이 초과 request를 `429`로 닫습니다. 성공한 body는 `~/.agentmux/uploads/<workspace>/<tab>/`의 stage에 stream한 뒤 same-directory hard link로 no-replace publish합니다.
 
 ## Terminal runtime
 
 Active Linux 경로는 Runtime v2 Terminal Worker 뒤의 tmux adapter를 사용합니다. tmux session은
-`codexmux` socket과 `src/config/tmux.conf`로 격리되며 사용자의 `~/.tmux.conf`는 읽지
+`-L codexmux` socket과 `src/config/tmux.conf`로 격리되며 사용자의 `~/.tmux.conf`는 읽지
 않습니다. Windows node-pty/ConPTY adapter는 별도 package surface입니다.
 
 ## Codex 연동
@@ -108,6 +108,6 @@ custom server와 Next.js route는 같은 process 안에 있지만 module graph�
 
 ## 다음 단계
 
-- **[데이터 디렉터리](/codexmux/docs/data-directory/)**
-- **[CLI 레퍼런스](/codexmux/docs/cli-reference/)**
-- **[문제 해결](/codexmux/docs/troubleshooting/)**
+- **[데이터 디렉터리](/agentmux/docs/data-directory/)**
+- **[CLI 레퍼런스](/agentmux/docs/cli-reference/)**
+- **[문제 해결](/agentmux/docs/troubleshooting/)**

@@ -55,6 +55,7 @@ const useAgentStatus = () => {
       if (nativeBackgroundPausedRef.current) return;
       foregroundReconnectPendingIdRef.current = null;
       const connectId = ++connectIdRef.current;
+      useTabStore.getState().setStatusWsConnected(false);
       if (sharedWs && sharedWs.readyState !== WebSocket.CLOSED) {
         sharedWs.onclose = null;
         sharedWs.close(1000);
@@ -250,6 +251,7 @@ const useAgentStatus = () => {
 
     return () => {
       mountedRef.current = false;
+      useTabStore.getState().setStatusWsConnected(false);
       foregroundReconnectPendingIdRef.current = null;
       // eslint-disable-next-line react-hooks/exhaustive-deps -- invalidate stale socket callbacks on unmount
       connectIdRef.current++;

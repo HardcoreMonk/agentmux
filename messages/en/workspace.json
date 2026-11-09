@@ -11,5 +11,11 @@
   "deleteFailed": "Failed to delete",
   "renameFailed": "Failed to rename",
   "reorderFailed": "Failed to reorder",
-  "validateFailed": "Failed to validate"
+  "validateFailed": "Failed to validate",
+  "activityChecking": "Checking status",
+  "activityNeedsInput": "Input needed",
+  "activityBusy": "Working",
+  "activityNeedsReview": "Review needed",
+  "activityUnknown": "Status unknown",
+  "activityIdle": "No active tasks"
 }

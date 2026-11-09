@@ -6,7 +6,7 @@ permalink: /zh-TW/docs/architecture/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-codexmux는 브라우저, Node.js 서버, 호스트의 tmux와 Codex CLI로 구성됩니다. 터미널 입출력은 tmux에 남기고 Codex 상태는 process tree와 `~/.codex/sessions/**/*.jsonl`에서 읽습니다. session list와 timeline은 로컬 Codex JSONL만 대상으로 합니다.
+agentmux는 브라우저, Node.js 서버, 호스트의 tmux와 Codex CLI로 구성됩니다. 터미널 입출력은 tmux에 남기고 Codex 상태는 process tree와 `~/.codex/sessions/**/*.jsonl`에서 읽습니다. session list와 timeline은 로컬 Codex JSONL만 대상으로 합니다.
 
 ## 전체 구조
 
@@ -19,7 +19,7 @@ codexmux는 브라우저, Node.js 서버, 호스트의 tmux와 Codex CLI로 구�
   └─ /api/timeline/sessions -> session-index.ts -> local Codex 목록
 ```
 
-WebSocket은 역할별로 분리되어 있고 upgrade 시 `codexmux-session-token` cookie로 인증합니다. 제품별 cookie 이름은 같은 hostname의 Purplemux `session-token`과 충돌하지 않습니다. `/api/debug/perf`는 public health check가 아니라 session cookie 또는 `x-cmux-token`을 요구하는 진단 endpoint입니다.
+WebSocket은 역할별로 분리되어 있고 upgrade 시 `agentmux-session-token`(legacy `codexmux-session-token` 호환) cookie로 인증합니다. 제품별 cookie 이름은 같은 hostname의 Purplemux `session-token`과 충돌하지 않습니다. `/api/debug/perf`는 public health check가 아니라 session cookie 또는 `x-agentmux-token`을 요구하는 진단 endpoint입니다.
 
 ## 브라우저
 
@@ -32,7 +32,7 @@ WebSocket은 역할별로 분리되어 있고 upgrade 시 `codexmux-session-toke
 
 ## 서버
 
-`server.ts`는 Next.js와 WebSocket server를 같은 port에서 제공합니다. `/api/install`은 첫 실행 설정을 처리하고, `/api/cli/*`는 `x-cmux-token`을 요구합니다.
+`server.ts`는 Next.js와 WebSocket server를 같은 port에서 제공합니다. `/api/install`은 첫 실행 설정을 처리하고, `/api/cli/*`는 `x-agentmux-token`을 요구합니다.
 
 | 경로 | 용도 |
 |---|---|
@@ -45,7 +45,7 @@ WebSocket은 역할별로 분리되어 있고 upgrade 시 `codexmux-session-toke
 
 ## tmux
 
-codexmux는 `codexmux` socket에 격리된 tmux session을 만들고 `src/config/tmux.conf`를 적용합니다. 사용자의 `~/.tmux.conf`는 읽지 않습니다. session 이름은 `pt-{workspaceId}-{paneId}-{tabId}`입니다.
+agentmux는 `agentmux` socket에 격리된 tmux session을 만들고 `src/config/tmux.conf`를 적용합니다. 사용자의 `~/.tmux.conf`는 읽지 않습니다. session 이름은 `pt-{workspaceId}-{paneId}-{tabId}`입니다.
 
 ## Codex 연동
 
@@ -73,6 +73,6 @@ custom server와 Next.js route는 같은 process 안에 있지만 module graph�
 
 ## 다음 단계
 
-- **[데이터 디렉터리](/codexmux/zh-TW/docs/data-directory/)**
-- **[CLI 레퍼런스](/codexmux/zh-TW/docs/cli-reference/)**
-- **[문제 해결](/codexmux/zh-TW/docs/troubleshooting/)**
+- **[데이터 디렉터리](/agentmux/zh-TW/docs/data-directory/)**
+- **[CLI 레퍼런스](/agentmux/zh-TW/docs/cli-reference/)**
+- **[문제 해결](/agentmux/zh-TW/docs/troubleshooting/)**

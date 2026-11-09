@@ -7,9 +7,13 @@ import {
   verifyRuntimeV2WebSocketAuth,
 } from '@/lib/runtime/api-auth';
 
-vi.mock('@/lib/cli-token', () => ({
-  verifyTokenValue: vi.fn((value: string) => value === 'valid-cli-token'),
-}));
+vi.mock('@/lib/cli-token', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/cli-token')>();
+  return {
+    ...actual,
+    verifyTokenValue: vi.fn((value: string) => value === 'valid-cli-token'),
+  };
+});
 
 vi.mock('@/lib/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/auth')>();
@@ -25,13 +29,24 @@ const wsReq = (headers: Record<string, string>, url = '/api/v2/terminal?session=
   ({ headers, url } as IncomingMessage);
 
 describe('runtime v2 api auth', () => {
-  it('accepts x-cmux-token', async () => {
+  it('accepts x-agentmux-token and legacy x-cmux-token, preferring x-agentmux-token', async () => {
+    await expect(verifyRuntimeV2ApiAuth(req({ 'x-agentmux-token': 'valid-cli-token' }))).resolves.toBe(true);
     await expect(verifyRuntimeV2ApiAuth(req({ 'x-cmux-token': 'valid-cli-token' }))).resolves.toBe(true);
+    await expect(verifyRuntimeV2ApiAuth(req({
+      'x-agentmux-token': 'valid-cli-token',
+      'x-cmux-token': 'invalid-cli-token',
+    }))).resolves.toBe(true);
   });
 
-  it('accepts the session cookie', async () => {
+  it('accepts new and legacy session cookies, falling back when new cookie is invalid', async () => {
+    await expect(verifyRuntimeV2ApiAuth(req({
+      cookie: 'session-token=purple-session; agentmux-session-token=valid-session-token',
+    }))).resolves.toBe(true);
     await expect(verifyRuntimeV2ApiAuth(req({
       cookie: 'session-token=purple-session; codexmux-session-token=valid-session-token',
+    }))).resolves.toBe(true);
+    await expect(verifyRuntimeV2ApiAuth(req({
+      cookie: 'agentmux-session-token=invalid-session; codexmux-session-token=valid-session-token',
     }))).resolves.toBe(true);
   });
 
@@ -42,12 +57,14 @@ describe('runtime v2 api auth', () => {
   it('rejects credential query parameters before header or cookie auth', async () => {
     const forbiddenNames = [
       'token',
+      'x-agentmux-token',
       'x-cmux-token',
       'authorization',
       'auth',
       'api_key',
       'apikey',
       'access_token',
+      'agentmux-session-token',
       'codexmux-session-token',
       'session-token',
       'ToKeN',
@@ -55,7 +72,7 @@ describe('runtime v2 api auth', () => {
 
     for (const name of forbiddenNames) {
       await expect(verifyRuntimeV2ApiAuth(req(
-        { 'x-cmux-token': 'valid-cli-token', cookie: 'codexmux-session-token=valid-session-token' },
+        { 'x-agentmux-token': 'valid-cli-token', cookie: 'agentmux-session-token=valid-session-token' },
         `/api/v2/runtime/health?${name}=valid-cli-token`,
       ))).resolves.toBe(false);
     }
@@ -128,11 +145,18 @@ describe('runtime v2 api auth', () => {
 describe('runtime v2 websocket auth', () => {
   it('accepts session cookie for browser websocket clients', async () => {
     await expect(verifyRuntimeV2WebSocketAuth(wsReq({
+      cookie: 'session-token=purple-session; agentmux-session-token=valid-session-token',
+    }))).resolves.toBe(true);
+    await expect(verifyRuntimeV2WebSocketAuth(wsReq({
       cookie: 'session-token=purple-session; codexmux-session-token=valid-session-token',
+    }))).resolves.toBe(true);
+    await expect(verifyRuntimeV2WebSocketAuth(wsReq({
+      cookie: 'agentmux-session-token=invalid-session; codexmux-session-token=valid-session-token',
     }))).resolves.toBe(true);
   });
 
-  it('accepts x-cmux-token for node smoke websocket clients', async () => {
+  it('accepts x-agentmux-token and x-cmux-token for node smoke websocket clients', async () => {
+    await expect(verifyRuntimeV2WebSocketAuth(wsReq({ 'x-agentmux-token': 'valid-cli-token' }))).resolves.toBe(true);
     await expect(verifyRuntimeV2WebSocketAuth(wsReq({ 'x-cmux-token': 'valid-cli-token' }))).resolves.toBe(true);
   });
 
@@ -142,7 +166,17 @@ describe('runtime v2 websocket auth', () => {
       '/api/v2/terminal?session=rtv2-a',
     ))).resolves.toBe(true);
 
-    for (const name of ['token', 'authorization', 'API_KEY', 'access_token', 'codexmux-session-token', 'session-token']) {
+    for (const name of [
+      'token',
+      'x-agentmux-token',
+      'x-cmux-token',
+      'authorization',
+      'API_KEY',
+      'access_token',
+      'agentmux-session-token',
+      'codexmux-session-token',
+      'session-token',
+    ]) {
       await expect(verifyRuntimeV2WebSocketAuth(wsReq(
         { cookie: 'codexmux-session-token=valid-session-token' },
         `/api/v2/terminal?session=rtv2-a&${name}=valid-cli-token`,

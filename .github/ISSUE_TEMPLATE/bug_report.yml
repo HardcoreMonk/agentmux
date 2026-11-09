@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with codexmux
+description: Report a problem with agentmux
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -7,7 +7,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: codexmux version (see the app footer or `package.json`)
+      description: agentmux version (see the app footer or `package.json`)
       placeholder: "0.1.15"
     validations:
       required: true

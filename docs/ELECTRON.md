@@ -1,6 +1,6 @@
 # Electron과 Windows 패키징
 
-codexmux Electron 앱은 Next.js UI를 데스크톱 shell 안에서 실행하는 선택 client입니다.
+agentmux Electron 앱은 Next.js UI를 데스크톱 shell 안에서 실행하는 선택 client입니다.
 현재 active runtime은 Linux 단일 엔진이며, 이 문서의 Windows desktop shell, NSIS installer와
 updater smoke는 별도 배포면의 보존된 release 계약입니다.
 
@@ -10,9 +10,9 @@ Windows source development:
 
 ```powershell
 $env:PORT = "8122"
-$env:CODEXMUX_RUNTIME_V2 = "1"
-$env:CODEXMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
-$env:CODEXMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
+$env:AGENTMUX_RUNTIME_V2 = "1"
+$env:AGENTMUX_RUNTIME_TERMINAL_ADAPTER = "windows"
+$env:AGENTMUX_PROCESS_INSPECTOR_ADAPTER = "windows"
 corepack pnpm dev:electron
 ```
 
@@ -34,8 +34,8 @@ corepack pnpm pack:electron
 Windows smoke는 현재 version보다 낮은 실제 baseline installer를 준비한 뒤 실행합니다.
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm pack:electron
 corepack pnpm smoke:windows:electron-env
 corepack pnpm smoke:windows:electron-packaging
@@ -71,12 +71,12 @@ corepack pnpm pack:electron:mac
 | `scripts/pack-electron-windows.mjs` | Windows electron-builder wrapper |
 | `electron-builder.yml` | Windows NSIS/zip packaging, publish metadata |
 
-Electron 설정은 `~/.codexmux/config.json`을 공유합니다. Server mode는 `server.mode`, `server.remoteUrl`로 관리합니다.
+Electron 설정은 `~/.agentmux/config.json`(legacy 실제 경로 `~/.codexmux/config.json`)을 공유합니다. Server mode는 `server.mode`, `server.remoteUrl`로 관리합니다.
 
 ## Codex session hook bridge
 
 Electron renderer는 Codex command, CLI token, hook capability를 만들지 않습니다. Local server가
-검증된 tab launch intent로 session hook을 조립하고 `~/.codexmux/status-hook.cjs`를
+검증된 tab launch intent로 session hook을 조립하고 `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를
 호출합니다. Electron executable을 standalone Node bridge runtime으로 사용할 때는
 `ELECTRON_RUN_AS_NODE=1`을 명시합니다. Bridge timeout이나 server 부재는 Codex action을
 중단시키지 않으며 JSONL/process polling이 상태를 재조정합니다.
@@ -88,7 +88,7 @@ Electron renderer는 Codex command, CLI token, hook capability를 만들지 않�
 
 로컬 서버:
 
-- 앱 실행 시 내부 codexmux server를 시작합니다.
+- 앱 실행 시 내부 agentmux server를 시작합니다.
 - 기본 포트는 현재 저장소 기준 `8122`이고, 사용 중이면 fallback port를 사용합니다.
 - 앱 종료 시 server shutdown과 Electron storage flush를 수행합니다.
 - Windows에서는 POSIX PATH 보정을 적용하지 않고 현재 Windows `PATH`를 유지합니다.
@@ -96,7 +96,7 @@ Electron renderer는 Codex command, CLI token, hook capability를 만들지 않�
 
 원격 서버:
 
-- 설정한 URL을 `~/.codexmux/config.json`에 저장합니다.
+- 설정한 URL을 `~/.agentmux/config.json`(legacy 실제 경로 `~/.codexmux/config.json`)에 저장합니다.
 - URL scheme이 없으면 `http://`를 붙입니다.
 - 허용 scheme은 `http://`, `https://`입니다.
 - 잘못 저장된 remote URL이나 지원하지 않는 scheme은 local mode로 fallback합니다.
@@ -123,7 +123,7 @@ Windows wrapper는 electron-builder를 직접 호출하지 않고 `scripts/pack-
   `--updated` update apply에서는 install section 이후 명시적으로 `quitSuccess`를
   호출해 updater installer process가 settle되도록 합니다.
 - 내부 updater가 앱 종료를 제어하므로 NSIS process-name scan은 우회합니다. 이는
-  장시간 자동화 세션에서 stale `codexmux.exe` tasklist 항목이 silent install/update를
+  장시간 자동화 세션에서 stale `agentmux.exe`(또는 legacy `codexmux.exe`) tasklist 항목이 silent install/update를
   막는 문제를 피하기 위한 Windows 내부 배포 계약입니다.
 
 `latest.yml`, installer exe, matching `.blockmap`은 같은 updater-visible artifact name을 가져야 합니다.
@@ -132,13 +132,13 @@ Windows wrapper는 electron-builder를 직접 호출하지 않고 `scripts/pack-
 
 Packaged local server도 `/api/upload-image`와 `/api/upload-file`을 embedded Next server보다
 앞선 outer custom server에서 처리합니다. Internal standalone port와 제거된 Pages API route는
-upload fallback surface가 아닙니다. `CODEXMUX_UPLOADS_DISABLED=1`로 같은 executable을 다시
+upload fallback surface가 아닙니다. `AGENTMUX_UPLOADS_DISABLED=1`(legacy `CODEXMUX_UPLOADS_DISABLED=1` 호환)로 같은 executable을 다시
 시작하면 두 upload route만 `503`으로 닫고 health, config, 기존 artifact tree는 유지해야 합니다.
 
 ```powershell
 corepack pnpm pack:electron
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:packaged-launch
 corepack pnpm smoke:windows:upload-integrity
 corepack pnpm smoke:windows:package-gate
@@ -147,20 +147,20 @@ corepack pnpm check:smoke-artifacts -- $env:CODEXMUX_SMOKE_ARTIFACT_DIR
 
 2026-07-12 `v0.4.20` workflow에서 실제 packaged exe의 size/SHA-256,
 same-directory publish, abort stage unlink, aged stage cleanup, committed `.part` 보존과
-동일 exe kill-switch restart를 최초 확인했습니다. 현재 `v0.4.22`
-[workflow 29219010240 attempt 3](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240)는
+동일 exe kill-switch restart를 최초 확인했습니다. 보존된 `v0.4.22`
+legacy [workflow 29219010240 attempt 3](https://github.com/HardcoreMonk/codexmux/actions/runs/29219010240)는
 같은 검사를 package gate `394584ms`, upload integrity `11724ms`로 반복하고 browser,
 package, published-updater 세 artifact의 총 16개 JSON을 독립 privacy scan으로 확인했습니다.
 ADR-027과 ADR-028은 `Verified`이며
-[Issue #16](https://github.com/HardcoreMonk/codexmux/issues/16)의 acceptance를 충족했습니다.
+이전 이름 저장소의 [Issue #16](https://github.com/HardcoreMonk/codexmux/issues/16) acceptance를 충족했습니다.
 
 ## 업데이트 smoke
 
 Local feed smoke:
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_UPDATER_LOCAL_FEED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:updater-local-feed
 ```
 
@@ -177,7 +177,7 @@ Fresh runner의 `release/`에는 이전 installer가 없으므로 현재 version
 Published channel smoke:
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
 $env:CODEXMUX_WINDOWS_UPDATER_CURRENT_VERSION = "<installed-lower-version>"
 corepack pnpm smoke:windows:updater-published-channel
 ```
@@ -201,8 +201,8 @@ corepack pnpm smoke:windows:updater-published-channel
 Published install smoke:
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_PUBLISHED_BASE_INSTALLER_PATH = "C:\artifacts\codexmux-Setup-<previous-version>.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_PUBLISHED_BASE_INSTALLER_PATH = "C:\artifacts\agentmux-Setup-<previous-version>.exe"
 corepack pnpm smoke:windows:updater-published-install
 ```
 
@@ -215,14 +215,14 @@ PowerShell `Invoke-WebRequest` 기반 HTTP executor를 사용합니다. 최초 p
 install evidence는 다음 경로로 확보했습니다.
 
 ```powershell
-$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\codexmux-smoke"
-$env:CODEXMUX_WINDOWS_PUBLISHED_BASE_INSTALLER_PATH = "release\codexmux-Setup-0.4.15.exe"
+$env:CODEXMUX_SMOKE_ARTIFACT_DIR = "C:\artifacts\agentmux-smoke"
+$env:CODEXMUX_WINDOWS_PUBLISHED_BASE_INSTALLER_PATH = "release\codexmux-Setup-0.4.15.exe" # legacy
 $env:CODEXMUX_WINDOWS_UPDATER_PUBLISHED_GENERIC_FEED = "1"
 corepack pnpm smoke:windows:updater-published-install
 ```
 
 이 검증은 GitHub Release `v0.4.16`의 `latest.yml`과
-`codexmux-Setup-0.4.16.exe`를 실제로 다운로드하고, `quitAndInstall`, installer
+legacy `codexmux-Setup-0.4.16.exe`를 실제로 다운로드하고, `quitAndInstall`, installer
 settle, post-update `/api/health.version=0.4.16`까지 확인합니다.
 
 현재 release evidence는 실제 `v0.4.21` installer를 baseline으로 사용한 exact target-tag

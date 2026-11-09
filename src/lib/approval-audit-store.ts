@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
-import os from 'os';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import { getDataDir } from '@/lib/app-identity';
 import type {
   TApprovalKind,
   TApprovalPromptType,
@@ -74,11 +74,8 @@ const fallbackReasons = new Set<TApprovalFallbackReason>([
   'request-failed',
 ]);
 
-const getHomeDir = (): string =>
-  process.env.HOME || process.env.USERPROFILE || os.homedir() || '/';
-
 const getAuditFilePath = (): string =>
-  path.join(getHomeDir(), '.codexmux', 'approval-audit.jsonl');
+  path.join(getDataDir(), 'approval-audit.jsonl');
 
 const cleanId = (value: string): string => value.trim().slice(0, 120);
 

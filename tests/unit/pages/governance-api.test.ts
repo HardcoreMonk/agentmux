@@ -82,7 +82,7 @@ describe('governance API', () => {
   let root: string;
 
   beforeEach(async () => {
-    process.env.CODEXMUX_RUNTIME_V2 = '1';
+    process.env.AGENTMUX_RUNTIME_V2 = '1';
     root = await fs.mkdtemp(path.join(os.tmpdir(), 'codexmux-governance-api-'));
     await fs.mkdir(path.join(root, 'demo'), { recursive: true });
     await fs.writeFile(path.join(root, 'projects.yaml'), [

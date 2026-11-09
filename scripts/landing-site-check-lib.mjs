@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const PROJECT_PREFIX = '/codexmux';
+const PROJECT_PREFIX = '/agentmux';
 const LINK_PATTERN = /\b(?:href|src)\s*=\s*["']([^"']+)["']/gi;
 const CANONICAL_PATTERN = /<link\b[^>]*\brel\s*=\s*["']canonical["'][^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*>|<link\b[^>]*\bhref\s*=\s*["']([^"']+)["'][^>]*\brel\s*=\s*["']canonical["'][^>]*>/i;
 

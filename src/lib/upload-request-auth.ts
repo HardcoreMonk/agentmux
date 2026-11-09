@@ -1,11 +1,18 @@
 import type { IncomingMessage } from 'http';
 import {
-  extractCookie,
+  LEGACY_SESSION_COOKIE,
   MAX_AGE,
+  readSessionTokenCandidates,
   SESSION_COOKIE,
+  verifySessionCookies,
   verifySessionToken as verifySessionJwt,
 } from '@/lib/auth';
-import { verifyTokenValue } from '@/lib/cli-token';
+import {
+  CLI_TOKEN_HEADER,
+  LEGACY_CLI_TOKEN_HEADER,
+  readCliTokenHeader,
+  verifyTokenValue,
+} from '@/lib/cli-token';
 import {
   validateBrowserRequestAuthority,
   validateSingleRequestHost,
@@ -101,16 +108,24 @@ export const authorizeUploadRequest = async (
   input: IUploadRequestAuthorizationInput,
   dependencies: Partial<IUploadRequestAuthDependencies> = {},
 ): Promise<TUploadRequestAuthorization> => {
-  const cliTokens = getRawHeaderValues(input, 'x-cmux-token');
+  const cliTokens = getRawHeaderValues(input, CLI_TOKEN_HEADER);
+  const legacyCliTokens = getRawHeaderValues(input, LEGACY_CLI_TOKEN_HEADER);
   const cookies = getRawHeaderValues(input, 'cookie');
-  if (cliTokens.length > 1 || cookies.length > 1) return invalidUploadRequest();
+  if (cliTokens.length > 1 || legacyCliTokens.length > 1 || cookies.length > 1) {
+    return invalidUploadRequest();
+  }
 
   const cookieHeader = cookies[0] ?? '';
-  if (countCookiePairs(cookieHeader, SESSION_COOKIE) > 1) return invalidUploadRequest();
+  if (
+    countCookiePairs(cookieHeader, SESSION_COOKIE) > 1 ||
+    countCookiePairs(cookieHeader, LEGACY_SESSION_COOKIE) > 1
+  ) {
+    return invalidUploadRequest();
+  }
 
   const deps = { ...defaultDependencies, ...dependencies };
   try {
-    const cliToken = cliTokens[0];
+    const cliToken = readCliTokenHeader(input.headers) ?? cliTokens[0] ?? legacyCliTokens[0];
     if (cliToken !== undefined && deps.verifyCliToken(cliToken)) {
       return {
         authorized: true,
@@ -119,11 +134,11 @@ export const authorizeUploadRequest = async (
       };
     }
 
-    const sessionToken = extractCookie(cookieHeader, SESSION_COOKIE);
-    if (!sessionToken) return invalidCredential();
+    const sessionCandidates = readSessionTokenCandidates(cookieHeader);
+    if (sessionCandidates.length === 0) return invalidCredential();
     if (!deps.hasSessionSecret()) return authUnavailable();
 
-    const payload = await deps.verifySessionToken(sessionToken);
+    const payload = await verifySessionCookies(cookieHeader, deps.verifySessionToken);
     if (!payload || typeof payload.exp !== 'number' || !Number.isFinite(payload.exp)) {
       return invalidCredential();
     }

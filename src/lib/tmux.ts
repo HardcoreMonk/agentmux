@@ -8,12 +8,14 @@ import { buildShellLaunchCommand } from '@/lib/shell-env';
 import { createLogger } from '@/lib/logger';
 import { isLinux } from '@/lib/platform';
 import { getDescendantPids, getLatestChildPid, getProcessCommandLine, getProcessCwd } from '@/lib/session-detection';
+import { adoptTmuxServerIntoScope, shouldIsolateTmuxServer } from '@/lib/tmux-server-scope';
+import { LEGACY_TMUX_SOCKET } from '@/lib/tmux-sockets';
 
 const log = createLogger('terminal');
 
 const execFile = promisify(execFileCb);
 
-const TMUX_SOCKET = 'codexmux';
+const TMUX_SOCKET = LEGACY_TMUX_SOCKET;
 const TMUX_CONFIG_PATH = path.join(process.env.__CMUX_APP_DIR_UNPACKED || process.env.__CMUX_APP_DIR || process.cwd(), 'src', 'config', 'tmux.conf');
 const CMD_TIMEOUT = 5000;
 
@@ -61,6 +63,12 @@ export const createSession = async (
     },
   );
   await applyConfig();
+  if (shouldIsolateTmuxServer(process.env)) {
+    const scopeResult = await adoptTmuxServerIntoScope(TMUX_SOCKET);
+    if (scopeResult.status === 'failed') {
+      log.warn(`tmux server scope adoption failed for ${TMUX_SOCKET}: ${scopeResult.reason ?? 'unknown'}`);
+    }
+  }
   log.debug(`tmux session created: ${name} (cols: ${cols}, rows: ${rows})`);
 };
 

@@ -2,6 +2,38 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import useTabStore from '@/hooks/use-tab-store';
 
+describe('useTabStore status sync readiness', () => {
+  beforeEach(() => {
+    useTabStore.setState({ tabs: {}, tabOrders: {} });
+    useTabStore.getState().setStatusWsConnected(false);
+  });
+
+  it('waits for a full snapshot after the socket opens', () => {
+    const store = useTabStore.getState();
+    expect(useTabStore.getState().statusSynced).toBe(false);
+    store.setStatusWsConnected(true);
+    store.updateFromServer('agent', { workspaceId: 'ws', panelType: 'codex', cliState: 'busy' });
+    expect(useTabStore.getState().statusWsConnected).toBe(true);
+    expect(useTabStore.getState().statusSynced).toBe(false);
+    store.syncAllFromServer({});
+    expect(useTabStore.getState().statusSynced).toBe(true);
+  });
+
+  it('invalidates the previous snapshot across a disconnect and reconnect', () => {
+    const store = useTabStore.getState();
+    store.setStatusWsConnected(true);
+    store.syncAllFromServer({ agent: { workspaceId: 'ws', panelType: 'codex', cliState: 'idle' } });
+    store.setStatusWsConnected(false);
+    expect(useTabStore.getState().statusSynced).toBe(false);
+    expect(useTabStore.getState().tabs.agent.cliState).toBe('idle');
+    store.setStatusWsConnected(true);
+    expect(useTabStore.getState().statusSynced).toBe(false);
+    store.syncAllFromServer({ agent: { workspaceId: 'ws', panelType: 'codex', cliState: 'busy' } });
+    expect(useTabStore.getState().statusSynced).toBe(true);
+    expect(useTabStore.getState().tabs.agent.cliState).toBe('busy');
+  });
+});
+
 describe('useTabStore agent process view state', () => {
   beforeEach(() => {
     useTabStore.setState({

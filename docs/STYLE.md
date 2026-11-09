@@ -1,6 +1,6 @@
 # 스타일 가이드
 
-codexmux UI는 운영 도구입니다. 화면은 조용하고 밀도 있게 구성하며, terminal/input/reconnect 안정성을 시각 장식보다 우선합니다.
+agentmux UI는 운영 도구입니다. 화면은 조용하고 밀도 있게 구성하며, terminal/input/reconnect 안정성을 시각 장식보다 우선합니다.
 
 ## 원칙
 

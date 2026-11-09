@@ -1,18 +1,25 @@
-if (!process.env.CODEXMUX_CLI) process.env.CODEXMUX_CLI = '1';
+import './src/lib/legacy-env-bootstrap';
+if (!process.env.AGENTMUX_CLI) process.env.AGENTMUX_CLI = '1';
 import './src/lib/pristine-env';
 import { createServer, request as httpRequest } from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { createConnection } from 'net';
 import type { Duplex } from 'stream';
+import os from 'os';
 import path from 'path';
 import next from 'next';
 import { WebSocketServer } from 'ws';
 import {
+  DATA_DIR_NAME,
+  LEGACY_DATA_DIR_NAME,
+  prepareDataDir,
+  type IDataDirConflictError,
+} from './src/lib/app-identity';
+import { ensureTmuxServerIsolation } from './src/lib/tmux-server-scope';
+import {
   buildCookieHeader,
-  extractCookie,
-  SESSION_COOKIE,
   signSessionToken,
-  verifySessionToken,
+  verifySessionCookies,
 } from './src/lib/auth';
 import { handleConnection, gracefulShutdown } from './src/lib/terminal-server';
 import { createInstallServer, INSTALL_MAX_FRAME_BYTES } from './src/lib/install-server';
@@ -27,7 +34,7 @@ import { getStatusManager } from './src/lib/status-manager';
 import { ensureHookSettings, removePortFile } from './src/lib/hook-settings';
 import { getCliToken } from './src/lib/cli-token';
 import { acquireLock, releaseLock, registerLockCleanup } from './src/lib/lock';
-import { scanSessions, applyConfig } from './src/lib/tmux';
+import { listSessions, scanSessions, applyConfig } from './src/lib/tmux';
 import { initWorkspaceStore } from './src/lib/workspace-store';
 import { autoResumeOnStartup } from './src/lib/auto-resume';
 import { listInterfaceIps, resolveBindPlan } from './src/lib/network-access';
@@ -69,9 +76,7 @@ const log = createLogger('server');
 const dev = process.env.NODE_ENV !== 'production';
 
 const verifyWebSocketAuth = async (request: IncomingMessage): Promise<boolean> => {
-  const value = extractCookie(request.headers.cookie ?? '', SESSION_COOKIE);
-  if (!value) return false;
-  return !!(await verifySessionToken(value));
+  return !!(await verifySessionCookies(request.headers.cookie));
 };
 
 const WS_PATHS = new Set(['/api/terminal', '/api/timeline', '/api/sync', '/api/status', '/api/v2/terminal']);
@@ -336,7 +341,7 @@ const shutdownRuntimeResources = async (): Promise<void> => {
     () => releaseLock(),
     () => removePortFile(),
     () => {
-      if (process.env.CODEXMUX_RUNTIME_V2 === '1') {
+      if (process.env.AGENTMUX_RUNTIME_V2 === '1') {
         getRuntimeSupervisor().shutdown();
       }
     },
@@ -458,6 +463,31 @@ export const DEFAULT_PORT = 8122;
 
 
 export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
+  try {
+    prepareDataDir();
+  } catch (err) {
+    const conflict = err as Partial<IDataDirConflictError>;
+    if (conflict?.code === 'data-dir-conflict') {
+      const homeDir = os.homedir();
+      const agentmuxPath = conflict.agentmuxPath ?? path.join(homeDir, DATA_DIR_NAME);
+      const legacyPath = conflict.legacyPath ?? path.join(homeDir, LEGACY_DATA_DIR_NAME);
+      process.stderr.write(
+        `[agentmux] Fatal data directory conflict (${conflict.reason}): agentmux=${agentmuxPath}, legacy=${legacyPath}\n`,
+      );
+      process.exit(1);
+    }
+    throw err;
+  }
+
+  const tmuxScopeResults = await ensureTmuxServerIsolation();
+  for (const scopeResult of tmuxScopeResults) {
+    if (scopeResult.status === 'failed') {
+      log.warn(`tmux scope isolation failed (pid=${scopeResult.pid ?? 'none'}): ${scopeResult.reason ?? 'unknown'}`);
+    } else if (scopeResult.status === 'adopted' || scopeResult.status === 'already-isolated') {
+      log.info(`tmux scope isolation ${scopeResult.status} (pid=${scopeResult.pid ?? 'none'})`);
+    }
+  }
+
   const port = opts?.port ?? parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
   const appDir = process.env.__CMUX_APP_DIR || process.cwd();
 
@@ -467,16 +497,17 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
   const bootstrap = await initializeServerBootstrap();
 
   await scanSessions();
+  const preexistingSessions = new Set(await listSessions());
   await applyConfig();
   await initWorkspaceStore();
-  await autoResumeOnStartup();
+  await autoResumeOnStartup({ preexistingSessions });
   if (shouldPrewarmSessionIndexOnStartup()) {
     await initSessionIndexService();
   }
-  if (process.env.CODEXMUX_RUNTIME_V2 === '1') {
+  if (process.env.AGENTMUX_RUNTIME_V2 === '1') {
     runRuntimeStartupDiagnostic(getRuntimeSupervisor(), log);
   }
-  if (process.env.CODEXMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default') {
+  if (process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default') {
     try {
       await getRuntimeSupervisor().startStatusLive();
     } catch (err) {
@@ -504,7 +535,7 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
       setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
       clearTimeout: (timer) => clearTimeout(timer),
     },
-    disabled: process.env.CODEXMUX_UPLOADS_DISABLED === '1',
+    disabled: process.env.AGENTMUX_UPLOADS_DISABLED === '1',
   });
   const result = dev
     ? await startDev(port, appDir, bindPlan.host, uploadServer)
@@ -528,7 +559,7 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
   const mode = dev ? 'development' : process.env.NODE_ENV;
   const urls = listInterfaceIps(accessSpec, result.port);
   console.log('');
-  console.log(`  \x1b[1m\x1b[35m⚡ codexmux\x1b[0m  \x1b[2mv${pkg.version}\x1b[0m`);
+  console.log(`  \x1b[1m\x1b[35m⚡ agentmux\x1b[0m  \x1b[2mv${pkg.version}\x1b[0m`);
   console.log(`  \x1b[2m➜\x1b[0m  Available on:`);
   for (const url of urls) {
     console.log(`       \x1b[36m${url}\x1b[0m`);

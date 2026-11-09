@@ -61,6 +61,7 @@ interface ITabStore {
   tabs: Record<string, ITabState>;
   tabOrders: Record<string, string[]>;
   statusWsConnected: boolean;
+  statusSynced: boolean;
 
   initTab: (tabId: string, initial?: Partial<ITabState>) => void;
   removeTab: (tabId: string) => void;
@@ -163,6 +164,7 @@ const useTabStore = create<ITabStore>((set) => ({
   tabs: {},
   tabOrders: {},
   statusWsConnected: false,
+  statusSynced: false,
 
   initTab: (tabId, initial) =>
     set((state) => {
@@ -278,7 +280,7 @@ const useTabStore = create<ITabStore>((set) => ({
       return { tabOrders: { ...state.tabOrders, [workspaceId]: tabIds } };
     }),
 
-  setStatusWsConnected: (connected) => set({ statusWsConnected: connected }),
+  setStatusWsConnected: (connected) => set({ statusWsConnected: connected, statusSynced: false }),
 
   // 서버 경로: 초기 sync. 최근 로컬 업데이트된 탭은 로컬 전용 필드만 보존하고 서버 상태는 반영
   syncAllFromServer: (serverTabs) =>
@@ -309,7 +311,7 @@ const useTabStore = create<ITabStore>((set) => ({
           next[tabId] = existing;
         }
       }
-      return { tabs: next };
+      return { tabs: next, statusSynced: true };
     }),
 
   updateFromServer: (tabId, update) =>

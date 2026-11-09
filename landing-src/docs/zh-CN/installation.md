@@ -6,7 +6,7 @@ permalink: /zh-CN/docs/installation/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-[빠른 시작](/codexmux/zh-CN/docs/quickstart/)에서 `npx --yes codexmux@latest`로 충분했다면 더 읽을 필요 없습니다. 이 페이지는 영구 설치, 데스크탑 앱, 또는 소스에서 실행하고 싶은 경우를 위한 안내입니다.
+[빠른 시작](/agentmux/zh-CN/docs/quickstart/)에서 `npx --yes @hardcoremonk/agentmux@latest`로 충분했다면 더 읽을 필요 없습니다. 이 페이지는 영구 설치, 데스크탑 앱, 또는 소스에서 실행하고 싶은 경우를 위한 안내입니다.
 
 ## 요구사항
 
@@ -19,7 +19,7 @@ permalink: /zh-CN/docs/installation/index.html
 ### npx (설치 없이)
 
 ```bash
-npx --yes codexmux@latest
+npx --yes @hardcoremonk/agentmux@latest
 ```
 
 첫 실행 시 `~/.npm/_npx/`에 캐시됩니다. 잠깐 써보거나 원격 서버에서 일회성으로 돌릴 때 좋습니다. 매 실행마다 최신 버전을 사용합니다.
@@ -27,19 +27,19 @@ npx --yes codexmux@latest
 ### 글로벌 설치
 
 ```bash
-npm install -g codexmux
-codexmux
+npm install -g @hardcoremonk/agentmux
+agentmux
 ```
 
-pnpm과 yarn도 같은 방식입니다 (`pnpm add -g codexmux` / `yarn global add codexmux`). 이후 실행이 더 빠르고, 업데이트는 `npm update -g codexmux`로 합니다.
+pnpm과 yarn도 같은 방식입니다 (`pnpm add -g @hardcoremonk/agentmux` / `yarn global add agentmux`). 이후 실행이 더 빠르고, 업데이트는 `npm update -g agentmux`로 합니다.
 
-짧은 별칭 `cmux`로도 실행할 수 있습니다.
+짧은 별칭 `amux`로도 실행할 수 있습니다.
 
 ### macOS 네이티브 앱
 
-[Releases](https://github.com/HardcoreMonk/codexmux/releases/latest)에서 최신 `.dmg`를 내려받으세요 — Apple Silicon과 Intel 빌드가 모두 제공됩니다. 자동 업데이트 내장.
+[Releases](https://github.com/HardcoreMonk/agentmux/releases/latest)에서 최신 `.dmg`를 내려받으세요 — Apple Silicon과 Intel 빌드가 모두 제공됩니다. 자동 업데이트 내장.
 
-앱에는 Node, tmux, codexmux 서버가 번들되어 있고 다음 기능이 추가됩니다:
+앱에는 Node, tmux, agentmux 서버가 번들되어 있고 다음 기능이 추가됩니다:
 
 - 서버 상태를 보여주는 메뉴바 아이콘
 - 네이티브 알림 (Web Push와는 별개)
@@ -48,8 +48,8 @@ pnpm과 yarn도 같은 방식입니다 (`pnpm add -g codexmux` / `yarn global ad
 ### 소스에서 실행
 
 ```bash
-git clone https://github.com/HardcoreMonk/codexmux.git
-cd codexmux
+git clone https://github.com/HardcoreMonk/agentmux.git
+cd agentmux
 pnpm install
 pnpm start
 ```
@@ -62,25 +62,25 @@ pnpm dev
 
 ## 포트와 환경변수
 
-codexmux는 **8122** 포트에서 listen합니다 (web + ssh 합성, 농담). `PORT`로 바꿀 수 있습니다:
+agentmux는 **8122** 포트에서 listen합니다 (web + ssh 합성, 농담). `PORT`로 바꿀 수 있습니다:
 
 ```bash
-PORT=9000 codexmux
+PORT=9000 agentmux
 ```
 
 로그는 `LOG_LEVEL` (기본 `info`)과 모듈별 오버라이드용 `LOG_LEVELS`로 제어합니다:
 
 ```bash
-LOG_LEVEL=debug codexmux
+LOG_LEVEL=debug agentmux
 # Codex 훅 모듈만 debug로
-LOG_LEVELS=status=debug codexmux
+LOG_LEVELS=status=debug agentmux
 # 여러 모듈 한 번에
-LOG_LEVELS=status=debug,tmux=trace codexmux
+LOG_LEVELS=status=debug,tmux=trace agentmux
 ```
 
 레벨: `trace` · `debug` · `info` · `warn` · `error` · `fatal`. `LOG_LEVELS`에 없는 모듈은 `LOG_LEVEL`을 따릅니다.
 
-전체 목록은 [포트 & 환경변수](/codexmux/zh-CN/docs/ports-env-vars/)를 참고하세요.
+전체 목록은 [포트 & 환경변수](/agentmux/zh-CN/docs/ports-env-vars/)를 참고하세요.
 
 ## 자동 시작
 
@@ -91,12 +91,12 @@ macOS 앱을 쓴다면 **설정 → 일반 → 로그인 시 실행**을 켜기�
 CLI 설치라면 launchd (macOS) 또는 systemd (Linux)로 감싸면 됩니다. 최소 systemd 유닛 예시:
 
 ```ini
-# ~/.config/systemd/user/codexmux.service
+# ~/.config/systemd/user/agentmux.service
 [Unit]
-Description=codexmux
+Description=agentmux
 
 [Service]
-ExecStart=/usr/local/bin/codexmux
+ExecStart=/usr/local/bin/agentmux
 Restart=on-failure
 KillSignal=SIGINT
 SuccessExitStatus=130
@@ -108,7 +108,7 @@ WantedBy=default.target
 
 ```bash
 systemctl --user daemon-reload
-systemctl --user enable --now codexmux.service
+systemctl --user enable --now agentmux.service
 ```
 
 ## 업데이트
@@ -116,15 +116,15 @@ systemctl --user enable --now codexmux.service
 | 방법 | 명령 |
 |---|---|
 | npx | 자동 (매 실행 최신) |
-| 글로벌 npm | `npm update -g codexmux` |
+| 글로벌 npm | `npm update -g agentmux` |
 | macOS 앱 | 자동 (실행 시 업데이트) |
 | 소스에서 | `git pull && corepack pnpm install && corepack pnpm deploy:local` |
 
 ## 제거
 
 ```bash
-npm uninstall -g codexmux          # pnpm remove -g / yarn global remove 도 가능
-rm -rf ~/.codexmux                 # 설정과 세션 데이터 전체 삭제
+npm uninstall -g agentmux          # pnpm remove -g / yarn global remove 도 가능
+rm -rf ~/.agentmux                 # 설정과 세션 데이터 전체 삭제
 ```
 
-네이티브 앱은 휴지통으로 드래그. `~/.codexmux/` 안에 무엇이 저장되는지는 [데이터 디렉토리](/codexmux/zh-CN/docs/data-directory/)를 참고하세요.
+네이티브 앱은 휴지통으로 드래그. `~/.agentmux/` 안에 무엇이 저장되는지는 [데이터 디렉토리](/agentmux/zh-CN/docs/data-directory/)를 참고하세요.

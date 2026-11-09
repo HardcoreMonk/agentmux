@@ -45,7 +45,7 @@ const createSessionNotFoundError = (sessionName: string): Error & { code: string
 
 const resolveShell = (env: NodeJS.ProcessEnv, explicitShell?: string): string =>
   explicitShell
-  || env.CODEXMUX_WINDOWS_SHELL
+  || env.AGENTMUX_WINDOWS_SHELL
   || env.ComSpec
   || env.COMSPEC
   || 'powershell.exe';
