@@ -38,9 +38,14 @@ Android 앱 버전은 root `package.json` semver를 기준으로 합니다.
 | `package.json` `version` | `versionName` |
 | `major * 10000 + minor * 100 + patch` | `versionCode` |
 
-예: `0.4.2`는 `versionName=0.4.2`, `versionCode=402`입니다.
+예: `0.4.2`는 `versionName=0.4.2`, `versionCode=402`입니다. 끝의 `.0`은 떼므로 `0.5.0`은
+`versionName=0.5`, `versionCode=500`입니다.
 
-현재 앱 ID는 `com.hardcoremonk.codexmux`입니다.
+현재 앱 ID는 `com.hardcoremonk.codexmux`입니다. 이름 변경 때 기존 설치본을 지우지 않고 업데이트할 수
+있도록 유지했습니다. 표시 이름(`appName`, `app_name`)만 `agentmux`입니다.
+
+2026-11-10에 JDK 21(`JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`), SDK platform 36, Gradle
+wrapper 8.14.3으로 `android:build:debug`와 `android:test:unit` 통과를 확인했습니다.
 
 ## 구조
 

@@ -3,11 +3,107 @@
 > 감사 기준일: 2026-11-09
 > Herdr 기준: `herdrdev/herdr` `v0.9.5` (stable, 2026-10-14), local client/server `0.9.5`, protocol 22
 > Codexmux 감사 baseline: `main@fdf8752b` (source `0.4.24`) + 미커밋 workspace activity label 변경
+> 보충 감사: 2026-11-10. 아래 [보충 감사](#보충-감사-2026-11-10) 절이 본문보다 우선합니다.
 
 ## 결론
 
-Herdr는 Rust TUI terminal multiplexer이고 codexmux는 Codex 전용 web session manager라 코드
-계보가 없습니다. 차용은 구현 복사가 아니라 개념과 계약 단위로만 검토합니다.
+Herdr TUI는 Rust terminal multiplexer이고 codexmux는 Codex 전용 web session manager라 코드
+계보가 없습니다. 차용은 구현 복사가 아니라 개념과 계약 단위로만 검토합니다. (보충: Herdr는 TUI 하나가
+아니라 TUI, `herdr-core`(`hc`), desktop app으로 이루어진 제품군입니다.)
+
+## 보충 감사 (2026-11-10)
+
+독립 감사 agent가 이 문서를 `herdrdev` organization의 5개 repo와 대조했습니다. 기준 commit은
+herdr tag `v0.9.5`(master `ee5bfb50`는 그 뒤 fix/test/chore 39개뿐), herdr-core `3ba03e6f`,
+herdr-app `b721deda`, herdr-layout-examples `0ec96764`, herdr-nix `602c8854`입니다. 아래 `*.mdx`는
+`herdr/docs/versions/0.9.5/website/src/content/docs/` 기준 경로입니다.
+
+### 판정
+
+- 본문의 TUI 인벤토리는 대체로 정확합니다. 사실 오류는 `pane wait-output` 1건입니다.
+- 범위가 5개 repo 중 1개뿐이었습니다. `herdr-core`와 `herdr-app`을 "TUI 문서에 근거가 없다"며
+  제외했지만 두 repo는 README, command reference, OpenRPC schema, agent skill을 공개합니다.
+- Claude Code와 Codex 동시 실행, 일 나누기, 상호 리뷰에 해당하는 Herdr 기능은 거의 전부 제외한 두
+  repo에 있습니다.
+- "Codex 단일 provider" 전제는 이미 바뀌었습니다. `8308916f`에서 `AGENTS.md`가 Claude Code 지원
+  예정으로 바뀌었으므로 multi-agent 감지와 worktree 제외 판단은 다시 봐야 합니다.
+- Herdr 개발 중심도 옮겨 갔습니다. hc skill은 `herdr`를 "the older terminal multiplexer"라고 부릅니다
+  (`herdr-core/crates/herdr-core/src/SKILL.md:3-4`).
+
+### 본문 정정
+
+| 본문 위치 | 판정 | 정정 내용 |
+| --- | --- | --- |
+| Automation CLI: `pane wait-output`이 event-driven wait | 오류 | Event-driven은 `agent.wait`뿐입니다(socket-api.mdx:111). `pane wait-output`은 polling이며 이미 화면에 있던 텍스트도 즉시 매치합니다(agent-automation.mdx:84, cli-reference.mdx:415). |
+| 분석 범위: herdr-core/app 제외 근거 | 오류 | `herdr-core/{README.md,docs/,schema/README.md}`, `herdr-app/defaults/AGENTS.md`가 공개 근거입니다. |
+| 결론·분석 범위: "Herdr는 Rust TUI" | 낡음 | `herdr-app/README.md:3`은 "Herdr is a desktop app"입니다. |
+| 제외: multi-agent 감지, 24개 kind | 수치는 맞고 전제는 낡음 | Claude Code 지원이 예정되어 단일 provider 계약이 더 이상 제외 근거가 되지 않습니다. |
+| H6 근거 `auto-resume.ts:84-114` | 낡음 | `6df6ea02`가 재개 대상을 시작 시점에 없던 tmux session의 `codex` panel 탭으로 좁혔습니다. Live 탭은 모두 `terminal` panel이라 대상이 0개이므로 H6 실익이 낮습니다. |
+| `pane read`의 `detection` source | 본문 유지 | 감사 agent는 CLI에 없다고 했지만 설치된 `herdr pane read --help`의 `--source` 값에 `detection`이 있습니다. 본문이 맞습니다. |
+
+### 놓친 기능 (multi-agent 목표 관련)
+
+**herdr-core (`hc`)**
+
+1. 부모/자식 위임: `hc run --bg --name review reviewer "task"`. 자식은 부모가 끝나면 함께 끝나고
+   (`--outlive-parent`로 예외), 자식이 blocked되거나 끝나면 부모 입력에 note가 자동으로 들어갑니다
+   (`README.md:79-102`).
+2. Agent 간 메시지와 회신: `hc send`(`--if idle|working`, `--wait`, blocked이면 거부하고 `--force`로만
+   입력). 회신은 `<hc from="t7 review">` 태그로 오고, 위임 메시지에는
+   `reach="hc send t3 when done or stuck"`가 붙습니다(`src/SKILL.md:16-125`,
+   `docs/commands.md:518-537`).
+3. 메시지 안전 규칙: 태그 메시지는 사용자 지시가 아니라 자식 보고로 취급합니다(`SKILL.md:112`). 사람이
+   입력하던 draft를 최대 60초 보호하고(`SKILL.md:103`), `first_message.sent`로 첫 task 전달을 확인하며,
+   자식이 다시 agent를 띄우는 것은 금지합니다.
+4. `hc wait --children all|any`: 반환 사유는 `message`/`timeout`입니다(`docs/commands.md:626-656`).
+5. Template(역할 preset): reviewer, simplifier, implementer. `command`에 agent와 model을 넣고
+   `ready`/`submit`/`stop`/`paste_gap_ms`를 agent별로 지정합니다(`docs/templates.md`).
+6. OSC 7501 Program Status Protocol과 `turn` counter: 화면 추측 없는 provider 중립 상태 계약입니다
+   (`schema/README.md:216-219`, `src/status.rs:1-30`). Claude Code 상태 감지의 대안 후보입니다.
+7. H7의 대안 모델: `missed` 알림에 fresh snapshot을 함께 보내고, attach stream은 credit 방식(256 KiB,
+   4 MiB 이상 밀리면 repaint)입니다(`schema/README.md:100-106,170-176`).
+
+**herdr-app**
+
+8. 통합 agent sidebar: 모든 space의 agent를 한 sidebar에 모으고, 다른 agent가 띄운 worker도 부모 아래에
+   보입니다. Peek, keep-as-tab, rollup(blocked>done>working>idle)을 지원합니다(`README.md:42-56`,
+   `defaults/AGENTS.md:153-163`).
+9. Space별 Files/Changes(diff) panel: 상호 리뷰용 화면입니다(`defaults/AGENTS.md:171-177`).
+10. Agent 실행 진입점: `tab.new --argv '["claude"]' --task "..."`와 + menu(Claude, `codex --no-daemon`
+    등)(`src/SKILL.md:36`, `defaults/programs.json`).
+11. Worktree mod: `~/.herdr/worktrees/<repo>/<branch>`로 병렬 agent의 checkout을 격리합니다
+    (`defaults/AGENTS.md:828-839`).
+12. Client 간 공유 seen/pinned: `herdr.seen=<turn>` label을 desktop, phone, TUI가 공유합니다
+    (`docs/labels.md`).
+
+**herdr-layout-examples**
+
+13. 다중 agent 화면 레퍼런스(각 `RECIPE.md`): Board(Needs you/Working/Done/Idle 칸반), Threads(inbox,
+    focused agent로 보내는 composer, Diff panel, 새 thread에서 Claude/Codex/Pi/Grok와 worktree 선택),
+    Mission, Chat.
+
+**herdr TUI에서 놓친 것**
+
+14. `layout.apply`/`layout.export`: pane별 argv를 가진 선언형 tab preset입니다. 예: Claude|Codex 좌우
+    배치(socket-api.mdx:199-245).
+15. `agent.view.set`: attention 순으로 agent 목록을 보여 주는 projection입니다(socket-api.mdx:370-).
+16. Reviewer recipe: Codex reviewer가 diff를 리뷰하는 예시입니다(agent-automation.mdx:106-112,
+    `skills/herdr/SKILL.md:128-168`). 본문 H1은 이를 "Codex 위임"으로만 좁혔습니다.
+17. Claude Code alt-screen history 읽기와 긴 답을 파일 경로로 회신받는 방식(agent-automation.mdx:86-92).
+    Visible 화면만 읽는 `tab result`의 한계와 직결됩니다.
+18. Claude integration: SessionStart hook만 설치하고 상태는 화면 감지입니다(integrations.mdx:104-116).
+
+### 범위 공백과 불확실성
+
+- 비교표에 multi-agent 목표 축이 없습니다: multi-provider, agent 간 메시지와 회신, 역할 preset, 다중
+  pane preset, 리뷰용 diff 화면. agentmux pane split(최대 10개)과 Herdr layout 비교도 없습니다.
+- herdr-nix는 Nix packaging이라 검토하지 않아도 손실이 없습니다.
+- Claude Code나 Codex가 OSC 7501을 스스로 내보내는지는 확정하지 못했습니다. `programs.json`의
+  `"match":["claude-code"]`가 그렇다는 암시만 있습니다.
+- 설치된 CLI의 top-level help에는 문서의 `terminal`, `plugin` group이 나오지 않습니다.
+
+이 보충 결과는 multi-agent 설계 논의의 입력입니다. 진행 상황은
+`docs/operations/2026-11-10-multi-agent-brainstorming-handoff.md`에 있습니다.
 
 상태 모델, 미확인 완료, workspace rollup은 codexmux에 이미 동등 기능이 있습니다. 차용 가치는
 다음 네 범주에 있습니다.
@@ -32,10 +128,11 @@ Remote machine, plugin, worktree, live handoff, multi-agent detection은 제품 
 - `herdr.dev/llms.txt`, `agent-guide.md`와 `v0.9.5` tag의 공식 문서(concepts, agents,
   session-state, socket-api, cli-reference, integrations, configuration, connecting-machines,
   plugins, persistence-remote, agent-automation, add-herdr-support, agent-skill)를 읽었습니다.
-- Herdr는 Rust TUI이고 라이선스는 Apache-2.0입니다. 코드 계보가 없으므로 cherry-pick이나
+- Herdr TUI는 Rust로 작성되었고 라이선스는 Apache-2.0입니다. 코드 계보가 없으므로 cherry-pick이나
   구현 복사가 아니라 **개념과 계약**만 차용 대상으로 봅니다.
 - Home page의 별도 제품(native Herdr app, `herdr-core`, `hc` CLI)과 marketing 수치는 TUI 문서에
-  근거가 없어 범위에서 제외했습니다.
+  근거가 없어 범위에서 제외했습니다. (보충 감사에서 정정: 두 repo는 공개 문서가 있고 multi-agent
+  기능의 중심입니다.)
 
 ## Herdr 기능 인벤토리
 
@@ -94,8 +191,9 @@ ID는 opaque하고 재사용하지 않습니다. Pane을 다른 workspace로 옮
 - `agent prompt <target> <text> --wait --timeout`은 bracketed paste + Enter를 하나의 submission으로
   보냅니다. 이미 blocked이면 입력 없이 `agent_blocked`, 5초 안에 working/blocked 관찰이 없으면
   `agent_prompt_stalled`를 반환합니다.
-- `agent wait --until STATUS`, `pane wait-output --match/--regex`는 server-owned event-driven
-  wait입니다. Timeout이나 stall이 미전달을 증명하지 않는다는 점을 문서로 명시합니다.
+- `agent wait --until STATUS`는 server-owned event-driven wait이고, `pane wait-output
+  --match/--regex`는 polling이며 이미 화면에 있는 텍스트도 즉시 매치합니다(보충 감사 정정).
+  Timeout이나 stall이 미전달을 증명하지 않는다는 점을 문서로 명시합니다.
 - `agent read`/`pane read`는 `visible`, `recent`, `recent-unwrapped`, `detection` source를 고릅니다.
 - `events.subscribe`는 bounded history를 쓰고 overflow 시 `events_lost` → resubscribe +
   `session.snapshot`으로 복구합니다.

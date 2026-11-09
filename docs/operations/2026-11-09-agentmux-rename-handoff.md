@@ -95,4 +95,5 @@ npm 첫 배포는 `v0.5.0` tag push가 Windows release workflow도
 - npm `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux` deprecate, trusted publisher 연결
 - `v0.5.0` tag push 결정(Windows release workflow 동시 실행 여부)
 - Rollback 창 종료 뒤 data 실제 이전(`~/.agentmux`)과 `codexmux.service`·옛 checkout 정리 별도 spec
-- 다음 프로젝트: Claude Code provider, 위임 자동화와 agent split
+- 다음 프로젝트: Claude Code provider, 위임 자동화와 agent split. 2026-11-10부터 multi-agent 범위로
+  brainstorming 중(`docs/operations/2026-11-10-multi-agent-brainstorming-handoff.md`)

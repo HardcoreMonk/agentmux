@@ -250,6 +250,8 @@ Plan Grilling, plan review와 별도 release gate를 거쳐야 합니다.
 | Full-output search | bounded message search/snippet만 제공 | secret/terminal output policy, quota, encryption/retention과 explicit opt-in |
 | npm 첫 배포(보류) | `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux`(legacy package) deprecate, trusted publisher 연결 미실행. `v0.5.0` tag push는 Windows release workflow도 실행하므로 별도 결정 | 첫 배포 절차, tag 정책과 Windows release 분리 여부, deprecate 문구 |
 | Data 실제 이전 | `~/.codexmux`가 실제 경로이고 `~/.agentmux`는 별칭 | rollback 창 종료 뒤 `~/.agentmux` 실제 이전, `codexmux.service`와 옛 checkout 정리 |
+| Multi-agent (Claude Code + Codex) | brainstorming 중. 한 화면 동시 실행, 일 나누기, 상호 리뷰가 목표이고 Herdr `hc`/desktop app이 참고 모델. 위임 자동화(옛 3번 프로젝트) 통합 여부 미정. `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | 사람 개입 시점, 위임 주체, Claude Code 상태 감지 방식, agent 간 회신 계약을 정한 설계 문서 승인 |
+| Android 앱 `0.5.0` | Linux 서버 client 유지로 결정. Launcher 표시 문구 정리, product name gate 범위 확장, debug/release APK와 release AAB 빌드(label agentmux, `versionCode=500`, app ID와 release 서명 인증서 유지) 완료. 실제 폰(debug 서명 `0.4.7`)에 debug APK를 덮어써 `0.5`로 올리고 `smoke:android:foreground` 통과 | 폰 앱을 debug 서명으로 유지할지, 재설치(저장 주소·로그인 초기화)로 release 서명에 옮길지 결정. `smoke:android:recovery`는 저장 주소를 건드릴 수 있어 미실행 |
 
 ## Codex lifecycle 기준
 
