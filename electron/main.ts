@@ -222,8 +222,8 @@ interface IMenuMessages {
 }
 
 const menuMessages: Record<string, IMenuMessages> = {
-  en: { server: 'Server', useLocalServer: 'Use Local Server', connectRemoteServer: 'Connect to Remote Server…', edit: 'Edit', view: 'View', window: 'Window', newWindow: 'New Window', serverConnection: 'Server Connection', serverAddress: 'Server Address', cancel: 'Cancel', connect: 'Connect', checkForUpdates: 'Check for Updates…', updateAvailableMessage: 'A new version ({version}) is available', updateAvailableDetail: 'Would you like to download it now?', download: 'Download', later: 'Later', updateReadyMessage: 'Version {version} is ready to install', updateReadyDetail: 'Restart codexmux to apply the update.', restartNow: 'Restart Now', upToDateMessage: "You're up to date", upToDateDetail: 'codexmux {version} is the latest version.', updateErrorMessage: 'Failed to check for updates' },
-  ko: { server: '서버', useLocalServer: '로컬 서버 사용', connectRemoteServer: '원격 서버 연결…', edit: '편집', view: '보기', window: '창', newWindow: '새 창', serverConnection: '서버 연결', serverAddress: '서버 주소', cancel: '취소', connect: '연결', checkForUpdates: '업데이트 확인…', updateAvailableMessage: '새 버전({version})이 있습니다', updateAvailableDetail: '지금 다운로드할까요?', download: '다운로드', later: '나중에', updateReadyMessage: '{version} 버전 설치 준비 완료', updateReadyDetail: 'codexmux를 재시작하면 업데이트가 적용됩니다.', restartNow: '지금 재시작', upToDateMessage: '최신 버전입니다', upToDateDetail: 'codexmux {version}을 사용 중입니다.', updateErrorMessage: '업데이트 확인에 실패했습니다' },
+  en: { server: 'Server', useLocalServer: 'Use Local Server', connectRemoteServer: 'Connect to Remote Server…', edit: 'Edit', view: 'View', window: 'Window', newWindow: 'New Window', serverConnection: 'Server Connection', serverAddress: 'Server Address', cancel: 'Cancel', connect: 'Connect', checkForUpdates: 'Check for Updates…', updateAvailableMessage: 'A new version ({version}) is available', updateAvailableDetail: 'Would you like to download it now?', download: 'Download', later: 'Later', updateReadyMessage: 'Version {version} is ready to install', updateReadyDetail: 'Restart agentmux to apply the update.', restartNow: 'Restart Now', upToDateMessage: "You're up to date", upToDateDetail: 'agentmux {version} is the latest version.', updateErrorMessage: 'Failed to check for updates' },
+  ko: { server: '서버', useLocalServer: '로컬 서버 사용', connectRemoteServer: '원격 서버 연결…', edit: '편집', view: '보기', window: '창', newWindow: '새 창', serverConnection: '서버 연결', serverAddress: '서버 주소', cancel: '취소', connect: '연결', checkForUpdates: '업데이트 확인…', updateAvailableMessage: '새 버전({version})이 있습니다', updateAvailableDetail: '지금 다운로드할까요?', download: '다운로드', later: '나중에', updateReadyMessage: '{version} 버전 설치 준비 완료', updateReadyDetail: 'agentmux를 재시작하면 업데이트가 적용됩니다.', restartNow: '지금 재시작', upToDateMessage: '최신 버전입니다', upToDateDetail: 'agentmux {version}을 사용 중입니다.', updateErrorMessage: '업데이트 확인에 실패했습니다' },
 };
 
 let currentLocale = 'en';
@@ -548,7 +548,7 @@ const startLocalServer = async (): Promise<number> => {
   }
   serverShutdown = result.shutdown;
   localPort = result.port;
-  process.title = 'codexmux';
+  process.title = 'agentmux';
   return result.port;
 };
 

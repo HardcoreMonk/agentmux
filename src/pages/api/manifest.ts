@@ -6,8 +6,8 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
   const startUrl = `${proto}://${host}/`;
 
   const manifest = {
-    name: 'codexmux',
-    short_name: 'codexmux',
+    name: 'agentmux',
+    short_name: 'agentmux',
     start_url: startUrl,
     display: 'standalone',
     theme_color: '#131313',

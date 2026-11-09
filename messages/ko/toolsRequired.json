@@ -1,7 +1,7 @@
 {
-  "pageTitle": "필수 도구 확인 - codexmux",
+  "pageTitle": "필수 도구 확인 - agentmux",
   "title": "필수 도구가 누락되었습니다",
-  "description": "codexmux를 사용하려면 다음 도구가 설치되어 있어야 합니다.",
+  "description": "agentmux를 사용하려면 다음 도구가 설치되어 있어야 합니다.",
   "checking": "도구 확인 중...",
   "installTmux": "tmux 설치",
   "upgradeTmux": "tmux 업그레이드",

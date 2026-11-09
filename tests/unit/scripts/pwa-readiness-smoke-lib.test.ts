@@ -14,11 +14,11 @@ describe('PWA readiness smoke helpers', () => {
     expect(normalizePwaSmokeUrl('https://gti12.tail73c4be.ts.net/login')).toBe('https://gti12.tail73c4be.ts.net/login');
   });
 
-  it('validates codexmux manifest fields for standalone install', async () => {
+  it('validates agentmux manifest fields for standalone install', async () => {
     const { validatePwaManifest } = await loadLib();
     const manifest = {
-      name: 'codexmux',
-      short_name: 'codexmux',
+      name: 'agentmux',
+      short_name: 'agentmux',
       start_url: 'https://gti12.tail73c4be.ts.net/',
       display: 'standalone',
       theme_color: '#131313',
@@ -44,8 +44,8 @@ describe('PWA readiness smoke helpers', () => {
   it('reports missing manifest requirements', async () => {
     const { validatePwaManifest } = await loadLib();
 
-    expect(validatePwaManifest({ name: 'codexmux', icons: [] }, 'https://example.test').errors).toEqual([
-      'manifest.short_name must be codexmux',
+    expect(validatePwaManifest({ name: 'agentmux', icons: [] }, 'https://example.test').errors).toEqual([
+      'manifest.short_name must be agentmux',
       'manifest.display must be standalone',
       'manifest.start_url must match target origin',
       'manifest.theme_color is required',

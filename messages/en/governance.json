@@ -1,6 +1,6 @@
 {
   "title": "Project Governance",
-  "pageTitle": "Project Governance · codexmux",
+  "pageTitle": "Project Governance · agentmux",
   "engine": "Linux single engine",
   "readOnly": "Read-only",
   "phaseBoundary": "Project documents remain readable, but the scaffold write gate is disabled in this deployment.",
@@ -62,7 +62,7 @@
   "importCompleted": "Project import completed.",
   "scaffold": {
     "title": "Project Scaffold",
-    "description": "Create or safely update operational documents in codexmux-owned marker blocks.",
+    "description": "Create or safely update operational documents in agentmux-owned marker blocks.",
     "projectTitle": "Document project title",
     "summary": "Project summary",
     "summaryPlaceholder": "Describe the product boundary and purpose briefly.",
@@ -84,7 +84,7 @@
     "noActions": "No scaffold actions have been recorded.",
     "artifactCount": "{count} documents",
     "adoptionSelect": "Adopt {path}",
-    "adoptionAvailableDescription": "Append a codexmux-managed block at EOF without changing the existing body.",
+    "adoptionAvailableDescription": "Append an agentmux-managed block at EOF without changing the existing body.",
     "adoptionRepreview": "Re-preview selected adoption",
     "adoptionSelectionHint": "Select each file to adopt. Unchecked files are excluded from the next preview.",
     "adoptionSemanticWarning": "Keep the existing body and append only the managed block. Review it for conflicts with existing guidance.",

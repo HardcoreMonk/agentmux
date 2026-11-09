@@ -1,7 +1,7 @@
 {
   "name": "@hardcoremonk/agentmux",
   "version": "0.5.0",
-  "description": "Manage multiple Codex sessions from your browser",
+  "description": "Web session manager for coding agents (Codex today, Claude Code support planned)",
   "license": "MIT",
   "author": "HardcoreMonk",
   "repository": {
