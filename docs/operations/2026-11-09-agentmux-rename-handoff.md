@@ -68,9 +68,10 @@ terminal과 Codex process를 끊지 않게 했다(ADR-034). Version `0.5.0`.
 - Zone 인벤토리 commit 완료.
 - 2026-11-09 18:19 host 재부팅 뒤 `agentmux.service`가 자동 시작했고 새 tmux 서버가
   `agentmux-tmux-codexmux.scope`에 편입된 것을 확인.
-- 재부팅 뒤 자동 재개가 동작하지 않는 기존 결함 발견: Runtime v2 storage `default`에서
-  `findAutoResumeTargets`가 workspace는 v2 DB, layout은 legacy `layout.json`에서 읽어 대상이 0개가 된다
-  (`fdf8752b`, 0.4.24부터 동일). `docs/FOLLOW-UP.md`에 별도 lifecycle 후속으로 등록.
+- 재부팅 뒤 시작 시점 자동 재개 대상은 0개였다. 결함이 아니다. 자동 재개는 `codex` panel 탭만 대상으로 하는데
+  live의 탭 7개는 모두 `terminal` panel(Codex CLI를 terminal 안에서 실행)이다. Terminal 탭은 브라우저가
+  접속할 때 session을 다시 만든다. `readLayoutFile`은 v2 storage `default`에서 v2 DB layout을 먼저 읽는다
+  (`src/lib/layout-store.ts:115-118`). 앞선 PR #43의 "legacy `layout.json`을 읽는 결함" 기술은 오진이라 정정했다.
 
 ## Residual Risk
 
@@ -86,12 +87,11 @@ operate (npm 배포 보류).
 
 ## Next Action
 
-별도 spec으로 자동 재개 대상 탐색 결함 수정. npm 첫 배포는 `v0.5.0` tag push가 Windows release workflow도
+npm 첫 배포는 `v0.5.0` tag push가 Windows release workflow도
 실행하므로 tag 정책을 먼저 결정한 뒤 진행. 각 단계 실행 직전에 사용자 확인.
 
 ## Follow-Up Tasks
 
-- 자동 재개 대상 탐색 결함 수정(v2 storage `default`에서 workspace와 layout 출처 불일치)
 - npm `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux` deprecate, trusted publisher 연결
 - `v0.5.0` tag push 결정(Windows release workflow 동시 실행 여부)
 - Rollback 창 종료 뒤 data 실제 이전(`~/.agentmux`)과 `codexmux.service`·옛 checkout 정리 별도 spec

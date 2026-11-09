@@ -248,7 +248,6 @@ Plan Grilling, plan review와 별도 release gate를 거쳐야 합니다.
 | Remote topology | collector, remote node, multi-engine federation 미지원 | engine authority, credential, ordering, partition/reconnect와 data residency |
 | GSD orchestration | GSD CLI/UI, FastAPI/Python collector, 원본 Bash 실행 미도입 | provenance, allowlist, cancellation, audit와 lifecycle ownership |
 | Full-output search | bounded message search/snippet만 제공 | secret/terminal output policy, quota, encryption/retention과 explicit opt-in |
-| 자동 재개 대상 탐색 결함 | Runtime v2 storage `default`에서 `findAutoResumeTargets`(`src/lib/auto-resume.ts:26-50`)가 workspace 목록은 v2 DB(`src/lib/workspace-store.ts:277`)에서, layout은 legacy `layout.json`에서 읽어 재개 대상이 0개가 되고 재부팅 뒤 시작 시점 자동 재개가 동작하지 않음. `fdf8752b`(0.4.24)부터 동일 | workspace와 layout을 같은 storage owner에서 읽는 대상 탐색, v2 default 기준 회귀 test와 재부팅 뒤 live 확인 |
 | npm 첫 배포(보류) | `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux`(legacy package) deprecate, trusted publisher 연결 미실행. `v0.5.0` tag push는 Windows release workflow도 실행하므로 별도 결정 | 첫 배포 절차, tag 정책과 Windows release 분리 여부, deprecate 문구 |
 | Data 실제 이전 | `~/.codexmux`가 실제 경로이고 `~/.agentmux`는 별칭 | rollback 창 종료 뒤 `~/.agentmux` 실제 이전, `codexmux.service`와 옛 checkout 정리 |
 
