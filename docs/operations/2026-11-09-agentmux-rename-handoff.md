@@ -61,27 +61,38 @@ terminal과 Codex process를 끊지 않게 했다(ADR-034). Version `0.5.0`.
   `cmux.lock`, Windows 경로, legacy 이름, live build version, 미사용 env 이름).
 - `docs/FOLLOW-UP.md`의 `governance-writes.conf` active 기술은 live host 실제 drop-in과 다르다(기존 drift).
 
+## Post-Release
+
+- PR #42 merge: main `cbcc4b06`, main CI 통과.
+- Landing `https://hardcoremonk.github.io/agentmux/` 200 확인, 옛 `/codexmux/`는 404.
+- Zone 인벤토리 commit 완료.
+- 2026-11-09 18:19 host 재부팅 뒤 `agentmux.service`가 자동 시작했고 새 tmux 서버가
+  `agentmux-tmux-codexmux.scope`에 편입된 것을 확인.
+- 재부팅 뒤 자동 재개가 동작하지 않는 기존 결함 발견: Runtime v2 storage `default`에서
+  `findAutoResumeTargets`가 workspace는 v2 DB, layout은 legacy `layout.json`에서 읽어 대상이 0개가 된다
+  (`fdf8752b`, 0.4.24부터 동일). `docs/FOLLOW-UP.md`에 별도 lifecycle 후속으로 등록.
+
 ## Residual Risk
 
 - Rollback 시 옛 build는 살아남은 shell prompt 탭에 `codex resume <id>`를 입력하고, 옛 build의 terminal
   attach는 `TMUX_TMPDIR`를 무시한다.
 - `~/.codexmux`가 다른 디스크를 가리키는 symlink인 host는 시작이 막힌다. `AGENTMUX_DATA_DIR`로 해결한다.
 - 페이지 응답에는 proxy가 새 cookie를 붙이지 않는다(기존 동작). 첫 API 응답에서 이전된다.
+- `@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았다. 배포 전까지 문서의 npm 설치 경로는 동작하지 않는다.
 
 ## Current Lifecycle Stage
 
-release (live 전환·저장소 이름 변경·PR 완료, merge·npm 배포 대기).
+operate (npm 배포 보류).
 
 ## Next Action
 
-PR #42 merge(landing `/agentmux/` 배포 포함) → tag `v0.5.0` push로 `npm-publish` workflow 실행 →
-`npm deprecate codexmux`. 각 단계 실행 직전에 사용자 확인.
+별도 spec으로 자동 재개 대상 탐색 결함 수정. npm 첫 배포는 `v0.5.0` tag push가 Windows release workflow도
+실행하므로 tag 정책을 먼저 결정한 뒤 진행. 각 단계 실행 직전에 사용자 확인.
 
 ## Follow-Up Tasks
 
-- PR #42 merge와 landing 배포 확인
-- npm `@hardcoremonk/agentmux@0.5.0` 배포와 `codexmux` deprecate
-- Zone 인벤토리 commit(agentcode-zone `ops/`, `wiki/`), codex-zone registry 갱신 확인
+- 자동 재개 대상 탐색 결함 수정(v2 storage `default`에서 workspace와 layout 출처 불일치)
+- npm `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux` deprecate, trusted publisher 연결
+- `v0.5.0` tag push 결정(Windows release workflow 동시 실행 여부)
 - Rollback 창 종료 뒤 data 실제 이전(`~/.agentmux`)과 `codexmux.service`·옛 checkout 정리 별도 spec
-- `docs/FOLLOW-UP.md` governance drop-in 기술 정리
 - 다음 프로젝트: Claude Code provider, 위임 자동화와 agent split
