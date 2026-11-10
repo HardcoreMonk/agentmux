@@ -3,10 +3,13 @@ import { toast } from 'sonner';
 import { t } from '@/lib/i18n';
 import type { TCliState } from '@/types/timeline';
 import { isCliIdle } from '@/hooks/use-tab-store';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import type { TPanelType } from '@/types/terminal';
 
 type TWebInputMode = 'input' | 'interrupt' | 'disabled';
 
-const RESTART_COMMANDS = new Set(['/new', '/clear']);
+const DEFAULT_RESTART_COMMANDS: readonly string[] = ['/new', '/clear'];
+const DEFAULT_INTERRUPT_SEQUENCE = '\x1b\x1b';
 const DRAFT_KEY_PREFIX = 'pt-input-draft:';
 const WEB_INPUT_FOLLOW_UP_ENTER_DELAY_MS = 600;
 
@@ -63,6 +66,7 @@ interface IUseWebInputReturn {
 
 interface IUseWebInputOptions {
   tabId?: string;
+  panelType?: TPanelType;
   onRestartSession?: () => void;
   onMessageSent?: (message: string) => void;
 }
@@ -74,6 +78,9 @@ const useWebInput = (
   options?: IUseWebInputOptions,
 ): IUseWebInputReturn => {
   const tabId = options?.tabId;
+  const providerMeta = getAgentProviderMeta(options?.panelType);
+  const restartCommands = providerMeta?.restartCommands ?? DEFAULT_RESTART_COMMANDS;
+  const interruptSequence = providerMeta?.interruptSequence ?? DEFAULT_INTERRUPT_SEQUENCE;
   const [value, setValueState] = useState(() => (tabId ? loadDraft(tabId) : ''));
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const mode: TWebInputMode = useMemo(() => {
@@ -103,7 +110,7 @@ const useWebInput = (
 
     if (value.trim() === '') return;
 
-    if (RESTART_COMMANDS.has(value.trim().toLowerCase())) {
+    if (restartCommands.includes(value.trim().toLowerCase())) {
       onRestartSession?.();
       setValue('');
       if (tabId) clearDraft(tabId);
@@ -125,15 +132,15 @@ const useWebInput = (
 
     setValue('');
     if (tabId) clearDraft(tabId);
-  }, [mode, value, sendStdin, terminalWsConnected, onRestartSession, onMessageSent, tabId, setValue]);
+  }, [mode, value, sendStdin, terminalWsConnected, onRestartSession, onMessageSent, tabId, setValue, restartCommands]);
 
   const interrupt = useCallback(() => {
     if (!terminalWsConnected) {
       toast.error(t('connection', 'terminalDisconnected'));
       return;
     }
-    sendStdin('\x1b\x1b');
-  }, [sendStdin, terminalWsConnected]);
+    sendStdin(interruptSequence);
+  }, [sendStdin, terminalWsConnected, interruptSequence]);
 
   const focusInput = useCallback(() => {
     const el = textareaRef.current;

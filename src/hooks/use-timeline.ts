@@ -10,6 +10,7 @@ import type {
 } from '@/types/timeline';
 import type { IAgentSessionRelationship } from '@/lib/agent-session-relationship';
 import type { TPanelType } from '@/types/terminal';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import useTimelineWebSocket from '@/hooks/use-timeline-websocket';
 import {
   appendTimelineEntries,
@@ -248,7 +249,7 @@ const useTimeline = ({
     if (reason === 'session-ended') {
       setAgentProcessState(false);
       setWsInitReceived(true);
-      if (panelType === 'codex') {
+      if (getAgentProviderMeta(panelType)?.keepTimelineOnSessionEnd) {
         return;
       }
       setEntries([]);

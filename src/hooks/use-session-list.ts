@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { ISessionMeta } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
+import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
 
 const DEFAULT_LIMIT = 50;
 const REFRESH_RETRY_MS = 1000;
@@ -34,7 +35,7 @@ const useSessionList = ({
   tmuxSession,
   enabled,
   cwd,
-  panelType = 'codex',
+  panelType = DEFAULT_AGENT_PANEL_TYPE,
 }: IUseSessionListOptions): IUseSessionListReturn => {
   const [sessions, setSessions] = useState<ISessionMeta[]>([]);
   const [total, setTotal] = useState(0);

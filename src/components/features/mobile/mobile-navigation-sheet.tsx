@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import OpenAIIcon from '@/components/icons/openai-icon';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
 import { useRouter } from 'next/router';
 import useSidebarItems from '@/hooks/use-sidebar-items';
 import useWorkspaceStore from '@/hooks/use-workspace-store';
@@ -214,7 +214,7 @@ const MobileNavigationSheet = ({
           />
           <span className="mt-0.5 flex w-4 shrink-0 items-center justify-center">
             {isAgentPanelType(panelType) ? (
-              <OpenAIIcon className="h-4 w-4 text-muted-foreground" />
+              <AgentProviderIcon panelType={panelType} className="h-4 w-4 text-muted-foreground" />
             ) : panelType === 'web-browser' ? (
               <Globe size={14} className="text-muted-foreground" />
             ) : panelType === 'diff' ? (

@@ -19,7 +19,7 @@ import {
   updatePaneInTree,
 } from '@/lib/layout-tree';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
-import { isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
 
 export { collectPanes, equalizeNode, getFirstPaneId, findAdjacentPaneInDirection } from '@/lib/layout-tree';
 export type { TDirection } from '@/lib/layout-tree';
@@ -772,7 +772,7 @@ export const navigateToTabOrCreate = async (
     if (!firstTab) return;
 
     if (agentSessionId) {
-      useTabStore.getState().initTab(firstTab.id, { panelType: 'codex', sessionView: 'check' });
+      useTabStore.getState().initTab(firstTab.id, { panelType: DEFAULT_AGENT_PANEL_TYPE, sessionView: 'check' });
     }
 
     navigateToTab(targetWsId, firstTab.id);
@@ -800,7 +800,7 @@ export const navigateToTabOrCreate = async (
 
   const paneId = layout.activePaneId ?? getFirstPaneId(layout.root);
   const cwd = ws.directories[0];
-  const body: Record<string, string | undefined> = { panelType: 'codex', cwd };
+  const body: Record<string, string | undefined> = { panelType: DEFAULT_AGENT_PANEL_TYPE, cwd };
   if (agentSessionId) body.resumeSessionId = agentSessionId;
 
   const tabRes = await fetch(wsQuery(`/api/layout/pane/${paneId}/tabs`, targetWsId), {
@@ -812,7 +812,7 @@ export const navigateToTabOrCreate = async (
   const newTab: ITab = await tabRes.json();
 
   if (agentSessionId) {
-    useTabStore.getState().initTab(newTab.id, { panelType: 'codex', sessionView: 'check' });
+    useTabStore.getState().initTab(newTab.id, { panelType: DEFAULT_AGENT_PANEL_TYPE, sessionView: 'check' });
   }
 
   if (targetWsId === useLayoutStore.getState().workspaceId) {
