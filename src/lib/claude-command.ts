@@ -1,6 +1,10 @@
 import { shQuote } from '@/lib/statusline-script';
 
-export type TClaudePermissionMode = 'acceptEdits' | 'auto' | 'bypassPermissions' | 'manual' | 'dontAsk' | 'plan';
+export const CLAUDE_PERMISSION_MODES = ['acceptEdits', 'auto', 'bypassPermissions', 'manual', 'dontAsk', 'plan'] as const;
+export type TClaudePermissionMode = typeof CLAUDE_PERMISSION_MODES[number];
+
+export const isClaudePermissionMode = (value: unknown): value is TClaudePermissionMode =>
+  typeof value === 'string' && (CLAUDE_PERMISSION_MODES as readonly string[]).includes(value);
 
 export interface IClaudeCommandOptions {
   settingsPath: string;

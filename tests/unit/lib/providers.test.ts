@@ -1,13 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+
+const configMocks = vi.hoisted(() => ({
+  getConfig: vi.fn(),
+}));
+
+vi.mock('@/lib/cli-token', () => ({ getCliToken: () => 'test-token' }));
+vi.mock('@/lib/config-store', () => ({ getConfig: configMocks.getConfig }));
 
 import { normalizePanelType } from '@/lib/panel-type';
 import { buildAgentSessionRelationship } from '@/lib/agent-session-relationship';
 import { checkCodexJsonlState } from '@/lib/codex-jsonl-state';
 import { getProviderByPanelType, getProviderByProcessName, listProviders } from '@/lib/providers';
 import { codexProvider } from '@/lib/providers/codex';
+import { claudeProvider } from '@/lib/providers/claude';
 
 const UUID = '12345678-1234-1234-1234-123456789abc';
 const codexLine = (value: unknown): string => JSON.stringify(value);
@@ -22,19 +30,22 @@ const getCodexProvider = () => {
 };
 
 describe('agent providers', () => {
-  it('registers only Codex as a runtime provider', () => {
-    expect(listProviders().map((provider) => provider.id)).toEqual(['codex']);
+  it('registers Codex and Claude Code as runtime providers', () => {
+    expect(listProviders().map((provider) => provider.id)).toEqual(['codex', 'claude']);
   });
 
-  it('maps only the Codex panel type to the Codex provider', () => {
+  it('maps each agent panel type to its provider', () => {
     expect(getProviderByPanelType('codex')?.id).toBe('codex');
+    expect(getProviderByPanelType('claude')?.id).toBe('claude');
     expect(getProviderByPanelType('terminal')).toBeNull();
     expect(normalizePanelType('codex')).toBe('codex');
+    expect(normalizePanelType('claude')).toBe('claude');
     expect(normalizePanelType('unknown-panel')).toBeUndefined();
   });
 
   it('resolves providers by process name', () => {
     expect(getProviderByProcessName('codex')?.id).toBe('codex');
+    expect(getProviderByProcessName('claude')?.id).toBe('claude');
     expect(getProviderByProcessName('bash')).toBeNull();
   });
 
@@ -72,6 +83,17 @@ describe('agent providers', () => {
       recoverPaneInput: true,
       bindSessionFromHook: false,
       leaveNeedsInputOnJsonlGrowth: false,
+    });
+  });
+
+  it('binds Claude sessions from hooks instead of watching JSONL', () => {
+    expect(claudeProvider.statusBehavior).toEqual({
+      watchJsonlWhenBound: false,
+      deferStopHookUntilJsonlIdle: false,
+      reconcileStateFromJsonl: false,
+      recoverPaneInput: false,
+      bindSessionFromHook: true,
+      leaveNeedsInputOnJsonlGrowth: true,
     });
   });
 
@@ -272,5 +294,133 @@ describe('agent providers', () => {
     ]);
     expect(incremental.newOffset).toBe(Buffer.byteLength(fullContent, 'utf-8'));
     expect(incremental.pendingBuffer).toBe('');
+  });
+});
+
+describe('claude provider', () => {
+  const sessionId = '0f8e9d7c-6b5a-4c3d-8e2f-1a0b9c8d7e6f';
+  let home: string;
+  let dataDir: string;
+
+  beforeEach(async () => {
+    home = await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-claude-provider-'));
+    dataDir = path.join(home, 'agentmux-data');
+    vi.stubEnv('HOME', home);
+    vi.stubEnv('USERPROFILE', home);
+    vi.stubEnv('AGENTMUX_DATA_DIR', dataDir);
+    configMocks.getConfig.mockResolvedValue({ updatedAt: '2026-11-10T00:00:00.000Z' });
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    configMocks.getConfig.mockReset();
+    await fs.rm(home, { recursive: true, force: true });
+  });
+
+  it('launches with per-tab settings and the assigned session id', async () => {
+    const command = await claudeProvider.buildLaunchCommand({
+      workspaceId: 'ws-a',
+      tabId: 'tab-claude',
+      sessionName: 'pt-ws-a-pane-a-tab-claude',
+      sessionId,
+    });
+
+    const settingsPath = path.join(dataDir, 'claude-tabs', 'tab-claude.json');
+    expect(command).toContain(`--settings '${settingsPath}'`);
+    expect(command).toContain(`--session-id ${sessionId}`);
+    await expect(fs.stat(settingsPath)).resolves.toBeTruthy();
+  });
+
+  it('passes the configured model and permission mode', async () => {
+    configMocks.getConfig.mockResolvedValue({
+      updatedAt: '2026-11-10T00:00:00.000Z',
+      claudeModel: 'sonnet',
+      claudePermissionMode: 'plan',
+    });
+
+    const command = await claudeProvider.buildLaunchCommand({
+      tabId: 'tab-claude',
+      sessionName: 'pt-ws-a-pane-a-tab-claude',
+      sessionId,
+    });
+
+    expect(command).toContain("--model 'sonnet'");
+    expect(command).toContain('--permission-mode plan');
+  });
+
+  it('rejects a launch without a session id or tab identity', async () => {
+    await expect(claudeProvider.buildLaunchCommand({
+      tabId: 'tab-claude',
+      sessionName: 'pt-ws-a-pane-a-tab-claude',
+    })).rejects.toThrow();
+    await expect(claudeProvider.buildLaunchCommand({ sessionId, sessionName: 'pt-ws-a-pane-a-tab-claude' })).rejects.toThrow();
+    await expect(claudeProvider.buildLaunchCommand({ sessionId, tabId: 'tab-claude' })).rejects.toThrow();
+    await expect(fs.stat(path.join(dataDir, 'claude-tabs', 'tab-claude.json'))).rejects.toThrow();
+  });
+
+  it('resumes with per-tab settings', async () => {
+    const command = await claudeProvider.buildResumeCommand(sessionId, {
+      tabId: 'tab-claude',
+      sessionName: 'pt-ws-a-pane-a-tab-claude',
+    });
+
+    const settingsPath = path.join(dataDir, 'claude-tabs', 'tab-claude.json');
+    expect(command).toContain(`--settings '${settingsPath}'`);
+    expect(command).toContain(`--resume ${sessionId}`);
+    await expect(fs.stat(settingsPath)).resolves.toBeTruthy();
+    await expect(claudeProvider.buildResumeCommand(sessionId, {})).rejects.toThrow();
+  });
+
+  it('creates a valid session id per launch and removes tab settings on cleanup', async () => {
+    const first = claudeProvider.createLaunchSessionId?.();
+    const second = claudeProvider.createLaunchSessionId?.();
+    expect(claudeProvider.isValidSessionId(first)).toBe(true);
+    expect(first).not.toBe(second);
+
+    await claudeProvider.buildLaunchCommand({
+      tabId: 'tab-claude',
+      sessionName: 'pt-ws-a-pane-a-tab-claude',
+      sessionId,
+    });
+    await claudeProvider.cleanupTab?.({ id: 'tab-claude', sessionName: 'pt-ws-a-pane-a-tab-claude' });
+    await expect(fs.stat(path.join(dataDir, 'claude-tabs', 'tab-claude.json'))).rejects.toThrow();
+  });
+
+  it('resolves the latest JSONL in the Claude project directory', async () => {
+    const cwd = '/work/claude-project';
+    const projectDir = path.join(home, '.claude', 'projects', '-work-claude-project');
+    const olderId = '11111111-2222-4333-8444-555555555555';
+    await fs.mkdir(projectDir, { recursive: true });
+    await fs.writeFile(path.join(projectDir, `${olderId}.jsonl`), '{}\n');
+    await fs.writeFile(path.join(projectDir, `${sessionId}.jsonl`), '{}\n');
+    await fs.utimes(path.join(projectDir, `${olderId}.jsonl`), new Date('2026-11-01T00:00:00Z'), new Date('2026-11-01T00:00:00Z'));
+    await fs.utimes(path.join(projectDir, `${sessionId}.jsonl`), new Date('2026-11-02T00:00:00Z'), new Date('2026-11-02T00:00:00Z'));
+
+    await expect(claudeProvider.resolveLatestJsonlPath?.(cwd)).resolves.toMatchObject({
+      sessionId,
+      jsonlPath: path.join(projectDir, `${sessionId}.jsonl`),
+    });
+    await expect(claudeProvider.resolveJsonlPath(sessionId, cwd)).resolves.toBe(path.join(projectDir, `${sessionId}.jsonl`));
+    await expect(claudeProvider.resolveLatestJsonlPath?.('/work/empty')).resolves.toBeNull();
+    expect(claudeProvider.jsonlRoots('/home/test')).toEqual(['/home/test/.claude/projects']);
+  });
+
+  it('reads Claude JSONL status without rate limits', async () => {
+    const filePath = path.join(home, 'session.jsonl');
+    await fs.writeFile(filePath, [
+      { type: 'user', timestamp: '2026-11-10T00:00:00.000Z', message: { content: [{ type: 'text', text: 'Hi' }] } },
+      {
+        type: 'assistant',
+        timestamp: '2026-11-10T00:00:01.000Z',
+        message: { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Done.' }] },
+      },
+    ].map(codexLine).join('\n') + '\n');
+
+    await expect(claudeProvider.readJsonlStatus(filePath)).resolves.toMatchObject({
+      idle: true,
+      lastAssistantSnippet: 'Done.',
+      lastEntryTs: Date.parse('2026-11-10T00:00:01.000Z'),
+      rateLimits: null,
+    });
   });
 });

@@ -94,6 +94,8 @@ export const scanStatusJsonlLines = (lines: string[], elapsed: number): IStatusJ
       const entry = JSON.parse(lines[i]);
 
       if (entry.isSidechain) continue;
+      // Meta user lines (command caveats, injected context) are not user replies.
+      if (entry.type === 'user' && entry.isMeta === true) continue;
 
       const entryTs: number | null = entry.timestamp ? new Date(entry.timestamp).getTime() : null;
 

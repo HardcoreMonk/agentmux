@@ -8,6 +8,7 @@ import type { TNetworkAccess } from '@/lib/network-access';
 import type { TEditorPreset } from '@/lib/editor-url';
 import type { TToastPosition } from '@/lib/toast-position';
 import type { TCodexApprovalPolicy, TCodexSandboxMode } from '@/lib/codex-command';
+import type { TClaudePermissionMode } from '@/lib/claude-command';
 
 const log = createLogger('config');
 
@@ -23,6 +24,8 @@ export interface IConfigData {
   codexApprovalPolicy?: TCodexApprovalPolicy | null;
   codexSearchEnabled?: boolean;
   codexShowTerminal?: boolean;
+  claudeModel?: string | null;
+  claudePermissionMode?: TClaudePermissionMode | null;
   editorUrl?: string;
   editorPreset?: TEditorPreset;
   notificationsEnabled?: boolean;

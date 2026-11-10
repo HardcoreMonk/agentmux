@@ -223,4 +223,37 @@ describe('session-list', () => {
     expect(await findSessionRelationshipByJsonlPath(filePath)).toEqual(sessions[0].relationship);
   });
 
+  it('does not show Codex sessions in Claude tabs', async () => {
+    const dir = path.join(tempHome, '.codex', 'sessions', '2026', '11', '10');
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(
+      path.join(dir, 'rollout-2026-11-10T01-00-00-019e0000-3a02-73a0-a79e-8703b99a2f30.jsonl'),
+      [
+        jsonLine({
+          timestamp: '2026-11-10T01:00:01.000Z',
+          type: 'session_meta',
+          payload: {
+            id: '019e0000-3a02-73a0-a79e-8703b99a2f30',
+            timestamp: '2026-11-10T01:00:00.000Z',
+            cwd: '/work/project',
+          },
+        }),
+        jsonLine({
+          timestamp: '2026-11-10T01:00:02.000Z',
+          type: 'event_msg',
+          payload: { type: 'user_message', message: 'Codex only work' },
+        }),
+      ].join('\n'),
+    );
+
+    const { listSessions, listSessionPage } = await import('@/lib/session-list');
+    await expect(listSessions('tmux-session', '/work/project', 'codex')).resolves.toHaveLength(1);
+    await expect(listSessions('tmux-session', '/work/project', 'claude')).resolves.toEqual([]);
+    await expect(listSessionPage('tmux-session', '/work/project', 'claude', { offset: 0, limit: 50 })).resolves.toEqual({
+      sessions: [],
+      total: 0,
+      hasMore: false,
+      refreshing: false,
+    });
+  });
 });

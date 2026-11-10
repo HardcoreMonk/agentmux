@@ -7,12 +7,14 @@ export interface IAgentResumeCommandOptions {
   workspaceId?: string;
   tabId?: string;
   sessionName?: string;
+  sessionId?: string;
 }
 
 export interface IAgentLaunchCommandOptions {
   workspaceId?: string;
   tabId?: string;
   sessionName?: string;
+  sessionId?: string;
 }
 
 export interface IAgentSessionWatchOptions {
@@ -64,6 +66,8 @@ export interface IAgentProvider {
 
   buildResumeCommand(sessionId: string, options: IAgentResumeCommandOptions): Promise<string>;
   buildLaunchCommand(options: IAgentLaunchCommandOptions): Promise<string>;
+  createLaunchSessionId?(): string;
+  cleanupTab?(tab: Pick<ITab, 'id' | 'sessionName'>): Promise<void>;
   jsonlRoots(homeDir?: string): string[];
   resolveJsonlPath(sessionId: string, cwd: string): Promise<string | null>;
   resolveLatestJsonlPath?(cwd: string): Promise<IAgentJsonlResolution | null>;

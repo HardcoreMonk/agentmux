@@ -133,10 +133,10 @@ const findPidfileSessionId = async (claudePid: number, tree: number[]): Promise<
   return null;
 };
 
-const findNewestJsonlSince = async (
+export const findNewestClaudeJsonl = async (
   cwd: string,
-  startedAt: number | null,
-): Promise<{ sessionId: string; jsonlPath: string } | null> => {
+  startedAt: number | null = null,
+): Promise<{ sessionId: string; jsonlPath: string; mtimeMs: number } | null> => {
   const dir = path.join(getClaudeProjectsDir(), toClaudeProjectName(cwd));
   let names: string[];
   try {
@@ -176,7 +176,7 @@ export const detectActiveClaudeSession = async (
   if (sessionId && cwd) {
     jsonlPath = await resolveClaudeJsonlPath(sessionId, cwd);
   } else if (!sessionId && cwd) {
-    const newest = await findNewestJsonlSince(cwd, startedAt);
+    const newest = await findNewestClaudeJsonl(cwd, startedAt);
     sessionId = newest?.sessionId ?? null;
     jsonlPath = newest?.jsonlPath ?? null;
   }

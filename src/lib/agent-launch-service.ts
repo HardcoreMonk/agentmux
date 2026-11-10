@@ -1,5 +1,5 @@
 import { checkTerminalProcess, sendKeys } from '@/lib/tmux';
-import { readLayoutFile, resolveLayoutFile } from '@/lib/layout-store';
+import { readLayoutFile, resolveLayoutFile, updateTabAgentSessionId } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { getProviderByPanelType } from '@/lib/providers';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
@@ -51,9 +51,16 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
     tabId: tab.id,
     sessionName: tab.sessionName,
   };
-  const command = input.action === 'resume' && input.sessionId
-    ? await provider.buildResumeCommand(input.sessionId, commandOptions)
-    : await provider.buildLaunchCommand(commandOptions);
+  let command: string;
+  if (input.action === 'resume' && input.sessionId) {
+    command = await provider.buildResumeCommand(input.sessionId, commandOptions);
+  } else if (input.action === 'launch' && provider.createLaunchSessionId) {
+    const sessionId = provider.createLaunchSessionId();
+    await updateTabAgentSessionId(tab.sessionName, provider, sessionId);
+    command = await provider.buildLaunchCommand({ ...commandOptions, sessionId });
+  } else {
+    command = await provider.buildLaunchCommand(commandOptions);
+  }
 
   if (resolveTabRuntimeVersion(tab) === 2) {
     await getRuntimeSupervisor().writeTerminalSession({

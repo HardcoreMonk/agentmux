@@ -1,5 +1,5 @@
 import { getSessionIndexPage, getSessionIndexSnapshot, parseCodexSessionMeta } from '@/lib/session-index';
-import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
 import type { ISessionMeta } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
 
@@ -25,7 +25,8 @@ export const listSessions = async (
   void tmuxSession;
   void cwdHint;
 
-  if (!isAgentPanelType(panelType)) return [];
+  // The session index only reads Codex rollouts; other agents get their own list later.
+  if (panelType !== 'codex') return [];
   return getSessionIndexSnapshot({ waitForInitial: true });
 };
 
@@ -38,7 +39,7 @@ export const listSessionPage = async (
   void tmuxSession;
   void cwdHint;
 
-  if (!isAgentPanelType(panelType)) {
+  if (panelType !== 'codex') {
     return { sessions: [], total: 0, hasMore: false, refreshing: false };
   }
 

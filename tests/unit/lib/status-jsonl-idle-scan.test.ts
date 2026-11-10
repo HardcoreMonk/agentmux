@@ -31,6 +31,27 @@ describe('status JSONL idle scan helpers', () => {
     });
   });
 
+  it('skips meta user lines so they do not move the last entry time', () => {
+    expect(scanStatusJsonlLines([
+      line({
+        type: 'assistant',
+        timestamp: '2026-05-06T00:00:00.000Z',
+        message: { stop_reason: 'end_turn', content: [{ type: 'text', text: 'done' }] },
+      }),
+      line({
+        type: 'user',
+        isMeta: true,
+        timestamp: '2026-05-06T00:00:05.000Z',
+        message: { content: [{ type: 'text', text: 'Caveat: synthetic meta line.' }] },
+      }),
+    ], 10_000)).toMatchObject({
+      matched: true,
+      idle: true,
+      stale: false,
+      lastEntryTs: Date.parse('2026-05-06T00:00:00.000Z'),
+    });
+  });
+
   it('marks interrupted user marker as idle', () => {
     expect(scanStatusJsonlLines([
       line({ type: 'user', timestamp: '2026-05-06T00:00:00.000Z', message: { content: [{ type: 'text', text: '[Request interrupted by user]' }] } }),

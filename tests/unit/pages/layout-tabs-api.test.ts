@@ -255,7 +255,7 @@ describe('layout tab api runtime routing', () => {
     vi.useFakeTimers();
     const response = createResponse();
 
-    await handler(createRequest({ cwd: '/repo', panelType: 'claude', startAgent: true }), response.res);
+    await handler(createRequest({ cwd: '/repo', panelType: 'future-agent', startAgent: true }), response.res);
     await vi.advanceTimersByTimeAsync(1_000);
     vi.useRealTimers();
 
@@ -280,7 +280,7 @@ describe('layout tab api runtime routing', () => {
   it('rejects resume with an unregistered panel type', async () => {
     const response = createResponse();
 
-    await handler(createRequest({ panelType: 'claude', resumeSessionId: 'abc' }), response.res);
+    await handler(createRequest({ panelType: 'future-agent', resumeSessionId: 'abc' }), response.res);
 
     expect(response.statusCode).toBe(400);
     expect(response.body).toEqual({ error: 'Unknown panel type for resume' });

@@ -1,6 +1,6 @@
 import type { TAgentPanelType, TPanelType } from '@/types/terminal';
 
-export const AGENT_PANEL_TYPES = ['codex'] as const satisfies readonly TAgentPanelType[];
+export const AGENT_PANEL_TYPES = ['codex', 'claude'] as const satisfies readonly TAgentPanelType[];
 
 // Compile-time guard: fails when a TAgentPanelType member is missing from AGENT_PANEL_TYPES.
 type TMissingAgentPanelType = Exclude<TAgentPanelType, (typeof AGENT_PANEL_TYPES)[number]>;

@@ -6,10 +6,11 @@ import { isBoundToLocalhostOnly, updateAccessFromConfig } from '@/lib/access-fil
 import { isValidEditorPreset } from '@/lib/editor-url';
 import { isValidToastPosition } from '@/lib/toast-position';
 import { CODEX_APPROVAL_POLICIES, CODEX_SANDBOX_MODES } from '@/lib/codex-command';
+import { isClaudePermissionMode } from '@/lib/claude-command';
 import { isSupportedLocale, normalizeLocale } from '@/lib/locales';
 
 const ALLOWED_FIELDS: (keyof Omit<IConfigData, 'updatedAt' | 'authSecret'>)[] = [
-  'appTheme', 'terminalTheme', 'customCSS', 'dangerouslySkipPermissions', 'codexModel', 'codexSandbox', 'codexApprovalPolicy', 'codexSearchEnabled', 'codexShowTerminal', 'editorUrl', 'editorPreset', 'authPassword', 'notificationsEnabled', 'soundOnCompleteEnabled', 'toastOnCompleteEnabled', 'toastDuration', 'toastPositionDesktop', 'toastPositionMobile', 'locale', 'fontSize', 'systemResourcesEnabled', 'networkAccess',
+  'appTheme', 'terminalTheme', 'customCSS', 'dangerouslySkipPermissions', 'codexModel', 'codexSandbox', 'codexApprovalPolicy', 'codexSearchEnabled', 'codexShowTerminal', 'claudeModel', 'claudePermissionMode', 'editorUrl', 'editorPreset', 'authPassword', 'notificationsEnabled', 'soundOnCompleteEnabled', 'toastOnCompleteEnabled', 'toastDuration', 'toastPositionDesktop', 'toastPositionMobile', 'locale', 'fontSize', 'systemResourcesEnabled', 'networkAccess',
 ];
 
 const NETWORK_ACCESS_VALUES = ['localhost', 'tailscale', 'all'] as const;
@@ -30,6 +31,14 @@ const isValidCodexSandbox = (value: unknown): boolean =>
 
 const isValidCodexApprovalPolicy = (value: unknown): boolean =>
   value === null || (typeof value === 'string' && (CODEX_APPROVAL_POLICIES as readonly string[]).includes(value));
+
+const CLAUDE_MODEL_RE = /^[A-Za-z0-9._:-]{1,128}$/;
+
+const isValidClaudeModel = (value: unknown): boolean =>
+  value === null || (typeof value === 'string' && CLAUDE_MODEL_RE.test(value));
+
+const isValidClaudePermissionMode = (value: unknown): boolean =>
+  value === null || isClaudePermissionMode(value);
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method === 'GET') {
@@ -101,6 +110,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     if ('codexShowTerminal' in updates && typeof updates.codexShowTerminal !== 'boolean') {
       return res.status(400).json({ error: 'codexShowTerminal must be a boolean.' });
+    }
+
+    if ('claudeModel' in updates && !isValidClaudeModel(updates.claudeModel)) {
+      return res.status(400).json({ error: 'claudeModel must be 1-128 characters of letters, digits, ".", "_", ":" or "-".' });
+    }
+
+    if ('claudePermissionMode' in updates && !isValidClaudePermissionMode(updates.claudePermissionMode)) {
+      return res.status(400).json({ error: 'claudePermissionMode is invalid.' });
     }
 
     if (typeof updates.authPassword === 'string' && updates.authPassword) {
