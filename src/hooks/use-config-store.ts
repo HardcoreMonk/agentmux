@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { TEditorPreset } from '@/lib/editor-url';
 import type { TToastPosition } from '@/lib/toast-position';
 import type { TCodexApprovalPolicy, TCodexSandboxMode } from '@/lib/codex-command';
+import { isValidClaudeModel, type TClaudePermissionMode } from '@/lib/claude-config-values';
 import { DEFAULT_LOCALE, normalizeLocale } from '@/lib/locales';
 
 export type { TToastPosition } from '@/lib/toast-position';
@@ -22,6 +23,9 @@ export interface IConfigInitialData {
   codexApprovalPolicy?: TCodexApprovalPolicy | null;
   codexSearchEnabled?: boolean;
   codexShowTerminal?: boolean;
+  agentShowTerminal?: boolean;
+  claudeModel?: string | null;
+  claudePermissionMode?: TClaudePermissionMode | null;
   editorUrl?: string;
   editorPreset?: TEditorPreset;
   notificationsEnabled?: boolean;
@@ -45,7 +49,9 @@ interface IConfigState {
   codexSandbox: TCodexSandboxMode | '';
   codexApprovalPolicy: TCodexApprovalPolicy | '';
   codexSearchEnabled: boolean;
-  codexShowTerminal: boolean;
+  agentShowTerminal: boolean;
+  claudeModel: string;
+  claudePermissionMode: TClaudePermissionMode | '';
   editorUrl: string;
   editorPreset: TEditorPreset;
   notificationsEnabled: boolean;
@@ -69,7 +75,9 @@ interface IConfigState {
   setCodexSandbox: (sandbox: TCodexSandboxMode | '') => void;
   setCodexApprovalPolicy: (policy: TCodexApprovalPolicy | '') => void;
   setCodexSearchEnabled: (enabled: boolean) => void;
-  setCodexShowTerminal: (enabled: boolean) => void;
+  setAgentShowTerminal: (enabled: boolean) => void;
+  setClaudeModel: (model: string) => void;
+  setClaudePermissionMode: (mode: TClaudePermissionMode | '') => void;
   setEditorUrl: (url: string) => void;
   setEditorPreset: (preset: TEditorPreset) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
@@ -100,7 +108,9 @@ const initialConfig = {
   codexSandbox: '' as TCodexSandboxMode | '',
   codexApprovalPolicy: '' as TCodexApprovalPolicy | '',
   codexSearchEnabled: false,
-  codexShowTerminal: true,
+  agentShowTerminal: true,
+  claudeModel: '',
+  claudePermissionMode: '' as TClaudePermissionMode | '',
   hasAuthPassword: false,
   locale: DEFAULT_LOCALE,
   customCSS: '',
@@ -127,7 +137,9 @@ const useConfigStore = create<IConfigState>((set, get) => ({
   codexSandbox: initialConfig.codexSandbox,
   codexApprovalPolicy: initialConfig.codexApprovalPolicy,
   codexSearchEnabled: initialConfig.codexSearchEnabled,
-  codexShowTerminal: initialConfig.codexShowTerminal,
+  agentShowTerminal: initialConfig.agentShowTerminal,
+  claudeModel: initialConfig.claudeModel,
+  claudePermissionMode: initialConfig.claudePermissionMode,
   editorUrl: initialConfig.editorUrl,
   editorPreset: initialConfig.editorPreset,
   notificationsEnabled: initialConfig.notificationsEnabled,
@@ -152,7 +164,10 @@ const useConfigStore = create<IConfigState>((set, get) => ({
       codexSandbox: data.codexSandbox ?? '',
       codexApprovalPolicy: data.codexApprovalPolicy ?? '',
       codexSearchEnabled: data.codexSearchEnabled ?? false,
-      codexShowTerminal: data.codexShowTerminal ?? true,
+      // Legacy codexShowTerminal is read as a fallback only; writes go to agentShowTerminal.
+      agentShowTerminal: data.agentShowTerminal ?? data.codexShowTerminal ?? true,
+      claudeModel: data.claudeModel ?? '',
+      claudePermissionMode: data.claudePermissionMode ?? '',
       editorUrl: data.editorUrl ?? '',
       editorPreset: data.editorPreset ?? 'code-server',
       notificationsEnabled: data.notificationsEnabled ?? true,
@@ -201,10 +216,24 @@ const useConfigStore = create<IConfigState>((set, get) => ({
     saveConfig({ codexSearchEnabled: enabled });
   },
 
-  setCodexShowTerminal: (enabled) => {
-    if (get().codexShowTerminal === enabled) return;
-    set({ codexShowTerminal: enabled });
-    saveConfig({ codexShowTerminal: enabled });
+  setAgentShowTerminal: (enabled) => {
+    if (get().agentShowTerminal === enabled) return;
+    set({ agentShowTerminal: enabled });
+    saveConfig({ agentShowTerminal: enabled });
+  },
+
+  setClaudeModel: (model) => {
+    const next = model.trim();
+    if (get().claudeModel === next) return;
+    if (next && !isValidClaudeModel(next)) return;
+    set({ claudeModel: next });
+    saveConfig({ claudeModel: next || null });
+  },
+
+  setClaudePermissionMode: (mode) => {
+    if (get().claudePermissionMode === mode) return;
+    set({ claudePermissionMode: mode });
+    saveConfig({ claudePermissionMode: mode || null });
   },
 
   setEditorUrl: (url) => {

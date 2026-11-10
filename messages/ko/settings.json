@@ -12,7 +12,8 @@
     "agent": "에이전트",
     "notification": "알림",
     "system": "시스템",
-    "codex": "Codex"
+    "codex": "Codex",
+    "claude": "Claude Code"
   },
   "general": {
     "theme": "테마",
@@ -40,7 +41,9 @@
   },
   "terminal": {
     "theme": "터미널 테마",
-    "themeDescription": "모드별 터미널 색상 테마를 선택합니다."
+    "themeDescription": "모드별 터미널 색상 테마를 선택합니다.",
+    "showTerminal": "에이전트 화면에서 터미널 같이 보기",
+    "showTerminalDescription": "Codex와 Claude Code 화면에서 터미널 영역을 함께 표시합니다. 끄면 새 에이전트 탭이 터미널이 닫힌 상태로 시작됩니다."
   },
   "editor": {
     "preset": "에디터",
@@ -254,8 +257,25 @@
     },
     "webSearch": "웹 검색",
     "webSearchDescription": "--search를 추가해 Codex의 실시간 웹 검색을 활성화합니다.",
-    "showTerminal": "Codex에서 터미널 같이 보기",
-    "showTerminalDescription": "Codex 화면과 함께 터미널 영역을 표시합니다. 끄면 새 Codex 탭이 터미널이 닫힌 상태로 시작됩니다.",
     "commandPreview": "명령 미리보기"
+  },
+  "claude": {
+    "model": "모델",
+    "modelDescription": "Claude Code 실행 시 --model로 전달할 모델입니다. 비워두면 Claude 설정을 따릅니다.",
+    "modelPlaceholder": "예: sonnet, claude-sonnet-4.5",
+    "modelInvalid": "모델 이름은 영문, 숫자, \".\", \"_\", \":\", \"-\"로 128자까지 쓸 수 있습니다.",
+    "followClaude": "Claude 설정을 따름",
+    "permissionMode": "권한 모드",
+    "permissionModeDescription": "새 Claude Code 세션과 재개 세션에 적용할 --permission-mode 값입니다.",
+    "permissionModeOptions": {
+      "acceptEdits": "acceptEdits",
+      "auto": "auto",
+      "bypassPermissions": "bypassPermissions",
+      "manual": "manual",
+      "dontAsk": "dontAsk",
+      "plan": "plan"
+    },
+    "commandPreview": "명령 미리보기",
+    "commandPreviewNote": "--settings 경로와 --session-id 값은 실행 시 자동으로 채워집니다."
   }
 }

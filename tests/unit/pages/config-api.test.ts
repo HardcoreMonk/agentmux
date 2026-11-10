@@ -72,3 +72,23 @@ describe('config API Claude keys', () => {
     expect(mocks.updateConfig).not.toHaveBeenCalled();
   });
 });
+
+describe('config API agentShowTerminal', () => {
+  beforeEach(() => {
+    mocks.getConfig.mockReset();
+    mocks.updateConfig.mockReset();
+    mocks.updateConfig.mockResolvedValue(undefined);
+  });
+
+  it.each([true, false])('stores boolean %s', async (value) => {
+    const response = await patch({ agentShowTerminal: value });
+    expect(response.statusCode).toBe(200);
+    expect(mocks.updateConfig).toHaveBeenCalledWith({ agentShowTerminal: value });
+  });
+
+  it.each(['true', 1, null])('rejects non-boolean %s', async (value) => {
+    const response = await patch({ agentShowTerminal: value });
+    expect(response.statusCode).toBe(400);
+    expect(mocks.updateConfig).not.toHaveBeenCalled();
+  });
+});

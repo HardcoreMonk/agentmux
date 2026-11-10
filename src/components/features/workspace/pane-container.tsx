@@ -122,8 +122,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
 
   const { theme: terminalTheme } = useTerminalTheme();
   const configFontSize = useConfigStore((s) => s.fontSize);
-  const codexShowTerminal = useConfigStore((s) => s.codexShowTerminal);
-  const showAgentTerminal = codexShowTerminal;
+  const showAgentTerminal = useConfigStore((s) => s.agentShowTerminal);
   const effectiveTerminalCollapsed = activeTab?.terminalCollapsed ?? !showAgentTerminal;
   const [hasEverConnected, setHasEverConnected] = useState(false);
   const [sessionSwitching, setSessionSwitching] = useState(false);

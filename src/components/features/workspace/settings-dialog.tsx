@@ -48,13 +48,16 @@ import { TERMINAL_THEMES } from '@/lib/terminal-themes';
 import { EDITOR_PRESETS, buildEditorUrl, type TEditorPreset } from '@/lib/editor-url';
 import { EditorIcon } from '@/components/icons/editor-icons';
 import OpenAIIcon from '@/components/icons/openai-icon';
+import ClaudeIcon from '@/components/icons/claude-icon';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { CLAUDE_PERMISSION_MODES, isValidClaudeModel, type TClaudePermissionMode } from '@/lib/claude-config-values';
 import type { ITerminalThemeColors } from '@/lib/terminal-themes';
 import QuickPromptsSettings from '@/components/features/settings/quick-prompts-settings';
 import SidebarItemsSettings from '@/components/features/settings/sidebar-items-settings';
 import TailscaleSettings from '@/components/features/settings/tailscale-settings';
 import { LOCALE_OPTIONS } from '@/lib/locales';
 
-type TSettingsTab = 'general' | 'appearance' | 'terminal' | 'notification' | 'editor' | 'codex' | 'auth' | 'tailscale' | 'quick-prompts' | 'sidebar-items' | 'system';
+type TSettingsTab = 'general' | 'appearance' | 'terminal' | 'notification' | 'editor' | 'codex' | 'claude' | 'auth' | 'tailscale' | 'quick-prompts' | 'sidebar-items' | 'system';
 
 interface ISettingsItem {
   id: TSettingsTab;
@@ -70,6 +73,7 @@ const settingsItems: ISettingsItem[] = [
   { id: 'notification', labelKey: 'notification', icon: <Bell className="h-4 w-4" /> },
   { id: 'editor', labelKey: 'editor', icon: <FolderCode className="h-4 w-4" /> },
   { id: 'codex', labelKey: 'codex', icon: <OpenAIIcon className="h-4 w-4" /> },
+  { id: 'claude', labelKey: 'claude', icon: <ClaudeIcon className="h-4 w-4" /> },
   { id: 'auth', labelKey: 'auth', icon: <Lock className="h-4 w-4" /> },
   { id: 'tailscale', labelKey: 'tailscale', icon: <Globe className="h-4 w-4" /> },
   { id: 'quick-prompts', labelKey: 'quickPrompts', icon: <Zap className="h-4 w-4" /> },
@@ -367,6 +371,8 @@ const TerminalTab = () => {
   const t = useTranslations('settings.terminal');
   const tc = useTranslations('common');
   const { mode, themeIds, setTerminalTheme, themes } = useTerminalTheme();
+  const agentShowTerminal = useConfigStore((state) => state.agentShowTerminal);
+  const setAgentShowTerminal = useConfigStore((state) => state.setAgentShowTerminal);
 
   const darkThemes = themes.filter((th) => th.variant === 'dark');
   const lightThemes = themes.filter((th) => th.variant === 'light');
@@ -389,6 +395,22 @@ const TerminalTab = () => {
           <ThemeGrid list={lightThemes} selectedId={themeIds.light} onSelect={(id) => setTerminalTheme('light', id)} />
         </TabsContent>
       </Tabs>
+
+      <div className="flex min-h-11 items-center justify-between gap-4 pt-2">
+        <div className="space-y-0.5">
+          <Label htmlFor="agent-show-terminal" className="text-sm font-medium">
+            {t('showTerminal')}
+          </Label>
+          <p className="text-sm text-muted-foreground break-keep">
+            {t('showTerminalDescription')}
+          </p>
+        </div>
+        <Switch
+          id="agent-show-terminal"
+          checked={agentShowTerminal}
+          onCheckedChange={setAgentShowTerminal}
+        />
+      </div>
     </div>
   );
 };
@@ -559,8 +581,6 @@ const CodexTab = () => {
   const setCodexApprovalPolicy = useConfigStore((state) => state.setCodexApprovalPolicy);
   const codexSearchEnabled = useConfigStore((state) => state.codexSearchEnabled);
   const setCodexSearchEnabled = useConfigStore((state) => state.setCodexSearchEnabled);
-  const codexShowTerminal = useConfigStore((state) => state.codexShowTerminal);
-  const setCodexShowTerminal = useConfigStore((state) => state.setCodexShowTerminal);
   const [localModel, setLocalModel] = useState(codexModel);
 
   useEffect(() => {
@@ -671,20 +691,103 @@ const CodexTab = () => {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-4">
-        <div className="space-y-0.5">
-          <Label htmlFor="codex-show-terminal" className="text-sm font-medium">
-            {t('showTerminal')}
-          </Label>
-          <p className="text-sm text-muted-foreground">
-            {t('showTerminalDescription')}
-          </p>
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-muted-foreground">{t('commandPreview')}</p>
+        <code className="block break-all rounded-md bg-muted p-2 font-mono text-xs">
+          {previewCommand}
+        </code>
+      </div>
+    </div>
+  );
+};
+
+const ClaudeTab = () => {
+  const t = useTranslations('settings.claude');
+  const tc = useTranslations('common');
+  const claudeModel = useConfigStore((state) => state.claudeModel);
+  const setClaudeModel = useConfigStore((state) => state.setClaudeModel);
+  const claudePermissionMode = useConfigStore((state) => state.claudePermissionMode);
+  const setClaudePermissionMode = useConfigStore((state) => state.setClaudePermissionMode);
+  const [localModel, setLocalModel] = useState(claudeModel);
+  const providerLabel = getAgentProviderMeta('claude')?.label ?? 'Claude Code';
+
+  useEffect(() => {
+    setLocalModel(claudeModel);
+  }, [claudeModel]);
+
+  const trimmedModel = localModel.trim();
+  const modelInvalid = trimmedModel !== '' && !isValidClaudeModel(trimmedModel);
+  const modelDirty = trimmedModel !== claudeModel;
+  const modeValue = claudePermissionMode || 'default';
+  const previewCommand = [
+    'claude --settings … --session-id …',
+    trimmedModel && !modelInvalid ? `--model ${trimmedModel}` : '',
+    claudePermissionMode ? `--permission-mode ${claudePermissionMode}` : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <ClaudeIcon className="h-4 w-4" />
+        <span>{providerLabel}</span>
+      </div>
+
+      <div className="space-y-2">
+        <div>
+          <Label htmlFor="claude-model" className="text-sm font-medium">{t('model')}</Label>
+          <p className="text-sm text-muted-foreground break-keep">{t('modelDescription')}</p>
         </div>
-        <Switch
-          id="codex-show-terminal"
-          checked={codexShowTerminal}
-          onCheckedChange={setCodexShowTerminal}
-        />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            id="claude-model"
+            value={localModel}
+            onChange={(e) => setLocalModel(e.target.value)}
+            placeholder={t('modelPlaceholder')}
+            aria-invalid={modelInvalid}
+            className="min-h-11 font-mono"
+          />
+          <Button
+            variant="outline"
+            className="min-h-11 min-w-11"
+            disabled={!modelDirty || modelInvalid}
+            onClick={() => setClaudeModel(trimmedModel)}
+          >
+            {tc('save')}
+          </Button>
+        </div>
+        {modelInvalid && (
+          <p role="alert" className="text-sm text-destructive break-keep">{t('modelInvalid')}</p>
+        )}
+        {!trimmedModel && (
+          <p className="text-xs text-muted-foreground break-keep">{t('followClaude')}</p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-sm font-medium">{t('permissionMode')}</p>
+          <p className="text-sm text-muted-foreground break-keep">{t('permissionModeDescription')}</p>
+        </div>
+        <Select
+          items={[
+            { label: t('followClaude'), value: 'default' },
+            ...CLAUDE_PERMISSION_MODES.map((mode) => ({ label: t(`permissionModeOptions.${mode}`), value: mode })),
+          ]}
+          value={modeValue}
+          onValueChange={(v) => setClaudePermissionMode(v === 'default' ? '' : v as TClaudePermissionMode)}
+        >
+          <SelectTrigger aria-label={t('permissionMode')} className="min-h-11 min-w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="default">{t('followClaude')}</SelectItem>
+            {CLAUDE_PERMISSION_MODES.map((mode) => (
+              <SelectItem key={mode} value={mode}>
+                {t(`permissionModeOptions.${mode}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1">
@@ -692,6 +795,7 @@ const CodexTab = () => {
         <code className="block break-all rounded-md bg-muted p-2 font-mono text-xs">
           {previewCommand}
         </code>
+        <p className="text-xs text-muted-foreground break-keep">{t('commandPreviewNote')}</p>
       </div>
     </div>
   );
@@ -1174,6 +1278,7 @@ const SettingsDialog = ({ open, onOpenChange }: ISettingsDialogProps) => {
             {activeTab === 'notification' && <NotificationTab />}
             {activeTab === 'editor' && <EditorTab />}
             {activeTab === 'codex' && <CodexTab />}
+            {activeTab === 'claude' && <ClaudeTab />}
             {activeTab === 'auth' && <AuthTab />}
             {activeTab === 'tailscale' && <TailscaleSettings />}
             {activeTab === 'quick-prompts' && <QuickPromptsSettings />}
