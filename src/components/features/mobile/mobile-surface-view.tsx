@@ -490,10 +490,12 @@ const MobileSurfaceView = ({
 
   const handleAcceptAgentView = useCallback(() => {
     if (!activeTabId || !agentViewProvider) return;
-    acceptAgentViewPrompt(
+    const applied = acceptAgentViewPrompt(
       { updateTabPanelType: onUpdateTabPanelType, setSessionView: useTabStore.getState().setSessionView },
       { paneId, tabId: activeTabId, providerPanelType: agentViewProvider },
     );
+    // Shown once per tab and provider: an accepted offer does not come back on a later TERMINAL view.
+    if (applied) agentViewPromptRegistry.dismiss(activeTabId, agentViewProvider);
   }, [paneId, activeTabId, agentViewProvider, onUpdateTabPanelType]);
 
   const handleDismissAgentView = useCallback(() => {

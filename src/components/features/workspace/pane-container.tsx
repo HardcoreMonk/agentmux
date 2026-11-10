@@ -687,7 +687,12 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
       { updateTabPanelType, setSessionView: useTabStore.getState().setSessionView },
       { paneId, tabId: activeTabId, providerPanelType: agentViewProvider },
     );
-    if (!applied) setIsPanelTransitioning(false);
+    if (!applied) {
+      setIsPanelTransitioning(false);
+      return;
+    }
+    // Shown once per tab and provider: an accepted offer does not come back on a later TERMINAL view.
+    agentViewPromptRegistry.dismiss(activeTabId, agentViewProvider);
   }, [paneId, activeTabId, agentViewProvider, updateTabPanelType]);
 
   const handleDismissAgentView = useCallback(() => {
