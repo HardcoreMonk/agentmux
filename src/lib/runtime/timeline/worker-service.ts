@@ -182,6 +182,7 @@ export const createTimelineWorkerService = (options: ICreateTimelineWorkerServic
     const page = await listSessionPage(input.tmuxSession, input.cwd, panelType, {
       offset: input.offset,
       limit: input.limit,
+      providers: input.providers,
     });
     for (const session of page.sessions) {
       if (session.jsonlPath) observeCatalogFile(session.jsonlPath);

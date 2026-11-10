@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { hasSession } from '@/lib/tmux';
 import { listSessionPage } from '@/lib/session-list';
-import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType, normalizePanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType, normalizePanelType, parseAgentPanelTypeList } from '@/lib/panel-type';
 import { sendRuntimeApiError } from '@/lib/runtime/api-handler';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { shouldUseRuntimeTimelineV2Reads } from '@/lib/runtime/timeline-mode';
@@ -29,6 +29,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   const cwdHint = req.query.cwd as string | undefined;
   const panelType = parsePanelType(req.query.panelType);
+  const providers = parseAgentPanelTypeList(req.query.providers);
 
   if (!isAgentPanelType(panelType)) {
     const exists = await hasSession(tmuxSession);
@@ -45,6 +46,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         panelType,
         offset,
         limit,
+        ...(providers ? { providers } : {}),
       });
       return res.status(200).json(page);
     } catch (err) {
@@ -56,6 +58,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const page = await listSessionPage(tmuxSession, cwdHint, panelType, {
       offset,
       limit,
+      providers,
     });
     return res.status(200).json(page);
   } catch (err) {

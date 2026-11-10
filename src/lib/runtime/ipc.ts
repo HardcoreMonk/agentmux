@@ -73,6 +73,14 @@ const timelineEntrySchema = z.object({
   type: z.string(),
   timestamp: z.number(),
 }).passthrough();
+const timelineSessionRelationshipSchema = z.object({
+  providerId: z.string(),
+  sourceSessionId: z.string(),
+  parentSessionId: z.string().nullable(),
+  rootSessionId: z.string(),
+  relationshipType: z.enum(['root', 'fork', 'sub-agent', 'resume', 'unknown']),
+  relationshipConfidence: z.enum(['high', 'medium', 'low']),
+});
 const timelineSessionMetaSchema = z.object({
   sessionId: z.string(),
   startedAt: z.string(),
@@ -81,6 +89,8 @@ const timelineSessionMetaSchema = z.object({
   turnCount: z.number(),
   jsonlPath: z.string().optional(),
   cwd: z.string().nullable().optional(),
+  relationship: timelineSessionRelationshipSchema.optional(),
+  providerId: z.enum(AGENT_PANEL_TYPES).optional(),
 });
 const timelineSessionPageSchema = z.object({
   sessions: z.array(timelineSessionMetaSchema),
@@ -376,6 +386,7 @@ const timelineListSessionsPayloadSchema = z.object({
   panelType: z.string().min(1),
   offset: z.number().int().nonnegative(),
   limit: z.number().int().min(1).max(200),
+  providers: z.array(z.enum(AGENT_PANEL_TYPES)).optional(),
 }).strict();
 const timelineReadEntriesBeforePayloadSchema = z.object({
   jsonlPath: z.string().min(1),

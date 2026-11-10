@@ -223,37 +223,105 @@ describe('session-list', () => {
     expect(await findSessionRelationshipByJsonlPath(filePath)).toEqual(sessions[0].relationship);
   });
 
-  it('does not show Codex sessions in Claude tabs', async () => {
-    const dir = path.join(tempHome, '.codex', 'sessions', '2026', '11', '10');
+  const writeCodex = async (id: string, day: string, startedAt: string): Promise<void> => {
+    const dir = path.join(tempHome, '.codex', 'sessions', '2026', '11', day);
     await fs.mkdir(dir, { recursive: true });
+    const file = path.join(dir, `rollout-2026-11-${day}T01-00-00-${id}.jsonl`);
     await fs.writeFile(
-      path.join(dir, 'rollout-2026-11-10T01-00-00-019e0000-3a02-73a0-a79e-8703b99a2f30.jsonl'),
+      file,
       [
         jsonLine({
-          timestamp: '2026-11-10T01:00:01.000Z',
+          timestamp: startedAt,
           type: 'session_meta',
-          payload: {
-            id: '019e0000-3a02-73a0-a79e-8703b99a2f30',
-            timestamp: '2026-11-10T01:00:00.000Z',
-            cwd: '/work/project',
-          },
+          payload: { id, timestamp: startedAt, cwd: '/work/project' },
         }),
         jsonLine({
-          timestamp: '2026-11-10T01:00:02.000Z',
+          timestamp: startedAt,
           type: 'event_msg',
-          payload: { type: 'user_message', message: 'Codex only work' },
+          payload: { type: 'user_message', message: `Codex ${id}` },
         }),
       ].join('\n'),
     );
+    await fs.utimes(file, new Date(startedAt), new Date(startedAt));
+  };
 
-    const { listSessions, listSessionPage } = await import('@/lib/session-list');
-    await expect(listSessions('tmux-session', '/work/project', 'codex')).resolves.toHaveLength(1);
-    await expect(listSessions('tmux-session', '/work/project', 'claude')).resolves.toEqual([]);
-    await expect(listSessionPage('tmux-session', '/work/project', 'claude', { offset: 0, limit: 50 })).resolves.toEqual({
-      sessions: [],
-      total: 0,
-      hasMore: false,
-      refreshing: false,
+  const writeClaude = async (id: string, timestamp: string): Promise<void> => {
+    const { toClaudeProjectName } = await import('@/lib/providers/claude/session-detection');
+    const dir = path.join(tempHome, '.claude', 'projects', toClaudeProjectName('/work/project'));
+    await fs.mkdir(dir, { recursive: true });
+    const file = path.join(dir, `${id}.jsonl`);
+    await fs.writeFile(file, jsonLine({ type: 'user', timestamp, message: { content: 'Claude work' } }));
+    await fs.utimes(file, new Date(timestamp), new Date(timestamp));
+  };
+
+  const codexA = '019e0000-3a02-73a0-a79e-8703b99a2f30';
+  const codexB = '019e0001-3a02-73a0-a79e-8703b99a2f31';
+  const claudeId = '11111111-2222-4333-8444-aaaaaaaaaaaa';
+
+  const seedMixed = async (): Promise<void> => {
+    await writeCodex(codexA, '10', '2026-11-10T01:00:00.000Z');
+    await writeCodex(codexB, '12', '2026-11-12T01:00:00.000Z');
+    await writeClaude(claudeId, '2026-11-11T01:00:00.000Z');
+  };
+
+  it('marks Codex entries with their provider id', async () => {
+    await writeCodex(codexA, '10', '2026-11-10T01:00:00.000Z');
+    const { listSessions } = await import('@/lib/session-list');
+    const sessions = await listSessions('tmux-session', '/work/project', 'codex');
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].providerId).toBe('codex');
+  });
+
+  it('merges Codex and Claude sessions by activity time', async () => {
+    await seedMixed();
+    const { listSessionPage } = await import('@/lib/session-list');
+    const { getSessionIndexSnapshot } = await import('@/lib/session-index');
+    await getSessionIndexSnapshot({ waitForInitial: true });
+
+    const page = await listSessionPage('tmux-session', '/work/project', 'codex', { offset: 0, limit: 50 });
+
+    expect(page.total).toBe(3);
+    expect(page.sessions.map((session) => session.sessionId)).toEqual([codexB, claudeId, codexA]);
+    expect(page.sessions.map((session) => session.providerId)).toEqual(['codex', 'claude', 'codex']);
+  });
+
+  it('applies offset and limit to the merged list', async () => {
+    await seedMixed();
+    const { listSessionPage } = await import('@/lib/session-list');
+    const { getSessionIndexSnapshot } = await import('@/lib/session-index');
+    await getSessionIndexSnapshot({ waitForInitial: true });
+
+    const page = await listSessionPage('tmux-session', '/work/project', 'codex', { offset: 1, limit: 1 });
+
+    expect(page.sessions.map((session) => session.sessionId)).toEqual([claudeId]);
+    expect(page.total).toBe(3);
+    expect(page.hasMore).toBe(true);
+  });
+
+  it('lists only Claude sessions when providers is claude', async () => {
+    await seedMixed();
+    const { listSessionPage } = await import('@/lib/session-list');
+
+    const page = await listSessionPage('tmux-session', '/work/project', 'codex', {
+      offset: 0,
+      limit: 50,
+      providers: ['claude'],
     });
+
+    expect(page.sessions.map((session) => session.sessionId)).toEqual([claudeId]);
+    expect(page.total).toBe(1);
+  });
+
+  it('gives Claude tabs the same merged list as Codex tabs', async () => {
+    await seedMixed();
+    const { listSessionPage } = await import('@/lib/session-list');
+    const { getSessionIndexSnapshot } = await import('@/lib/session-index');
+    await getSessionIndexSnapshot({ waitForInitial: true });
+
+    const fromClaudeTab = await listSessionPage('tmux-session', '/work/project', 'claude', { offset: 0, limit: 50 });
+    const fromCodexTab = await listSessionPage('tmux-session', '/work/project', 'codex', { offset: 0, limit: 50 });
+
+    expect(fromClaudeTab).toEqual(fromCodexTab);
+    expect(fromClaudeTab.total).toBe(3);
   });
 });
