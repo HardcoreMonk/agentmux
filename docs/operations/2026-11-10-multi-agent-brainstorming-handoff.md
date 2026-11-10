@@ -225,19 +225,29 @@ skipped), `build` 모두 통과.
   grill-me Passed(`docs/superpowers/grill-me/2026-11-10-claude-code-provider.md`), design review Approved
   조건부(`docs/superpowers/reviews/2026-11-10-claude-code-provider-design-review.md`), 단계 1 plan-eng-review 반영,
   단계 1 implement 완료(branch `feat/claude-provider-phase1`). 전체 gate와 격리 Codex 회귀 확인을 마쳤다. 최종
-  code-review 대기. Main merge와 live 배포 전.
+  code-review는 "수정 후 merge"였고, 수정(`de0087ee`: 기존 Runtime v2 terminal 탭의 agent 보기 전환 차단, 새 agent
+  탭 cwd 기본값 복구, hook capability 고정 값 test, 등록되지 않은 종류의 resume 400)과 범위 재검토를 마쳤다. 최종
+  확인: test 1819 통과(3 skip), tsc, lint error 0, 문서 gate 통과. Push·PR·main merge와 live 배포 전.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-단계 1 branch의 최종 code-review를 하고 PR을 만들어 main CI 통과 뒤 merge한다. Live 배포는 사용자 확인 뒤에
+사용자 요청 시 단계 1 branch를 push하고 PR을 만들어 main CI 통과 뒤 merge한다. Live 배포는 사용자 확인 뒤에
 한다. 이어서 단계 2(Claude provider core) 계획을 단계 1 interface 기준으로 쓴다. 단계 3~4 계획도 앞 단계가 merge된
 뒤 쓴다.
 
 ## Follow-Up Tasks
 
-- 설계 1 단계 1: 최종 code-review, PR, main merge, 사용자 확인 뒤 live 배포.
+- 설계 1 단계 1: push, PR, main merge, 사용자 확인 뒤 live 배포.
+- 단계 2 계획에 넣을 것(단계 1 최종 검토에서 넘김):
+  - `'claude'`를 더하기 전, storage v2 layout 읽기 경로와 IPC reply 검증(`z.enum(PANEL_TYPES)`)이 모르는 panelType
+    때문에 layout 전체를 거절하지 않도록 읽는 쪽 정규화 또는 rollback 절차.
+  - Status side-effect IPC로 보내는 지점에 2-key `statusBehavior`만 고르는 helper(4-key 객체가 strict schema에서
+    runtime 실패하는 함정 방지).
+  - Diff 탭의 send-to-agent 대상: 지금은 항상 기본 agent(Codex)다. 탭의 마지막 agent 종류를 정할 출처가 필요하다.
+  - 정리: `JSONL_EXTENDED_TAIL_SIZE` 중복(`status/jsonl-check.ts`, `status-manager.ts`), `exitCommand` fallback
+    중복(`resolveAgentProviderMeta` helper).
 - Smoke script 결함: `smoke-runtime-v2-isolated.mjs`의 `.codexmux/cli-token` 경로(이름 변경 뒤 `.agentmux`), 실패
   시 남는 dev server, `smoke-runtime-v2-phase2-gate.mjs`의 재시작 race(`stop()`이 wrapper 종료만 기다림), 두
   script 모두 `TMUX_TMPDIR`를 격리하지 않는 점.
@@ -246,5 +256,4 @@ skipped), `build` 모두 통과.
 - 이번 격리 실행에서 `--sandbox read-only`인 Codex의 shell 쓰기가 막히지 않았다. Codex 쪽 동작 확인 필요.
 - Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
 - 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
-- 이번 문서 변경 commit(사용자 요청 시).
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.
