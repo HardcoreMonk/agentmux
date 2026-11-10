@@ -1,5 +1,5 @@
 import type { TCliState, TToolName } from '@/types/timeline';
-import type { TPanelType } from '@/types/terminal';
+import type { TAgentPanelType, TPanelType } from '@/types/terminal';
 import type { ISessionHistoryEntry } from '@/types/session-history';
 import type { IApprovalPromptMetadata } from '@/lib/permission-prompt';
 
@@ -91,8 +91,11 @@ export interface IRateLimitsData {
   seven_day: IRateLimitWindow | null;
 }
 
+export type TRateLimitsByProvider = Partial<Record<TAgentPanelType, IRateLimitsData>>;
+
 export interface IRateLimitsUpdateMessage {
   type: 'rate-limits:update';
+  providerId: TAgentPanelType;
   data: IRateLimitsData;
 }
 

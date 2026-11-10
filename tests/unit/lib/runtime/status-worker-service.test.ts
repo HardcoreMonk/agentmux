@@ -31,9 +31,11 @@ const sessionHistoryEntry: ISessionHistoryEntry = {
 
 const createLiveManager = (tabs = {}) => {
   const rateLimits = {
-    ts: 10,
-    five_hour: null,
-    seven_day: { used_percentage: 5, resets_at: 20, observed_at: 10 },
+    codex: {
+      ts: 10,
+      five_hour: null,
+      seven_day: { used_percentage: 5, resets_at: 20, observed_at: 10 },
+    },
   };
   const manager = {
     init: vi.fn(async () => undefined),
@@ -89,9 +91,11 @@ describe('status worker service', () => {
           },
         },
         rateLimits: {
-          ts: 10,
-          five_hour: null,
-          seven_day: { used_percentage: 5, resets_at: 20, observed_at: 10 },
+          codex: {
+            ts: 10,
+            five_hour: null,
+            seven_day: { used_percentage: 5, resets_at: 20, observed_at: 10 },
+          },
         },
       },
     });
@@ -206,9 +210,11 @@ describe('status worker service', () => {
       payload: {
         tabs: {},
         rateLimits: {
-          ts: 10,
-          five_hour: null,
-          seven_day: { used_percentage: 5, resets_at: 20, observed_at: 10 },
+          codex: {
+            ts: 10,
+            five_hour: null,
+            seven_day: { used_percentage: 5, resets_at: 20, observed_at: 10 },
+          },
         },
       },
     });
@@ -408,5 +414,29 @@ describe('status worker service', () => {
       failed: 0,
     });
     expect(send).toHaveBeenCalledWith({ anyDeviceVisible: false, payload });
+  });
+
+  it('relays the providerId of rate-limits broadcasts', async () => {
+    const events: IRuntimeEvent[] = [];
+    const broadcastRef: { current: ((event: object) => void) | null } = { current: null };
+    const service = createStatusWorkerService({
+      emitEvent: (event) => {
+        events.push(event);
+      },
+      createLiveManager: (handler) => {
+        broadcastRef.current = handler;
+        return createLiveManager();
+      },
+    });
+
+    await service.handleCommand(command('status.live-start'));
+    const data = { ts: 5, five_hour: null, seven_day: { used_percentage: 1, resets_at: 9 } };
+    broadcastRef.current?.({ type: 'rate-limits:update', providerId: 'claude', data });
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'status.rate-limits-update',
+      payload: { providerId: 'claude', data },
+    });
   });
 });

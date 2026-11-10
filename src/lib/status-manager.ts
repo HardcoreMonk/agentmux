@@ -13,7 +13,8 @@ import { mergeRateLimitsData, rateLimitsEqual } from '@/lib/codex-rate-limits';
 import { createLogger } from '@/lib/logger';
 import type { IPaneInfo } from '@/lib/tmux';
 import type { TCliState } from '@/types/timeline';
-import type { TTerminalStatus, ITabStatusEntry, IClientTabStatusEntry, IRateLimitsData } from '@/types/status';
+import type { TTerminalStatus, ITabStatusEntry, IClientTabStatusEntry, IRateLimitsData, TRateLimitsByProvider } from '@/types/status';
+import type { TAgentPanelType } from '@/types/terminal';
 import {
   addSessionHistoryEntry as addLegacySessionHistoryEntry,
   updateSessionHistoryDismissedAt as updateLegacySessionHistoryDismissedAt,
@@ -216,7 +217,7 @@ export class StatusManager {
   private clients = new Set<WebSocket>();
   private initialized = false;
   private rateLimitsWatcher: ReturnType<typeof createRateLimitsWatcher> | null = null;
-  private lastRateLimits: IRateLimitsData | null = null;
+  private lastRateLimits: TRateLimitsByProvider = {};
   private compactStaleTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private reviewNotificationDedupe = createDedupeKeyStore();
   private sessionHistoryDedupe = createDedupeKeyStore();
@@ -276,17 +277,19 @@ export class StatusManager {
 
     if (this.options.enableRateLimits !== false) {
       this.rateLimitsWatcher = createRateLimitsWatcher((data) => {
-        this.publishRateLimits(data);
+        // RATE_LIMITS_FILE is written only by the Claude statusLine.
+        this.publishRateLimits('claude', data);
       });
       this.rateLimitsWatcher.start();
     }
   }
 
-  private publishRateLimits(data: IRateLimitsData): void {
-    const merged = mergeRateLimitsData(this.lastRateLimits, data);
-    if (rateLimitsEqual(this.lastRateLimits, merged)) return;
-    this.lastRateLimits = merged;
-    this.broadcast({ type: 'rate-limits:update', data: merged });
+  private publishRateLimits(providerId: TAgentPanelType, data: IRateLimitsData): void {
+    const previous = this.lastRateLimits[providerId] ?? null;
+    const merged = mergeRateLimitsData(previous, data);
+    if (rateLimitsEqual(previous, merged)) return;
+    this.lastRateLimits = { ...this.lastRateLimits, [providerId]: merged };
+    this.broadcast({ type: 'rate-limits:update', providerId, data: merged });
   }
 
   private async scanAll(): Promise<void> {
@@ -354,7 +357,7 @@ export class StatusManager {
         const { idle, stale, lastAssistantSnippet } = await checkProviderJsonlIdle(
           provider,
           entry.jsonlPath,
-          (data) => this.publishRateLimits(data),
+          (data) => this.publishRateLimits('codex', data),
         );
         jsonl = { idle, stale, lastAssistantSnippet };
       }
@@ -409,7 +412,7 @@ export class StatusManager {
     const result = await checkProviderJsonlIdle(
       provider,
       jsonlPath,
-      (data) => this.publishRateLimits(data),
+      (data) => this.publishRateLimits('codex', data),
     );
     return { ...result, jsonlPath, running: true, sessionId };
   }
@@ -638,7 +641,7 @@ export class StatusManager {
     return result;
   }
 
-  getRateLimitsForClient(): IRateLimitsData | null {
+  getRateLimitsForClient(): TRateLimitsByProvider {
     return this.lastRateLimits;
   }
 
@@ -1101,7 +1104,7 @@ export class StatusManager {
 
     const provider = getProviderByPanelType(entry.panelType);
     const check = provider
-      ? await checkProviderJsonlIdle(provider, jsonlPath, (data) => this.publishRateLimits(data))
+      ? await checkProviderJsonlIdle(provider, jsonlPath, (data) => this.publishRateLimits('codex', data))
       : await checkJsonlIdle(jsonlPath);
     const { next, changed } = mergeStatusMetadata(entry, {
       currentAction: check.currentAction,
@@ -1181,8 +1184,10 @@ export class StatusManager {
 
   addClient(ws: WebSocket): void {
     this.clients.add(ws);
-    if (this.lastRateLimits && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'rate-limits:update', data: this.lastRateLimits }));
+    if (ws.readyState === WebSocket.OPEN) {
+      for (const [providerId, data] of Object.entries(this.lastRateLimits)) {
+        ws.send(JSON.stringify({ type: 'rate-limits:update', providerId, data }));
+      }
     }
   }
 
@@ -1288,7 +1293,7 @@ export class StatusManager {
       const metadata = await checkProviderJsonlIdle(
         provider,
         jsonlPath,
-        (data) => this.publishRateLimits(data),
+        (data) => this.publishRateLimits('codex', data),
       );
       this.mergeJsonlMetadata(entry, metadata);
       this.reconcileCodexState(tabId, entry, { ...metadata, jsonlPath, running: true });
@@ -1321,7 +1326,7 @@ export class StatusManager {
     }
 
     const check = provider
-      ? await checkProviderJsonlIdle(provider, jsonlPath, (data) => this.publishRateLimits(data))
+      ? await checkProviderJsonlIdle(provider, jsonlPath, (data) => this.publishRateLimits('codex', data))
       : await checkJsonlIdle(jsonlPath);
     const { interrupted, lastEntryTs } = check;
 

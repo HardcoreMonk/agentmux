@@ -122,7 +122,7 @@ const useAgentStatus = () => {
               break;
 
             case 'rate-limits:update':
-              useRateLimitsStore.getState().setData(msg.data);
+              useRateLimitsStore.getState().setProviderData(msg.providerId, msg.data);
               break;
 
             case 'session-history:sync':
