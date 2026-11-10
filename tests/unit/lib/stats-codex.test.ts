@@ -181,6 +181,7 @@ describe('Codex stats parsing', () => {
     expect(sessions).toEqual([
       {
         sessionId,
+        provider: 'codex',
         project: '/work/project-a',
         startedAt: '2026-04-27T01:00:10.000Z',
         lastActivityAt: '2026-04-27T01:05:10.000Z',

@@ -2,6 +2,7 @@ import { createReadStream } from 'fs';
 import readline from 'readline';
 import dayjs from 'dayjs';
 import type { IHistoryResponse, TPeriod } from '@/types/stats';
+import { extractClaudeUserPromptText } from '@/lib/providers/claude/user-prompt';
 import { dateStringsForPeriod, isWithinPeriod } from './period-filter';
 import {
   collectAgentJsonlFiles,
@@ -58,7 +59,9 @@ const parseHistoryFile = async (
         const timestamp = String(entry.timestamp ?? '');
         if (!timestamp || !isWithinPeriod(timestamp, period)) continue;
 
-        const display = extractCodexUserText(entry);
+        const display = file.source === 'claude'
+          ? extractClaudeUserPromptText(entry) ?? ''
+          : extractCodexUserText(entry);
 
         if (
           !display.trim()
@@ -111,7 +114,7 @@ export const parseHistory = async (period: TPeriod, limit: number = 10): Promise
 
   const targetDates = dateStringsForPeriod(period);
   const collectedFiles = await collectAgentJsonlFiles();
-  const files = targetDates ? filterAgentJsonlFilesByDates(collectedFiles, targetDates) : collectedFiles;
+  const files = targetDates ? await filterAgentJsonlFilesByDates(collectedFiles, targetDates) : collectedFiles;
   const entriesByFile = await runWithConcurrency(
     files.map((file) => () => parseHistoryFile(file, period)),
     10,

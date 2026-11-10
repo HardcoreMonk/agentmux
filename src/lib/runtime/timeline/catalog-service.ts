@@ -17,7 +17,7 @@ import type {
 } from '@/lib/runtime/contracts';
 import type { TSessionCatalogMode } from '@/lib/runtime/session-catalog-mode';
 import { getProviderByPanelType, type IAgentProvider } from '@/lib/providers';
-import { isValidClaudeSessionId } from '@/lib/claude-command';
+import { isClaudeTranscriptPath } from '@/lib/providers/claude/transcript-path';
 import { getClaudeProjectsDir } from '@/lib/path-validation';
 import type { TAgentPanelType } from '@/types/terminal';
 
@@ -40,12 +40,6 @@ const defaultRoots = (): ICatalogRoot[] => [
   { root: path.join(defaultHomeDir(), '.codex', 'sessions'), provider: 'codex' },
   { root: getClaudeProjectsDir(defaultHomeDir()), provider: 'claude' },
 ];
-
-// Claude layout: <root>/<project-dir>/<uuid>.jsonl. Subagent transcripts live deeper and are excluded.
-const isClaudeTranscriptPath = (root: string, candidate: string): boolean => {
-  const segments = path.relative(root, candidate).split(path.sep);
-  return segments.length === 2 && isValidClaudeSessionId(path.basename(segments[1], '.jsonl'));
-};
 
 const isMissingError = (error: unknown): boolean => (error as NodeJS.ErrnoException).code === 'ENOENT';
 

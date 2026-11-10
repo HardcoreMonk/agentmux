@@ -7,7 +7,7 @@ import type {
   TPeriod,
 } from '@/types/stats';
 import { isDateStringWithinPeriod } from './period-filter';
-import { calculateCostByFullId } from '@/lib/model-tokens';
+import { calculateCost, hasModelPricing } from '@/lib/model-tokens';
 
 const estimateCostFromUsage = (
   model: string,
@@ -16,7 +16,7 @@ const estimateCostFromUsage = (
   cacheRead: number,
   cacheCreation5m: number,
   cacheCreation1h: number,
-): number => calculateCostByFullId(model, input, output, cacheCreation5m, cacheCreation1h, cacheRead);
+): number | null => calculateCost(model, input, output, cacheCreation5m, cacheCreation1h, cacheRead);
 
 const EMPTY_CACHE: IStatsCache = {
   version: 0,
@@ -60,7 +60,7 @@ export const buildOverview = (cache: IStatsCache, period: TPeriod): IOverviewRes
   const previousSessions = previousDaily.reduce((sum, d) => sum + d.sessionCount, 0);
   const previousMessages = previousDaily.reduce((sum, d) => sum + d.messageCount, 0);
 
-  const modelTokens: Record<string, { input: number; output: number; cacheRead: number; cacheCreation: number; cacheCreation5m: number; cacheCreation1h: number; cost: number }> = {};
+  const modelTokens: IOverviewResponse['modelTokens'] = {};
   if (period === 'all') {
     for (const [model, usage] of Object.entries(cache.modelUsage)) {
       modelTokens[model] = {
@@ -84,7 +84,15 @@ export const buildOverview = (cache: IStatsCache, period: TPeriod): IOverviewRes
     for (const day of filteredTokens) {
       for (const [model, breakdown] of Object.entries(day.tokensByModel)) {
         if (!modelTokens[model]) {
-          modelTokens[model] = { input: 0, output: 0, cacheRead: 0, cacheCreation: 0, cacheCreation5m: 0, cacheCreation1h: 0, cost: 0 };
+          modelTokens[model] = {
+            input: 0,
+            output: 0,
+            cacheRead: 0,
+            cacheCreation: 0,
+            cacheCreation5m: 0,
+            cacheCreation1h: 0,
+            cost: hasModelPricing(model) ? 0 : null,
+          };
         }
         modelTokens[model].input += breakdown.input;
         modelTokens[model].output += breakdown.output;
@@ -110,7 +118,7 @@ export const buildOverview = (cache: IStatsCache, period: TPeriod): IOverviewRes
           usage.cacheCreation5mInputTokens,
           usage.cacheCreation1hInputTokens,
         );
-        tokens.cost = allTimeCost * (periodTotal / allTimeTotal);
+        tokens.cost = allTimeCost === null ? null : allTimeCost * (periodTotal / allTimeTotal);
       }
     }
   }
@@ -133,7 +141,7 @@ export const buildOverview = (cache: IStatsCache, period: TPeriod): IOverviewRes
     .filter((d) => d.date >= startOfMonth)
     .reduce((sum, d) => sum + d.messageCount, 0);
 
-  const totalCost = Object.values(modelTokens).reduce((sum, m) => sum + m.cost, 0);
+  const totalCost = Object.values(modelTokens).reduce((sum, m) => sum + (m.cost ?? 0), 0);
 
   const estimateCostForDates = (dates: IStatsCacheDailyTokens[]): number => {
     let cost = 0;
@@ -151,7 +159,7 @@ export const buildOverview = (cache: IStatsCache, period: TPeriod): IOverviewRes
             usage.cacheCreation5mInputTokens,
             usage.cacheCreation1hInputTokens,
           );
-          cost += allTimeCost * (dayTotal / allTimeTotal);
+          cost += (allTimeCost ?? 0) * (dayTotal / allTimeTotal);
         }
       }
     }

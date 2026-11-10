@@ -2,6 +2,7 @@ import { createReadStream } from 'fs';
 import readline from 'readline';
 import type { IProjectStats, ISessionStats, TPeriod } from '@/types/stats';
 import { getPerfNow, recordPerfCounter, recordPerfDuration } from '@/lib/perf-metrics';
+import { isClaudeUserPrompt } from '@/lib/providers/claude/user-prompt';
 import { isWithinPeriod } from './period-filter';
 import { shortenCwd } from './daily-report-builder';
 import {
@@ -9,7 +10,9 @@ import {
   extractSessionIdFromAgentJsonlPath,
   filterAgentJsonlFilesByDates,
   type IAgentJsonlFile,
+  type TAgentJsonlSource,
 } from './agent-jsonl-files';
+import { createClaudeUsageSeen, isCountableClaudeModel, takeClaudeAssistantUsage, type TClaudeUsageSeen } from './claude-usage';
 import { dateStringsForPeriod } from './period-filter';
 
 const CONCURRENCY_LIMIT = 10;
@@ -20,6 +23,7 @@ const sessionStatsInflight = new Map<TPeriod, Promise<ISessionStats[]>>();
 
 interface IRawSessionAgg {
   sessionId: string;
+  provider: TAgentJsonlSource;
   project: string;
   startedAt: string;
   lastActivityAt: string;
@@ -48,12 +52,16 @@ const parseCodexUsage = (raw: unknown): ICodexTokenUsage | null => {
 const parseJsonlStream = async (
   file: IAgentJsonlFile,
   period: TPeriod,
+  seenClaudeUsage: TClaudeUsageSeen,
 ): Promise<IRawSessionAgg[]> => {
   const sessions = new Map<string, IRawSessionAgg>();
   const filePath = file.filePath;
   let project = file.project || (file.source === 'codex' ? 'Codex' : '');
   let cwd = '';
   let codexSessionId = file.source === 'codex'
+    ? extractSessionIdFromAgentJsonlPath(filePath) ?? ''
+    : '';
+  const claudeSessionId = file.source === 'claude'
     ? extractSessionIdFromAgentJsonlPath(filePath) ?? ''
     : '';
   let codexModel = 'codex';
@@ -65,6 +73,7 @@ const parseJsonlStream = async (
     if (!agg) {
       agg = {
         sessionId,
+        provider: file.source,
         project,
         startedAt: timestamp,
         lastActivityAt: timestamp,
@@ -107,6 +116,10 @@ const parseJsonlStream = async (
             }
           }
           continue;
+        }
+
+        if (file.source === 'claude' && !cwd && typeof entry.cwd === 'string') {
+          cwd = entry.cwd;
         }
 
         if (!timestamp || !isWithinPeriod(timestamp, period)) continue;
@@ -177,33 +190,24 @@ const parseJsonlStream = async (
           continue;
         }
 
-        if (!cwd && typeof entry.cwd === 'string') {
-          cwd = entry.cwd;
-        }
-
-        const sessionId = String(entry.sessionId ?? '');
-        if (!sessionId) continue;
-
         if (type !== 'user' && type !== 'assistant') continue;
 
-        const agg = ensureSession(sessionId, timestamp);
+        const agg = ensureSession(claudeSessionId, timestamp);
         if (!agg) continue;
 
-        if (type === 'user') {
+        if (isClaudeUserPrompt(entry)) {
           agg.messageCount++;
         }
 
         if (type === 'assistant') {
-          const message = entry.message as Record<string, unknown> | undefined;
-          if (message) {
-            const model = String(message.model ?? '');
-            if (model) agg.model = model;
+          const message = isRecord(entry.message) ? entry.message : null;
+          const model = String(message?.model ?? '');
+          if (isCountableClaudeModel(model)) agg.model = model;
 
-            const usage = message.usage as Record<string, unknown> | undefined;
-            if (usage) {
-              agg.totalInputTokens += Number(usage.input_tokens ?? 0);
-              agg.totalOutputTokens += Number(usage.output_tokens ?? 0);
-            }
+          const usage = takeClaudeAssistantUsage(entry, seenClaudeUsage);
+          if (usage) {
+            agg.totalInputTokens += usage.input + usage.cacheRead + usage.cacheCreation;
+            agg.totalOutputTokens += usage.output;
           }
         }
       } catch {
@@ -252,6 +256,9 @@ const parseJsonlTimestampsByDay = async (
   let codexSessionId = file.source === 'codex'
     ? extractSessionIdFromAgentJsonlPath(filePath) ?? ''
     : '';
+  const claudeSessionId = file.source === 'claude'
+    ? extractSessionIdFromAgentJsonlPath(filePath) ?? ''
+    : '';
 
   try {
     const stream = createReadStream(filePath, { encoding: 'utf-8' });
@@ -276,8 +283,11 @@ const parseJsonlTimestampsByDay = async (
         const date = timestamp.slice(0, 10);
         if (!targetDates.has(date)) continue;
 
-        let sessionId = String(entry.sessionId ?? '');
-        if (file.source === 'codex') {
+        let sessionId = '';
+        if (file.source === 'claude') {
+          if (type !== 'user' && type !== 'assistant') continue;
+          sessionId = claudeSessionId;
+        } else {
           const payload = isRecord(entry.payload) ? entry.payload : null;
           if (!payload) continue;
 
@@ -327,7 +337,7 @@ const parseJsonlTimestampsByDay = async (
 export const parseTimestampsByDay = async (
   targetDates: Set<string>,
 ): Promise<Map<string, Map<string, number[]>>> => {
-  const files = filterAgentJsonlFilesByDates(await collectAgentJsonlFiles(), targetDates);
+  const files = await filterAgentJsonlFilesByDates(await collectAgentJsonlFiles(), targetDates);
   if (files.length === 0) return new Map();
 
   const tasks = files.map((f) => () => parseJsonlTimestampsByDay(f, targetDates));
@@ -358,10 +368,11 @@ export const parseTimestampsByDay = async (
 const parseSessionStatsForPeriod = async (period: TPeriod): Promise<ISessionStats[]> => {
   const targetDates = dateStringsForPeriod(period);
   const collectedFiles = await collectAgentJsonlFiles();
-  const files = targetDates ? filterAgentJsonlFilesByDates(collectedFiles, targetDates) : collectedFiles;
+  const files = targetDates ? await filterAgentJsonlFilesByDates(collectedFiles, targetDates) : collectedFiles;
   if (files.length === 0) return [];
 
-  const tasks = files.map((f) => () => parseJsonlStream(f, period));
+  const seenClaudeUsage = createClaudeUsageSeen();
+  const tasks = files.map((f) => () => parseJsonlStream(f, period, seenClaudeUsage));
   const allResults = await runWithConcurrency(tasks, CONCURRENCY_LIMIT);
   const sessions: ISessionStats[] = [];
 
@@ -369,6 +380,7 @@ const parseSessionStatsForPeriod = async (period: TPeriod): Promise<ISessionStat
     for (const s of fileResults) {
       sessions.push({
         sessionId: s.sessionId,
+        provider: s.provider,
         project: s.project,
         startedAt: s.startedAt,
         lastActivityAt: s.lastActivityAt,

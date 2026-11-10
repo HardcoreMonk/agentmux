@@ -1,5 +1,5 @@
 // USD per 1M tokens. Keep this table deliberately small and OpenAI-only;
-// unknown models return no estimate instead of falling back to unrelated rates.
+// unknown models (Claude included) return no estimate instead of falling back to unrelated rates.
 interface IModelPricing {
   input: number;
   cachedInput: number | null;
@@ -57,7 +57,28 @@ export const normalizeModelName = (modelId: string): string => {
   return extractModelKey(modelId) ?? modelId;
 };
 
+export const hasModelPricing = (modelId: string): boolean => extractModelKey(modelId) !== null;
+
+// claude-opus-4-5-20251101 -> Claude Opus 4.5, claude-3-5-sonnet-20241022 -> Claude 3.5 Sonnet
+const formatClaudeModelName = (modelId: string): string | null => {
+  const cleaned = stripVersionSuffix(modelId.trim().toLowerCase());
+  if (!cleaned.startsWith('claude-')) return null;
+
+  const words: string[] = [];
+  for (const part of cleaned.slice('claude-'.length).split('-').filter(Boolean)) {
+    const previous = words[words.length - 1];
+    if (/^\d+$/.test(part) && previous && /^\d+(\.\d+)*$/.test(previous)) {
+      words[words.length - 1] = `${previous}.${part}`;
+    } else {
+      words.push(/^\d/.test(part) ? part : part.charAt(0).toUpperCase() + part.slice(1));
+    }
+  }
+  return ['Claude', ...words].join(' ');
+};
+
 export const formatModelDisplayName = (modelId: string): string => {
+  const claudeName = formatClaudeModelName(modelId);
+  if (claudeName) return claudeName;
   const key = extractModelKey(modelId) ?? modelId;
   return key
     .replace(/^gpt/, 'GPT')

@@ -37,6 +37,7 @@ const getModelColor = (model: string): string => {
   const key = normalizeModelName(model);
   if (MODEL_COLOR_MAP[key]) return MODEL_COLOR_MAP[key];
   const lower = model.toLowerCase();
+  if (lower.startsWith('claude')) return 'var(--ui-green)';
   if (lower.includes('mini')) return 'var(--ui-coral)';
   if (lower.includes('nano')) return 'var(--ui-teal)';
   if (lower.includes('codex')) return 'var(--ui-blue)';
@@ -87,7 +88,7 @@ const TokenSection = ({ data }: ITokenSectionProps) => {
   }, [data.modelTokens]);
 
   const totalCost = useMemo(() => {
-    return modelBarData.reduce((sum, d) => sum + d.cost, 0);
+    return modelBarData.reduce((sum, d) => sum + (d.cost ?? 0), 0);
   }, [modelBarData]);
 
   return (
@@ -131,7 +132,11 @@ const TokenSection = ({ data }: ITokenSectionProps) => {
                         <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: d.fill }} />
                         <span>{d.model}</span>
                       </div>
-                      <span className="tabular-nums font-medium">{formatCostWithComma(d.cost)}</span>
+                      {d.cost === null ? (
+                        <span className="tabular-nums font-medium" title={t('costUnavailable')} aria-label={t('costUnavailable')}>—</span>
+                      ) : (
+                        <span className="tabular-nums font-medium">{formatCostWithComma(d.cost)}</span>
+                      )}
                     </div>
                     <div className="flex gap-2 pl-4 text-[10px] text-muted-foreground/60">
                       <span>I {formatNumber(d.input)} ({pct(d.input, d.total)})</span>
