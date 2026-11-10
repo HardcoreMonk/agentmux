@@ -177,6 +177,11 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
   Esc 두 번), 세션 종료 시 timeline을 남기는지.
 - Runtime v2 IPC schema(`runtime/ipc.ts`)의 panelType union, supervisor annotation 검증, storage legacy
   import는 agent 종류 집합을 따른다. `status.reduce-codex-state`는 Codex 전용 명령으로 남긴다.
+- **탭 단위 terminal 작업의 runtime 구분**: 화면 캡처(`capturePaneAtWidth`, `/api/tmux/permission-options`,
+  plan·질문 선택지), 원시 key 입력(`/api/tmux/send-input`), session 존재 확인은 지금 옛 tmux socket만 쓴다.
+  Runtime v2 탭(live의 새 terminal 탭과 새 Codex 탭)에서는 권한 요청 카드가 "Session not found"로 동작하지
+  않는다(2026-11-10 grill에서 확인한 기존 결함). Runtime v2 terminal worker에 화면 캡처 명령을 더하고, 위
+  작업들과 아래 위임 CLI가 탭의 `runtimeVersion`에 맞는 경로를 쓰게 한다. 단계 1에 포함한다.
 
 ### 2. Claude Code provider (A)
 
@@ -358,7 +363,8 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
 각 단계는 별도 PR이고 main CI 통과 뒤 merge한다. Live 배포는 단계 4 뒤 한 번 하거나 단계별로 할 수 있다
 (builder 재량, 배포마다 사용자 확인).
 
-1. **Provider 계약 확장**: 위 1절. 동작 변화 없음. 기존 test 전부 통과 + Codex 회귀 test.
+1. **Provider 계약 확장**: 위 1절. Codex 동작 변화 없음. 예외는 Runtime v2 탭의 화면 캡처·원시 key 입력
+   결함 수정이다. 기존 test 전부 통과 + Codex 회귀 test.
 2. **Claude provider core**: 실행, hook, 상태, timeline, statusLine, rate limit, 권한 요청·trust, preflight.
    서버 쪽과 최소 화면(새 탭 메뉴, 보기 전환)까지.
 3. **공통 agent 화면**: 나머지 B 항목(전환 잠금, 보기 제안, 시작 진행, 통합 목록, Session Explorer, 통계,
@@ -399,7 +405,8 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
    사용자 명령의 출력을 보여 준다. 사용자 hook도 실행된다.
 5. Timeline: Claude JSONL fixture(tool 호출, 하위 agent, plan, 질문, 중단, 알 수 없는 항목)가 오류 없이 그려진다.
    Fixture는 합성 데이터만 쓴다.
-6. 권한 요청과 trust 확인에 웹 응답이 동작한다(capture fixture unit test + live smoke).
+6. 권한 요청과 trust 확인에 웹 응답이 동작한다(capture fixture unit test + live smoke). Runtime v1 탭과 v2 탭
+   모두에서 권한 요청 선택지를 읽고 응답한다. 기존 Codex v2 탭도 해당한다.
 7. 통합 세션 목록에서 Claude와 Codex 세션을 고르면 각각 맞는 agent로 재개된다.
 8. Session Explorer migration: 기존 DB에서 시작해 rebuild 뒤 Codex 세션 수가 같고 Claude 세션이 더해진다.
 9. 하나만 설치된 호스트(격리 PATH)에서 앱이 열리고 없는 agent는 설치 안내를 보인다.
