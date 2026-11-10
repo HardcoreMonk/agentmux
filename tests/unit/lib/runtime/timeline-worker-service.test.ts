@@ -261,6 +261,54 @@ describe('timeline worker service', () => {
     service.close();
   });
 
+  it('keeps live appends flowing when the catalog rejects an observed file', async () => {
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => rejections.push(reason);
+    process.on('unhandledRejection', onRejection);
+    const events: IRuntimeEvent[] = [];
+    let observeCalls = 0;
+    const catalog = {
+      health: vi.fn(),
+      search: vi.fn(),
+      readEntries: vi.fn(),
+      rebuild: vi.fn(),
+      close: vi.fn(),
+      // Plain function on purpose: vi.fn attaches settle handlers to returned
+      // promises, which would mark the rejection as handled and hide the bug.
+      observeFile: async () => {
+        observeCalls++;
+        throw Object.assign(new Error('Session Catalog path is outside the Codex sessions root.'), {
+          code: 'catalog-path-forbidden',
+        });
+      },
+    };
+    const service = createTimelineWorkerService({ sendEvent: (event) => events.push(event), catalog });
+    try {
+      const reply = await service.handleCommand(command('timeline.live-subscribe', {
+        subscriberId: 'tlsub-reject',
+        jsonlPath,
+        sessionName: 'pt-ws-a-pane-b-tab-c',
+        sessionId: 'session-a',
+        panelType: 'codex',
+      }));
+      expect(reply.ok).toBe(true);
+
+      await fs.appendFile(jsonlPath, `\n${line({
+        type: 'event_msg',
+        timestamp: '2026-05-03T01:00:03.000Z',
+        payload: { type: 'user_message', message: 'Second prompt' },
+      })}\n`, 'utf-8');
+
+      await waitFor(() => events.find((event) => event.type === 'timeline.live-append'));
+      await waitFor(() => observeCalls > 0);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(rejections).toEqual([]);
+    } finally {
+      service.close();
+      process.off('unhandledRejection', onRejection);
+    }
+  });
+
   it('subscribes to session watchers and emits subscriber-scoped change events', async () => {
     const events: IRuntimeEvent[] = [];
     const stop = vi.fn();
