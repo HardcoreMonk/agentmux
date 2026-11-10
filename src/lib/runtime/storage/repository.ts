@@ -16,6 +16,7 @@ import type {
   TRuntimeSessionAnnotationSelection,
 } from '@/lib/runtime/contracts';
 import { createRuntimeId } from '@/lib/runtime/session-name';
+import { normalizePanelType } from '@/lib/panel-type';
 import type { TRuntimeDatabase } from '@/lib/runtime/storage/schema';
 import type { IHistoryEntry } from '@/types/message-history';
 import {
@@ -653,7 +654,7 @@ export const createStorageRepository = (db: TRuntimeDatabase) => {
           runtimeVersion: row.runtimeVersion,
           ...(row.title ? { title: row.title } : {}),
           ...(row.cwd ? { cwd: row.cwd } : {}),
-          ...(row.panelType ? { panelType: row.panelType as ITab['panelType'] } : {}),
+          ...(normalizePanelType(row.panelType) ? { panelType: normalizePanelType(row.panelType) } : {}),
           ...(row.webUrl ? { webUrl: row.webUrl } : {}),
           ...(row.lastCommand ? { lastCommand: row.lastCommand } : {}),
           ...(row.terminalRatio !== null ? { terminalRatio: row.terminalRatio } : {}),

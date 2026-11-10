@@ -51,9 +51,35 @@ describe('runtime ipc', () => {
       expect(() => parseRuntimeReplyPayload('storage.get-layout', layoutReply(panelType))).not.toThrow();
     });
 
-    it('rejects an unknown panelType in status and layout tab payloads', () => {
-      expect(() => parseRuntimeEventPayload('status.sync', statusPayload('not-a-panel'))).toThrow(/Invalid runtime IPC/);
-      expect(() => parseRuntimeReplyPayload('storage.get-layout', layoutReply('not-a-panel'))).toThrow(/Invalid runtime IPC/);
+    it('turns an unknown panelType into undefined in status and layout tab payloads', () => {
+      const status = parseRuntimeEventPayload('status.sync', statusPayload('future-agent'));
+      expect(status.tabs['tab-a'].panelType).toBeUndefined();
+
+      const layout = parseRuntimeReplyPayload('storage.get-layout', layoutReply('future-agent'));
+      const root = layout?.root as { tabs: Array<{ panelType?: string }> };
+      expect(root.tabs[0].panelType).toBeUndefined();
+    });
+
+    it('drops unknown agent provider status behavior keys instead of rejecting the payload', () => {
+      const parsed = parseRuntimeCommandPayload('status.evaluate-side-effects', {
+        previousState: 'busy',
+        newState: 'ready-for-review',
+        hasJsonlPath: true,
+        providerId: 'codex',
+        hasJsonlWatcher: true,
+        sessionHistoryDedupeAccepted: true,
+        reviewNotificationDedupeAccepted: true,
+        statusBehavior: {
+          watchJsonlWhenBound: true,
+          deferStopHookUntilJsonlIdle: false,
+          reconcileStateFromJsonl: true,
+          recoverPaneInput: true,
+        },
+      });
+      expect(parsed.statusBehavior).toEqual({
+        watchJsonlWhenBound: true,
+        deferStopHookUntilJsonlIdle: false,
+      });
     });
   });
   it('creates and parses command envelopes', () => {

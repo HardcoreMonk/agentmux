@@ -160,7 +160,7 @@ const statusEventNameSchema = z.union([
   z.literal('stop'),
   z.literal('interrupt'),
 ]);
-const panelTypeSchema = z.enum(PANEL_TYPES);
+const panelTypeSchema = z.enum(PANEL_TYPES).optional().catch(undefined);
 const statusTerminalStatusSchema = z.union([
   z.literal('idle'),
   z.literal('running'),
@@ -474,7 +474,7 @@ const timelineSessionChangedEventPayloadSchema = z.object({
 const agentProviderStatusBehaviorSchema = z.object({
   watchJsonlWhenBound: z.boolean(),
   deferStopHookUntilJsonlIdle: z.boolean(),
-}).strict();
+}).strip();
 const statusReduceHookStatePayloadSchema = z.object({
   currentState: cliStateSchema,
   eventName: statusEventNameSchema,
