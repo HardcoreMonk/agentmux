@@ -1,10 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const PROVIDER_ROOTS: Record<string, string[]> = {
+  codex: ['/home/test/.codex/sessions'],
+  claude: ['/home/test/.claude/projects'],
+};
+
 const mocks = vi.hoisted(() => ({
   updateTabFromHook: vi.fn(),
   isValidSessionId: vi.fn((id: unknown) => typeof id === 'string' && id.startsWith('sid-')),
-  isAllowedAgentJsonlPath: vi.fn((filePath: string) => filePath.startsWith('/home/test/.claude/projects/')),
+  tabPanelType: 'codex' as string,
 }));
 
 vi.mock('@/lib/cli-token', () => ({ verifyCliToken: () => true }));
@@ -23,7 +28,7 @@ vi.mock('@/lib/layout-store', () => ({
     root: {
       type: 'pane',
       id: 'pane-a',
-      tabs: [{ id: 'tab-a', sessionName: 'pt-ws-a-pane-a-tab-a', panelType: 'codex' }],
+      tabs: [{ id: 'tab-a', sessionName: 'pt-ws-a-pane-a-tab-a', panelType: mocks.tabPanelType }],
     },
   }),
 }));
@@ -31,8 +36,9 @@ vi.mock('@/lib/layout-tree', () => ({
   findPane: (root: unknown) => root,
 }));
 vi.mock('@/lib/providers', () => ({
-  getProviderByPanelType: () => ({ isValidSessionId: mocks.isValidSessionId }),
-  isAllowedAgentJsonlPath: mocks.isAllowedAgentJsonlPath,
+  getProviderByPanelType: (panelType: string) => (PROVIDER_ROOTS[panelType]
+    ? { isValidSessionId: mocks.isValidSessionId, jsonlRoots: () => PROVIDER_ROOTS[panelType] }
+    : null),
 }));
 vi.mock('@/lib/perf-metrics', () => ({ recordPerfCounter: vi.fn() }));
 vi.mock('@/lib/logger', () => ({
@@ -57,6 +63,7 @@ const base = { event: 'session-start', session: 'pt-ws-a-pane-a-tab-a', capabili
 describe('status hook api', () => {
   beforeEach(() => {
     mocks.updateTabFromHook.mockReset();
+    mocks.tabPanelType = 'claude';
   });
 
   it('forwards validated agent fields to the status manager', async () => {
@@ -86,5 +93,39 @@ describe('status hook api', () => {
     });
 
     expect(mocks.updateTabFromHook).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'session-start', {});
+  });
+
+  it('drops a transcript path outside the tab provider roots and still processes the event', async () => {
+    await post({
+      ...base,
+      agentSessionId: 'sid-1',
+      transcriptPath: '/home/test/.codex/sessions/2026/11/10/rollout-x.jsonl',
+    });
+
+    expect(mocks.updateTabFromHook).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'session-start', {
+      agentSessionId: 'sid-1',
+    });
+  });
+
+  it('drops the transcript path when the tab has no agent provider', async () => {
+    mocks.tabPanelType = 'terminal';
+    await post({
+      ...base,
+      transcriptPath: '/home/test/.claude/projects/x/sid-1.jsonl',
+    });
+
+    expect(mocks.updateTabFromHook).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'session-start', {});
+  });
+
+  it('keeps a transcript path under the tab provider roots', async () => {
+    mocks.tabPanelType = 'codex';
+    await post({
+      ...base,
+      transcriptPath: '/home/test/.codex/sessions/2026/11/10/rollout-x.jsonl',
+    });
+
+    expect(mocks.updateTabFromHook).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'session-start', {
+      transcriptPath: '/home/test/.codex/sessions/2026/11/10/rollout-x.jsonl',
+    });
   });
 });

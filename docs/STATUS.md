@@ -123,10 +123,14 @@ limit은 statusLine에서 받습니다.
 `leaveNeedsInputOnJsonlGrowth` 규칙으로 풉니다. 기준 시각은 `needs-input`으로 바뀐 hook 시각이고, JSONL의 대화
 줄(assistant, user, turn 종료 system 줄)만 셉니다. Progress, attachment, hook 줄과 `isMeta` user 줄은 세지 않습니다.
 
-알려진 결함(2026-11-10 live smoke): 권한 요청을 "No"로 거절하면 탭이 `busy`에 남습니다. Claude Code는 거절 뒤
-`Stop` hook을 보내지 않고, JSONL 끝이 `[Request interrupted by user for tool use]` 다음 `system/turn_duration`이라 JSONL
-검사가 `interrupted: false`를 돌려주므로 위 규칙이 `busy`를 고릅니다. 다음 hook(새 prompt, `/clear` 등)에서 풀립니다.
-수정은 `FOLLOW-UP.md` "Claude Code provider 단계 2 후속"에서 추적합니다.
+중단된 turn은 `idle`로 끝납니다. 권한 요청을 "No"로 거절하거나 Esc(웹 중지 버튼은 `\x1b`를 보냄)로 멈추면 Claude
+Code는 `Stop` hook을 보내지 않고, JSONL은 `user tool_result(is_error)` → `[Request interrupted by user for tool use]`
+(또는 `[Request interrupted by user]`) → `system/turn_duration` 순서로 끝납니다. `jsonl-idle-scan`은 turn 종료 system
+줄 앞의 마지막 대화 줄(sidechain 줄과 `isMeta` user 줄은 건너뜀)이 이 interrupt 표시면 `interrupted: true`를
+돌려줍니다. 그래서 terminal에서 거절하면 `needs-input`에서 바로 `idle`로, 웹 카드로 거절해 `ack-notification`이 먼저
+`busy`로 바꿨으면 JSONL 합성 interrupt(`shouldEmitSyntheticJsonlInterrupt`)로 `idle`로 갑니다. 이 경로에서는 `Stop`
+hook을 기다리지 않습니다. Assistant 답으로 끝난 정상 turn은 `interrupted: false`라 `Stop` hook → `ready-for-review`가
+그대로입니다.
 
 ### Session 다시 묶기
 
@@ -135,9 +139,10 @@ limit은 statusLine에서 받습니다.
 전에는 JSONL을 만들지 않음) 같은 id로 `--session-id`를 다시 씁니다.
 
 Hook API는 bridge가 보낸 필드를 탭 provider 기준으로 검사합니다. `agentSessionId`는 UUID, `transcriptPath`는
-`~/.claude/projects` 아래, `source`는 `startup|resume|clear|compact|fork`일 때만 씁니다. `decideHookSessionRebind`는
-`bindSessionFromHook`이 켜진 provider에서 hook session id가 탭의 값과 다르거나, 같은 id라도 transcript 경로가 다를
-때(같은 id로 다시 실행한 경우) 다시 묶습니다. 다시 묶을 때 status entry의 session id와 JSONL 경로를 바꾸고, 옛
+탭 provider의 `jsonlRoots()`(Claude Code는 `~/.claude/projects`) 아래, `source`는
+`startup|resume|clear|compact|fork`일 때만 씁니다. `decideHookSessionRebind`는 `bindSessionFromHook`이 켜진
+provider에서 hook session id가 탭의 값과 다르거나, 같은 id라도 transcript 경로가 다를 때(같은 id로 다시 실행한 경우)
+다시 묶습니다. 다시 묶을 때 status entry의 session id와 JSONL 경로를 바꾸고, 옛
 JSONL watch를 멈추고, layout의 `agentSessionId`/`agentJsonlPath`를 갱신합니다. Transcript 경로가 없으면 tmux cwd에서
 계산합니다. `/clear`, `/resume`, fork가 이 경로로 들어옵니다.
 
@@ -171,9 +176,10 @@ Polling 감지는 다음 순서로 session을 찾으므로 hook이 묶은 새 se
 
 ## Rate-limit 관찰
 
-Rate limit은 provider별로 따로 둡니다. Codex는 JSONL에서, Claude Code는 위 statusLine 경로에서 받고,
-`rate-limits:update` event와 Runtime v2 live sync payload가 `providerId`를 함께 보냅니다. Client store는
-`byProvider`로 보관하고 sidebar와 mobile sheet는 값이 있는 provider마다 한 줄씩 표시합니다.
+Rate limit은 provider별로 따로 둡니다. Codex는 JSONL에서, Claude Code는 위 statusLine 경로에서 받습니다. JSONL에서
+읽은 rate limit은 그 JSONL을 읽은 provider의 id로 발행합니다. `rate-limits:update` event와 Runtime v2 live sync
+payload가 `providerId`를 함께 보냅니다. Client store는 `byProvider`로 보관하고 sidebar와 mobile sheet는 값이 있는
+provider마다 한 줄씩 표시합니다.
 
 Codex 쪽에서 StatusManager는 기존 256KiB JSONL tail을 한 번 읽어 작업 상태와 `event_msg/token_count/rate_limits`를 함께 투영합니다. 현재 top-level `rate_limits`와 legacy `payload.rate_limits`를 모두 읽으며, 별도 session directory scan이나 원본 파일 write는 하지 않습니다.
 
@@ -291,7 +297,8 @@ UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agent
 - JSONL 상태는 provider의 `readJsonlStatus(jsonlPath)`로 읽습니다. Codex 구현은 기존
   `checkCodexJsonlState` 경로와 rate-limit 관찰을 그대로 씁니다. Provider 공통 tail 검사(`checkJsonlIdle`)와
   cache 삭제(`clearJsonlCheckCache`)는 `src/lib/status/jsonl-check.ts`에 있습니다.
-- JSONL 경로 허용 root는 provider의 `jsonlRoots()`를 모은 `isAllowedAgentJsonlPath`가 판정합니다.
+- JSONL 경로 허용 root는 provider의 `jsonlRoots()`를 모은 `isAllowedAgentJsonlPath`가 판정합니다. Hook의
+  `transcriptPath`만은 탭 provider 하나의 `jsonlRoots()`로 검사합니다(Claude Code 탭이 Codex transcript를 묶지 않도록).
 - Runtime v2 status IPC의 `statusBehavior` wire schema(`runtime/ipc.ts`)는 바꾸지 않았습니다(새 두 flag도 보내지
   않습니다). Worker로는 여전히 `watchJsonlWhenBound`와 `deferStopHookUntilJsonlIdle` 두 key만 보내고, hook reducer와 side-effect
   policy는 이 두 key만 받는 `TAgentHookStatusBehavior`를 입력으로 씁니다.

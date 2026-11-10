@@ -88,6 +88,36 @@ export const extractStatusAssistantInfo = (lines: string[]): IStatusAssistantExt
   return { lastAssistantSnippet: null, currentAction: null, reset: false };
 };
 
+// A user line made only of "[Request interrupted by user…]" marks a turn the user stopped.
+const isInterruptMarker = (entry: { type?: unknown; message?: { content?: unknown } }): boolean => {
+  if (entry.type !== 'user') return false;
+  const content = entry.message?.content;
+  return Array.isArray(content)
+    && content.length === 1
+    && typeof content[0]?.text === 'string'
+    && content[0].text.startsWith(INTERRUPT_PREFIX);
+};
+
+// Claude Code ends an interrupted turn (permission "No", Esc) with the interrupt marker and then a
+// turn-end system line, and sends no Stop hook. The turn was interrupted when the last conversational
+// line before the turn end is that marker rather than an assistant reply.
+const turnEndedByInterrupt = (lines: string[], turnEndIndex: number): boolean => {
+  for (let i = turnEndIndex - 1; i >= 0; i--) {
+    try {
+      const entry = JSON.parse(lines[i]);
+      if (entry.isSidechain) continue;
+      if (entry.type === 'user') {
+        if (entry.isMeta === true) continue;
+        return isInterruptMarker(entry);
+      }
+      if (entry.type === 'assistant') return false;
+    } catch {
+      continue;
+    }
+  }
+  return false;
+};
+
 export const scanStatusJsonlLines = (lines: string[], elapsed: number): IStatusJsonlScanResult => {
   for (let i = lines.length - 1; i >= 0; i--) {
     try {
@@ -100,7 +130,7 @@ export const scanStatusJsonlLines = (lines: string[], elapsed: number): IStatusJ
       const entryTs: number | null = entry.timestamp ? new Date(entry.timestamp).getTime() : null;
 
       if (entry.type === 'system' && (entry.subtype === 'stop_hook_summary' || entry.subtype === 'turn_duration')) {
-        return { matched: true, idle: true, stale: false, needsStaleRecheck: false, staleMs: 0, lastEntryTs: entryTs, interrupted: false };
+        return { matched: true, idle: true, stale: false, needsStaleRecheck: false, staleMs: 0, lastEntryTs: entryTs, interrupted: turnEndedByInterrupt(lines, i) };
       }
 
       if (entry.type === 'assistant') {
@@ -113,8 +143,7 @@ export const scanStatusJsonlLines = (lines: string[], elapsed: number): IStatusJ
       }
 
       if (entry.type === 'user') {
-        const content = entry.message?.content;
-        if (Array.isArray(content) && content.length === 1 && typeof content[0]?.text === 'string' && content[0].text.startsWith(INTERRUPT_PREFIX)) {
+        if (isInterruptMarker(entry)) {
           return { matched: true, idle: true, stale: false, needsStaleRecheck: false, staleMs: 0, lastEntryTs: entryTs, interrupted: true };
         }
         const idle = elapsed > STALE_MS_AWAITING_API;

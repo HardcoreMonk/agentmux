@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { X, Plus, GitCompareArrows, Copy, Terminal } from 'lucide-react';
+import { X, Plus, GitCompareArrows, Copy } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import AgentProviderIcon from '@/components/icons/agent-provider-icon';
 import TabStatusIndicator from '@/components/features/workspace/tab-status-indicator';
 import CopyPaneDrawer from '@/components/features/workspace/copy-pane-drawer';
+import MobilePanelModeSwitcher from '@/components/features/mobile/mobile-panel-mode-switcher';
 import useTabStore from '@/hooks/use-tab-store';
 import ProcessIcon from '@/components/icons/process-icon';
 import { cn } from '@/lib/utils';
-import { AGENT_PANEL_TYPES, isAgentPanelType } from '@/lib/panel-type';
-import { AGENT_PROVIDER_META } from '@/lib/agent-provider-meta';
+import { isAgentPanelType } from '@/lib/panel-type';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,18 +21,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import type { TPanelType } from '@/types/terminal';
-
-// Four labeled buttons do not fit 360px next to the tab name and actions, so the
-// switcher uses 44px icon buttons; the text label lives in aria-label/title.
-const PANEL_MODES = [
-  { type: 'terminal' as const, label: 'Terminal', icon: <Terminal size={16} /> },
-  ...AGENT_PANEL_TYPES.map((type) => ({
-    type: type as TPanelType,
-    label: AGENT_PROVIDER_META[type].label,
-    icon: <AgentProviderIcon panelType={type} className="h-4 w-4" />,
-  })),
-  { type: 'diff' as const, label: 'Diff', icon: <GitCompareArrows size={16} /> },
-];
 
 interface IMobileTabHeaderProps {
   tabId: string;
@@ -83,25 +71,7 @@ const MobileTabHeader = ({
       </div>
 
       <div className="flex shrink-0 items-center gap-0.5 pr-0.5">
-        <div className="flex items-center gap-px">
-          {PANEL_MODES.map((mode) => (
-            <button
-              key={mode.type}
-              className={cn(
-                'flex h-11 w-11 touch-manipulation items-center justify-center rounded transition-colors active:bg-accent/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                panelType === mode.type
-                  ? 'bg-accent text-foreground'
-                  : 'text-muted-foreground/60 hover:bg-accent/40 hover:text-muted-foreground',
-              )}
-              onClick={() => onSwitchPanelType(mode.type)}
-              aria-pressed={panelType === mode.type}
-              aria-label={mode.label}
-              title={mode.label}
-            >
-              {mode.icon}
-            </button>
-          ))}
-        </div>
+        <MobilePanelModeSwitcher panelType={panelType} onSwitchPanelType={onSwitchPanelType} />
 
         {showCopy && (
           <button

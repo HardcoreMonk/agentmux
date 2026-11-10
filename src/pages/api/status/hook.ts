@@ -5,7 +5,8 @@ import { createLogger } from '@/lib/logger';
 import { getRuntimeStatusV2Mode } from '@/lib/runtime/status-mode';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { verifyAgentHookCapability } from '@/lib/agent-hooks';
-import { getProviderByPanelType, isAllowedAgentJsonlPath } from '@/lib/providers';
+import { getProviderByPanelType } from '@/lib/providers';
+import { isJsonlPathUnderRoots } from '@/lib/path-validation';
 import { parseSessionName, readLayoutFile, resolveLayoutFile } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { recordPerfCounter } from '@/lib/perf-metrics';
@@ -44,7 +45,8 @@ const sanitizeHookOptions = (body: Record<string, unknown>, tab: ITab): IHookEve
     options.notificationType = notificationType;
   }
   if (provider && provider.isValidSessionId(agentSessionId)) options.agentSessionId = agentSessionId;
-  if (typeof transcriptPath === 'string' && isAllowedAgentJsonlPath(transcriptPath)) {
+  // Only the tab's own provider roots: a Claude tab must not bind a Codex transcript (or vice versa).
+  if (provider && typeof transcriptPath === 'string' && isJsonlPathUnderRoots(transcriptPath, provider.jsonlRoots())) {
     options.transcriptPath = transcriptPath;
   }
   if (typeof source === 'string' && HOOK_SOURCES.has(source)) options.source = source;

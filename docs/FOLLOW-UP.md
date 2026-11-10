@@ -258,19 +258,21 @@ Plan Grilling, plan review와 별도 release gate를 거쳐야 합니다.
 
 단계 2 task별 검토에서 merge를 막지 않는다고 판단해 넘긴 항목과 격리 live smoke에서 찾은 항목입니다.
 
+2026-11-11 branch 최종 검토 수정으로 닫은 항목: 권한 요청 "No" 뒤 `busy` 고정(중단된 turn은 JSONL interrupt 표시로
+`idle`, `STATUS.md` "Claude Code hook 상태 경로"), 모바일 탭 이름 폭(440px 미만에서 보기 전환 버튼 4개를 현재 보기
+메뉴 버튼 하나로 접음), `providers.test.ts` test 이름. 같은 수정에서 JSONL rate limit을 읽은 provider id로 발행하고
+hook `transcriptPath`를 탭 provider root로만 검사하게 했습니다.
+
 | 항목 | 내용 |
 | --- | --- |
-| 권한 요청 "No" 뒤 `busy` 고정 | Live smoke에서 확인. Claude Code는 거절 뒤 `Stop` hook을 보내지 않고 JSONL 끝이 `[Request interrupted by user for tool use]` 다음 `system/turn_duration`이라 `jsonl-idle-scan`이 `idle: true, interrupted: false`를 돌려준다. `decideNeedsInputJsonlExit`가 `idle`을 보지 않아 `busy`를 고르고, `reconcileStateFromJsonl`이 꺼진 Claude 탭은 다음 hook 전까지 `busy`에 남는다. 웹 카드의 `ack-notification`도 `busy`로만 바꾼다. Merge 전 수정 후보 |
 | 줄바꿈된 권한 선택지 | `permission-prompt.ts`의 soft-wrap 이어 붙이기가 공백 없이 붙여 Claude 선택지가 "filecommands"처럼 보인다(기존 코드, Claude 화면에서 드러남) |
 | Timeline `turn-end` 2개 | Claude Code가 한 turn에 `stop_hook_summary`와 `turn_duration`을 둘 다 쓰고 `session-parser.ts`가 둘 다 `turn-end`로 바꾼다. 화면 영향 미확인 |
 | Server 종료 때 worker `EPIPE` | 격리 server를 SIGINT로 끌 때 timeline worker가 부모 IPC에 `process.send`하다 처리되지 않은 `EPIPE`로 끝났다. 단계 2가 바꾸지 않은 종료 경로 |
-| 모바일 탭 이름 폭 | 360px 폭 terminal 탭에서 복사 버튼과 44px 보기 전환 버튼 4개 때문에 탭 이름이 거의 보이지 않음(`mobile-tab-header.tsx`). Merge 전 수정 후보 |
 | Hook option type 중복 | hook option shape(`notificationType`, `agentSessionId`, `transcriptPath`, `source`)가 `status-manager.ts`, `runtime/status/worker-service.ts`, `api/status/hook.ts` 세 곳에 따로 정의됨. 한 type으로 export |
-| Status 다시 묶기 test | StatusManager 수준의 rebind 배선 test가 없음. `status-hook-api.test.ts`의 provider mock이 `panelType`을 보지 않고, 유효·무효 필드가 섞인 경우가 없음 |
+| Status 다시 묶기 test | StatusManager 수준의 rebind 배선 test가 없음(`status-hook-api.test.ts`의 provider mock은 이제 `panelType`별 root를 봄) |
 | Relaunch 직후 상태 | 다시 실행한 탭의 in-memory status entry `jsonlPath`가 첫 `SessionStart` hook 전까지 이전 session을 가리킬 수 있고, `agentSummary`는 relaunch 때 지우지 않음 |
 | Claude process 감지 | process 인자 regex가 `/claude`로 끝나는 인자 경로(`cat /x/claude`)도 맞춤. Command basename만 비교. Pidfile fallback이 pane tree의 모든 PID를 시도함. `~/.claude/sessions` watcher error handler가 no-op(liveness poll이 보완) |
-| Test 이름 | `providers.test.ts`의 "keeps every Codex status behavior enabled"가 새 두 flag(`false`)와 맞지 않음(문서는 이번에 고침) |
-| Client 정리 | `sidebar-rate-limits.tsx`가 `getAgentProviderMeta` 대신 `AGENT_PROVIDER_META`를 직접 읽음. `createTrustPromptTracker()`가 render마다 `useRef` 초기값으로 평가됨(lazy init). Trust hook 동작은 tracker test로만 확인했고 모바일 trust 카드 배치는 browser로 보지 않음. 모바일 보기 전환 aria-label "Terminal"/"Diff"가 영어 고정 |
+| Client 정리 | `sidebar-rate-limits.tsx`가 `getAgentProviderMeta` 대신 `AGENT_PROVIDER_META`를 직접 읽음. `createTrustPromptTracker()`가 render마다 `useRef` 초기값으로 평가됨(lazy init). Trust hook 동작은 tracker test로만 확인했고 모바일 trust 카드 배치는 browser로 보지 않음. 모바일 보기 전환 aria-label "Terminal"/"Diff"가 영어 고정(좁은 화면 보기 메뉴의 행 label도 같음, 새 탭 dialog와 같은 방식) |
 | Claude 권한 요청 분류 | 기존 분류 규칙에 맞지 않는 Claude 화면(header 없는 "Do you want to proceed?" 등)은 `promptType: unknown`으로 남아 approval queue의 위험·종류 표시가 덜 구체적. "Bash command" header는 `command`, Write "Create file"은 `file`로 분류됨 |
 | 단계 3으로 넘김 | agent가 하나도 없는 호스트의 `/tools-required` 화면·표가 아직 Codex만 보여 줌. `findClaudeBinary`가 `findCodexBinary`와 중복 |
 | Codex session test 불안정 | 전체 suite 부하에서 `codex-session-detection`("does not attach a session by cwd alone")과 `session-list`("lists Linux Codex sessions across workspace cwd values")가 가끔 실패하고 단독 실행은 통과. 단계 2 변경 전부터 있던 불안정으로 판단 |

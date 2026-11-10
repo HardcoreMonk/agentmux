@@ -3,6 +3,8 @@ import type { IRateLimitsData } from '@/types/status';
 
 const watcher = vi.hoisted(() => ({ onChange: null as ((data: IRateLimitsData) => void) | null }));
 
+const providerOverride = vi.hoisted(() => ({ byPanelType: null as ((panelType: unknown) => unknown) | null }));
+
 vi.mock('@/lib/rate-limits-watcher', () => ({
   createRateLimitsWatcher: (onChange: (data: IRateLimitsData) => void) => {
     watcher.onChange = onChange;
@@ -10,7 +12,17 @@ vi.mock('@/lib/rate-limits-watcher', () => ({
   },
 }));
 
+vi.mock('@/lib/providers', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/providers')>();
+  return {
+    ...actual,
+    getProviderByPanelType: (panelType: Parameters<typeof actual.getProviderByPanelType>[0]) =>
+      providerOverride.byPanelType ? providerOverride.byPanelType(panelType) : actual.getProviderByPanelType(panelType),
+  };
+});
+
 import { StatusManager } from '@/lib/status-manager';
+import { emptyJsonlCheckResult } from '@/lib/status/jsonl-check';
 
 const limits = (ts: number, used: number): IRateLimitsData => ({
   ts,
@@ -23,6 +35,7 @@ type TPublisher = { publishRateLimits: (providerId: 'codex' | 'claude', data: IR
 describe('StatusManager per-provider rate limits', () => {
   beforeEach(() => {
     watcher.onChange = null;
+    providerOverride.byPanelType = null;
   });
 
   it('keeps codex and claude rate limits under separate keys', () => {
@@ -50,6 +63,28 @@ describe('StatusManager per-provider rate limits', () => {
     publisher.publishRateLimits('codex', limits(1, 10));
 
     expect(broadcast).toHaveBeenCalledTimes(1);
+  });
+
+  it('publishes JSONL rate limits under the id of the provider that read them', async () => {
+    const broadcast = vi.fn();
+    const manager = new StatusManager({ broadcast, enableRateLimits: false });
+    const fakeProvider = {
+      id: 'claude',
+      readJsonlStatus: vi.fn(async () => ({ ...emptyJsonlCheckResult(), rateLimits: limits(5, 70) })),
+    };
+    providerOverride.byPanelType = (panelType) => (panelType === 'claude' ? fakeProvider : null);
+    const internals = manager as unknown as {
+      tabs: Map<string, Record<string, unknown>>;
+      refreshStopSnippet: (tabId: string, jsonlPath: string) => Promise<void>;
+    };
+    internals.tabs.set('tab-c', { panelType: 'claude', currentAction: null, lastAssistantMessage: null });
+
+    await internals.refreshStopSnippet('tab-c', '/home/test/.claude/projects/x/sid.jsonl');
+
+    expect(fakeProvider.readJsonlStatus).toHaveBeenCalledWith('/home/test/.claude/projects/x/sid.jsonl');
+    expect(manager.getRateLimitsForClient().claude?.five_hour?.used_percentage).toBe(70);
+    expect(manager.getRateLimitsForClient().codex).toBeUndefined();
+    expect(broadcast.mock.calls[0][0]).toMatchObject({ type: 'rate-limits:update', providerId: 'claude' });
   });
 
   it('maps the statusLine rate limits file to the claude key', async () => {

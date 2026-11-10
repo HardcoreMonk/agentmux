@@ -350,11 +350,12 @@ Task 1(모르는 panelType 읽기 정규화, status behavior IPC schema가 모�
     명령을 모든 탭·실행에서 같게 만든다. 그러면 한 번 검토로 끝나는지 확인한다.
   - Claude Code `2.1.322`는 `--settings`로 붙인 hook에 검토 화면을 띄우지 않았다(단계 2 Task 10 live smoke).
 - 이번 격리 실행에서 `--sandbox read-only`인 Codex의 shell 쓰기가 막히지 않았다. Codex 쪽 동작 확인 필요.
-- 단계 2 live smoke에서 찾은 결함(위 "격리 Claude Code live smoke"): 권한 요청 "No" 뒤 `busy`에 남음(merge 전 수정
-  후보), 줄바꿈된 선택지 공백 누락, server 종료 때 timeline worker `EPIPE`, 한 turn의 `turn-end` 2개.
-- 단계 2 task 검토에서 넘긴 정리 항목은 `docs/FOLLOW-UP.md` "Claude Code provider 단계 2 후속"에 있다. 그중 사용자 결정이
+- 단계 2 live smoke에서 찾은 결함(위 "격리 Claude Code live smoke") 중 남은 것: 줄바꿈된 선택지 공백 누락, server
+  종료 때 timeline worker `EPIPE`, 한 turn의 `turn-end` 2개. 권한 요청 "No" 뒤 `busy`에 남던 결함은 branch 최종 검토
+  수정(2026-11-11)에서 고쳤다(중단된 turn은 JSONL interrupt 표시로 `idle`).
+- 단계 2 task 검토에서 넘긴 정리 항목은 `docs/FOLLOW-UP.md` "Claude Code provider 단계 2 후속"에 있다. 모바일 360px
+  폭 탭 이름은 최종 검토 수정(2026-11-11)에서 고쳤다(440px 미만에서 보기 전환을 메뉴 버튼 하나로 접음). 사용자 결정이
   필요한 것:
-  - 모바일 360px 폭 terminal 탭에서 탭 이름이 거의 보이지 않음(merge 전 수정 후보).
   - 전체 suite 부하에서 Codex session test 두 개(`codex-session-detection`, `session-list`)가 가끔 실패하고 단독으로는
     통과한다. 안정화 필요.
   - `tests/unit/lib/layout-store.test.ts`가 실제 data dir 아래 `ws-layout-store-*` directory를 만든다. 이전 실행이 남긴 4개가

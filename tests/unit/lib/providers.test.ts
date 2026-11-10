@@ -75,7 +75,7 @@ describe('agent providers', () => {
     }
   });
 
-  it('keeps every Codex status behavior enabled', () => {
+  it('keeps Codex JSONL reconcile and pane recovery on and hook session binding off', () => {
     expect(codexProvider.statusBehavior).toEqual({
       watchJsonlWhenBound: true,
       deferStopHookUntilJsonlIdle: true,
