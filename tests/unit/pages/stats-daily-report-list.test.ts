@@ -64,6 +64,7 @@ describe('daily report list cost', () => {
         { date: '2026-04-25', messageCount: 1, sessionCount: 1, toolCallCount: 0 },
         { date: '2026-04-26', messageCount: 1, sessionCount: 1, toolCallCount: 0 },
         { date: '2026-04-27', messageCount: 2, sessionCount: 2, toolCallCount: 0 },
+        { date: '2026-04-28', messageCount: 1, sessionCount: 1, toolCallCount: 0 },
       ],
       dailyModelTokens: [
         { date: '2026-04-25', tokensByModel: { [OPUS]: tokens(10, 20, 50_000_000) } },
@@ -90,5 +91,7 @@ describe('daily report list cost', () => {
     expect(costByDate['2026-04-25']).toBeNull();
     expect(costByDate['2026-04-26']).toBeCloseTo(17.5);
     expect(costByDate['2026-04-27']).toBeCloseTo(52.5);
+    // A day with sessions but no token usage keeps the old $0 instead of "no estimate".
+    expect(costByDate['2026-04-28']).toBe(0);
   });
 });
