@@ -227,19 +227,22 @@ skipped), `build` 모두 통과.
   단계 1 implement 완료(branch `feat/claude-provider-phase1`). 전체 gate와 격리 Codex 회귀 확인을 마쳤다. 최종
   code-review는 "수정 후 merge"였고, 수정(`de0087ee`: 기존 Runtime v2 terminal 탭의 agent 보기 전환 차단, 새 agent
   탭 cwd 기본값 복구, hook capability 고정 값 test, 등록되지 않은 종류의 resume 400)과 범위 재검토를 마쳤다. 최종
-  확인: test 1819 통과(3 skip), tsc, lint error 0, 문서 gate 통과. Push·PR·main merge와 live 배포 전.
+  확인: test 1819 통과(3 skip), tsc, lint error 0, 문서 gate 통과. 사용자 선택으로 main에 로컬 merge(`19a44ca8`), 사용자가
+  직접 push(main CI `42805309103` 성공)와 `deploy:local`(20:27 KST, PID `2553990`, health commit `19a44ca8`, tmux 서버
+  `43870` 유지, log error 0)을 실행했다. Auto mode가 main push와 production deploy를 막아 사용자가 `!` 명령으로 실행했다.
+- 설계 1 단계 2: 계획 작성(`docs/superpowers/plans/2026-11-10-claude-code-provider-phase2.md`, branch
+  `feat/claude-provider-phase2`), plan-eng-review 진행 중.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-사용자 요청 시 단계 1 branch를 push하고 PR을 만들어 main CI 통과 뒤 merge한다. Live 배포는 사용자 확인 뒤에
+단계 2 plan-eng-review를 반영하고 사용자 계획 검토를 받은 뒤, agy에게 Task 1부터 맡기고 Claude가 task마다 검증한다. Live 배포는 사용자 확인 뒤에
 한다. 이어서 단계 2(Claude provider core) 계획을 단계 1 interface 기준으로 쓴다. 단계 3~4 계획도 앞 단계가 merge된
 뒤 쓴다.
 
 ## Follow-Up Tasks
 
-- 설계 1 단계 1: push, PR, main merge, 사용자 확인 뒤 live 배포.
 - 작업 체계(사용자: "단계 2부터 이전처럼 \"agy 구현, Claude 감시·검증\" 체계"): 단계 2부터 구현은 Herdr pane의
   agy(`builder`)가 맡고 Claude는 계획, 감시, 검증을 맡는다. 단계 1은 Claude subagent(subagent-driven)로 구현했다.
   agy의 cwd가 live checkout이므로 agy에게는 `.worktrees/` 아래 worktree에서만 작업하도록 지시한다.
@@ -254,8 +257,15 @@ skipped), `build` 모두 통과.
 - Smoke script 결함: `smoke-runtime-v2-isolated.mjs`의 `.codexmux/cli-token` 경로(이름 변경 뒤 `.agentmux`), 실패
   시 남는 dev server, `smoke-runtime-v2-phase2-gate.mjs`의 재시작 race(`stop()`이 wrapper 종료만 기다림), 두
   script 모두 `TMUX_TMPDIR`를 격리하지 않는 점.
-- Codex `0.167.0` "Hooks need review" 화면: agentmux session hook이 실행마다 바뀌어 sandbox 모드에서 매번 뜰 수 있고
-  웹 카드가 이 화면을 읽지 못한다. 설계 2(Codex 보조) 범위에서 확인.
+- Codex `0.167.0` "Hooks need review" 화면: 웹 카드가 이 화면을 읽지 못한다. 설계 2(Codex 보조) 범위에서 고친다.
+  - 확인한 사실(2026-11-10, 읽기만 함): Codex는 `~/.codex/config.toml`의 `[hooks.state."<출처>:<이벤트>:<i>:<j>"]` 아래
+    `trusted_hash`(hook 정의의 sha256)로 검토 여부를 기억한다. agentmux는 `-c hooks.*` 명령 안에 실행마다 바뀌는 HMAC
+    capability(`expiresAt` 포함)를 넣는다(`providers/codex/session-hooks.ts`).
+  - 추정: hook 정의 hash가 실행마다 달라져 검토 화면이 매번 뜬다. 검토를 수락하면 사용자 `~/.codex/config.toml`에 기록되므로
+    아직 직접 확인하지 않았다. 확인은 임시 `CODEX_HOME`에서 한다.
+  - 고칠 방향(안): capability를 hook 명령 인자가 아니라 실행 명령 앞의 환경 변수로 넘기고, bridge가 그 값을 읽게 해 hook
+    명령을 모든 탭·실행에서 같게 만든다. 그러면 한 번 검토로 끝나는지 확인한다. Claude Code는 `--settings` hook에 검토 화면이
+    있는지 단계 2 Task 10 live smoke에서 확인한다.
 - 이번 격리 실행에서 `--sandbox read-only`인 Codex의 shell 쓰기가 막히지 않았다. Codex 쪽 동작 확인 필요.
 - Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
 - 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.

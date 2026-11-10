@@ -115,7 +115,10 @@ const extractWsIdFromPath = (filePath: string): string | null => {
 export const readLayoutFile = async (filePath: string): Promise<ILayoutData | null> => {
   const wsId = extractWsIdFromPath(filePath);
   const runtimeLayout = wsId ? readRuntimeStorageLayout(wsId) : null;
-  if (runtimeLayout) return runtimeLayout;
+  if (runtimeLayout) {
+    normalizeStoredLayout(runtimeLayout.root);
+    return runtimeLayout;
+  }
 
   let raw: string;
   try {
