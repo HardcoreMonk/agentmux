@@ -91,6 +91,18 @@ describe('session catalog IPC', () => {
     })).toThrow(/Invalid runtime IPC payload/);
     expect(() => parseRuntimeCommandPayload('timeline.catalog-search', { query: 'worker', limit: 201 }))
       .toThrow(/Invalid runtime IPC payload/);
+    // panelType is optional and ignored: the catalog replays with the stored provider.
+    expect(parseRuntimeCommandPayload('timeline.catalog-read-entries', {
+      sessionId: 'session-1',
+      beforeByte: 100,
+      limit: 50,
+    })).toEqual({ sessionId: 'session-1', beforeByte: 100, limit: 50 });
+    expect(parseRuntimeCommandPayload('timeline.catalog-read-entries', {
+      sessionId: 'session-1',
+      beforeByte: 100,
+      limit: 50,
+      panelType: 'claude',
+    })).toMatchObject({ sessionId: 'session-1', panelType: 'claude' });
     expect(() => parseRuntimeCommandPayload('timeline.catalog-read-entries', {
       sessionId: '../session',
       beforeByte: 100,

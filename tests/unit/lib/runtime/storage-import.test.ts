@@ -198,6 +198,45 @@ describe('runtime v2 storage import', () => {
     });
   });
 
+  it('stores the agent panel type as the agent session provider', () => {
+    const db = openTestDatabase(path.join(dir, 'runtime-v2', 'state.db'));
+    const workspacesData: IWorkspacesData = {
+      groups: [],
+      activeWorkspaceId: 'ws-a',
+      sidebarCollapsed: false,
+      sidebarWidth: 280,
+      updatedAt: '2026-05-04T00:00:00.000Z',
+      workspaces: [{ id: 'ws-a', name: 'Workspace A', directories: ['/project/a'] }],
+    };
+    const layout: ILayoutData = {
+      root: {
+        type: 'pane',
+        id: 'pane-a',
+        activeTabId: 'tab-claude',
+        tabs: [
+          { id: 'tab-claude', sessionName: 'pt-ws-a-pane-a-tab-claude', name: '', order: 0, panelType: 'claude', agentSessionId: 'claude-session-1' },
+          { id: 'tab-codex', sessionName: 'pt-ws-a-pane-a-tab-codex', name: '', order: 1, panelType: 'codex', agentSessionId: 'codex-session-1' },
+          { id: 'tab-legacy', sessionName: 'pt-ws-a-pane-a-tab-legacy', name: '', order: 2, agentSessionId: 'legacy-session-1' },
+        ],
+      },
+      activePaneId: 'pane-a',
+      updatedAt: '2026-05-04T00:00:00.000Z',
+    };
+
+    importLegacyStorageSnapshot(db, {
+      workspacesData,
+      layoutsByWorkspaceId: { 'ws-a': layout },
+      importedAt: '2026-05-04T00:00:00.000Z',
+    });
+
+    const rows = db.prepare('select id, provider from agent_sessions order by id').all();
+    expect(rows).toEqual([
+      { id: 'claude-session-1', provider: 'claude' },
+      { id: 'codex-session-1', provider: 'codex' },
+      { id: 'legacy-session-1', provider: 'codex' },
+    ]);
+  });
+
   it('imports workspace sidebar state and all workspace directories for default read hydration', () => {
     const db = openTestDatabase(path.join(dir, 'runtime-v2', 'state.db'));
     const workspacesData: IWorkspacesData = {

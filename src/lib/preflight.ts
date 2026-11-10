@@ -227,19 +227,21 @@ const checkClt = async (): Promise<{ installed: boolean }> => {
 export const getPreflightStatus = async (): Promise<IPreflightResult> => {
   shellPathCache = await resolveShellPathAsync();
   const platform = process.platform;
-  const [tmux, git, codex] = await Promise.all([
+  const [tmux, git, codex, claude] = await Promise.all([
     platform === 'win32'
       ? Promise.resolve({ installed: false, version: null })
       : checkTool('tmux', ['-V'], parseToolSemanticVersion),
     checkTool('git', ['--version'], parseToolSemanticVersion),
     checkTool('codex', ['--version'], parseToolSemanticVersion),
+    checkClaudeTool(),
   ]);
 
   const tmuxStatus = { ...tmux, compatible: isTmuxCompatible(tmux) };
   const terminalRuntime = createTerminalRuntimePreflightStatus({ platform, tmux: tmuxStatus });
   const compatibleCodex = withCodexCompatibility(codex);
   const coreReady = terminalRuntime.installed && terminalRuntime.compatible
-    && git.installed && compatibleCodex.installed && compatibleCodex.compatible;
+    && git.installed
+    && [compatibleCodex, claude].some((agent) => agent.installed && agent.compatible);
 
   const codexBinaryPath = codex.installed ? null : await findCodexBinary();
   let codexLoggedIn = false;
@@ -253,12 +255,31 @@ export const getPreflightStatus = async (): Promise<IPreflightResult> => {
   }
 
   const codexStatus = { ...compatibleCodex, binaryPath: codexBinaryPath, loggedIn: codexLoggedIn };
+
+  // Existence checks only: the credential files are never opened or read.
+  let claudeLoggedIn = false;
+  if (claude.installed || claude.binaryPath) {
+    const home = os.homedir();
+    for (const file of [path.join(home, '.claude', '.credentials.json'), path.join(home, '.claude.json')]) {
+      try {
+        await access(file);
+        claudeLoggedIn = true;
+        break;
+      } catch {
+        // try the next location
+      }
+    }
+  }
   const result: IPreflightResult = {
     platform,
     tmux: tmuxStatus,
     terminalRuntime,
     git,
     agent: codexStatus,
+    agents: {
+      codex: codexStatus,
+      claude: { ...claude, loggedIn: claudeLoggedIn },
+    },
   };
 
   if (!coreReady) {

@@ -21,12 +21,19 @@ export type TAgentPreflightStatus = IToolStatus & {
   loggedIn: boolean;
 };
 
+export type IAgentPreflightStatus = IToolStatus & {
+  loggedIn: boolean;
+};
+
 export interface IPreflightResult {
   platform?: NodeJS.Platform;
   tmux: IToolStatus & { compatible: boolean };
   terminalRuntime?: TTerminalRuntimePreflightStatus;
   git: IToolStatus;
+  /** Codex status, kept for readers that predate multi-agent preflight. */
   agent: TAgentPreflightStatus;
+  /** Per-provider install and login status keyed by agent id. */
+  agents: Partial<Record<TAgentPanelType, IAgentPreflightStatus>>;
   brew?: IToolStatus;
   clt?: { installed: boolean };
 }

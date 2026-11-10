@@ -19,6 +19,7 @@ export interface ISessionCatalogFileCursor {
 
 export interface ISessionCatalogSearchRepositoryInput {
   match?: string;
+  providers?: string[];
   projects?: string[];
   models?: string[];
   dateFrom?: string;
@@ -30,6 +31,7 @@ export interface ISessionCatalogSearchRepositoryInput {
 
 interface ISessionSearchRow {
   sessionId: string;
+  provider: ISessionCatalogEntry['provider'];
   projectLabel: string;
   model: string | null;
   startedAt: string;
@@ -44,6 +46,7 @@ interface ISessionSearchRow {
 
 const toEntry = (row: ISessionSearchRow): ISessionCatalogEntry => ({
   sessionId: row.sessionId,
+  provider: row.provider,
   projectLabel: row.projectLabel,
   ...(row.model ? { model: row.model } : {}),
   startedAt: row.startedAt,
@@ -58,13 +61,14 @@ const toEntry = (row: ISessionSearchRow): ISessionCatalogEntry => ({
 export const createSessionCatalogRepository = (db: TSessionCatalogDatabase) => {
   const upsertSession = db.prepare(`
     insert into catalog_sessions (
-      session_id, project_label, model, started_at, last_activity_at, turn_count, indexed_at,
+      session_id, provider, project_label, model, started_at, last_activity_at, turn_count, indexed_at,
       parent_session_id, root_session_id, relationship
     ) values (
-      @sessionId, @projectLabel, @model, @startedAt, @lastActivityAt, @turnCount, @indexedAt,
+      @sessionId, @provider, @projectLabel, @model, @startedAt, @lastActivityAt, @turnCount, @indexedAt,
       @parentSessionId, @rootSessionId, @relationship
     )
     on conflict(session_id) do update set
+      provider = excluded.provider,
       project_label = excluded.project_label,
       model = excluded.model,
       started_at = excluded.started_at,
@@ -158,6 +162,7 @@ export const createSessionCatalogRepository = (db: TSessionCatalogDatabase) => {
       });
       conditions.push(`${column} in (${names.join(', ')})`);
     };
+    addList('s.provider', 'provider', input.providers);
     addList('s.project_label', 'project', input.projects);
     addList('s.model', 'model', input.models);
     if (input.dateFrom) {
@@ -192,6 +197,7 @@ export const createSessionCatalogRepository = (db: TSessionCatalogDatabase) => {
       sql: `
         select
           s.session_id as sessionId,
+          s.provider,
           s.project_label as projectLabel,
           s.model,
           s.started_at as startedAt,
@@ -223,7 +229,7 @@ export const createSessionCatalogRepository = (db: TSessionCatalogDatabase) => {
     },
     getSessionEntry: (sessionId: string): ISessionCatalogEntry | null => {
       const row = db.prepare(`
-        select session_id as sessionId, project_label as projectLabel, model,
+        select session_id as sessionId, provider, project_label as projectLabel, model,
           started_at as startedAt, last_activity_at as lastActivityAt, turn_count as turnCount,
           indexed_at as indexedAt, parent_session_id as parentSessionId,
           root_session_id as rootSessionId, relationship, '' as snippet

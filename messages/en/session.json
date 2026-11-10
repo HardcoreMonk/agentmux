@@ -31,7 +31,7 @@
   "empty": {
     "closeLabel": "Close",
     "noSession": "No sessions",
-    "startNewSession": "Run codex in the terminal{br}to start a new session",
+    "startNewSession": "Run {agent} in the terminal{br}to start a new session",
     "newConversation": "New conversation",
     "close": "Close"
   },
@@ -52,5 +52,14 @@
     "session": "Session",
     "contextHintAmber": "Context is over half full",
     "contextHintRed": "Nearing the limit — consider /compact or starting a new session"
-  }
+  },
+  "providerFilter": {
+    "label": "Filter by agent",
+    "all": "All",
+    "codex": "Codex",
+    "claude": "Claude Code"
+  },
+  "providerBadge": "Agent: {agent}",
+  "switchWhileRunning": "{agent} is still running. Exit it before resuming a session from another agent.",
+  "resumeFailed": "Unable to resume the session"
 }

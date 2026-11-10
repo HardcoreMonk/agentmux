@@ -1,3 +1,5 @@
+import type { TAgentPanelType } from '@/types/terminal';
+
 export type TPeriod = 'today' | '7d' | '30d' | 'all';
 
 // --- stats-cache.json ---
@@ -67,7 +69,8 @@ export interface IOverviewResponse {
   previousMessages: number;
   totalToolCalls: number;
   dailyActivity: IStatsCacheDailyActivity[];
-  modelTokens: Record<string, { input: number; output: number; cacheRead: number; cacheCreation: number; cacheCreation5m: number; cacheCreation1h: number; cost: number }>;
+  /** `cost` is null for models without pricing; totals add only the priced models. */
+  modelTokens: Record<string, { input: number; output: number; cacheRead: number; cacheCreation: number; cacheCreation5m: number; cacheCreation1h: number; cost: number | null }>;
   dailyTokens: { date: string; input: number; output: number; cacheRead: number; cacheCreation: number }[];
   hourlyDistribution: Record<string, number>;
   dayHourDistribution: Record<string, number>;
@@ -96,6 +99,7 @@ export interface IProjectsResponse {
 
 export interface ISessionStats {
   sessionId: string;
+  provider: TAgentPanelType;
   project: string;
   startedAt: string;
   lastActivityAt: string;
@@ -185,7 +189,8 @@ export interface IDailyReportCacheResponse {
 export interface IDailyReportListItem {
   date: string;
   sessionCount: number;
-  cost: number;
+  /** Null when the day has no usage of a priced model. */
+  cost: number | null;
   report: IDailyReportDay | null;
 }
 

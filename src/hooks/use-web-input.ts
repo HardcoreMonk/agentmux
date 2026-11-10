@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { t } from '@/lib/i18n';
 import type { TCliState } from '@/types/timeline';
 import { isCliIdle } from '@/hooks/use-tab-store';
-import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { getAgentLabel, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import type { TPanelType } from '@/types/terminal';
 
 type TWebInputMode = 'input' | 'interrupt' | 'disabled';
@@ -79,6 +79,7 @@ const useWebInput = (
 ): IUseWebInputReturn => {
   const tabId = options?.tabId;
   const providerMeta = getAgentProviderMeta(options?.panelType);
+  const agentLabel = getAgentLabel(options?.panelType);
   const restartCommands = providerMeta?.restartCommands ?? DEFAULT_RESTART_COMMANDS;
   const interruptSequence = providerMeta?.interruptSequence ?? DEFAULT_INTERRUPT_SEQUENCE;
   const [value, setValueState] = useState(() => (tabId ? loadDraft(tabId) : ''));
@@ -99,7 +100,7 @@ const useWebInput = (
 
   const send = useCallback(() => {
     if (mode === 'disabled') {
-      toast.error(t('terminal', 'inputDisabledPlaceholder'));
+      toast.error(t('terminal', 'inputDisabledPlaceholder', { agent: agentLabel }));
       return;
     }
 
@@ -132,7 +133,7 @@ const useWebInput = (
 
     setValue('');
     if (tabId) clearDraft(tabId);
-  }, [mode, value, sendStdin, terminalWsConnected, onRestartSession, onMessageSent, tabId, setValue, restartCommands]);
+  }, [mode, value, sendStdin, terminalWsConnected, onRestartSession, onMessageSent, tabId, setValue, restartCommands, agentLabel]);
 
   const interrupt = useCallback(() => {
     if (!terminalWsConnected) {

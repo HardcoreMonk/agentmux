@@ -942,7 +942,7 @@ export const createRuntimeSupervisorForTest = (
       const { timeline, storage } = getClients();
       await timeline.request<IRuntimeSessionCatalogReadEntriesInput, TRuntimeTimelineEntriesBeforeResult>(
         'timeline.catalog-read-entries',
-        { sessionId: input.sessionId, beforeByte: 0, limit: 1, panelType: 'codex' },
+        { sessionId: input.sessionId, beforeByte: 0, limit: 1 },
       );
       return storage.request<IRuntimeUpdateSessionAnnotationInput & { sessionExists: true }, TRuntimeSessionAnnotation>(
         'storage.update-session-annotation',

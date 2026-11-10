@@ -1,11 +1,13 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import type { ISessionMeta } from '@/types/timeline';
 import { Group, Panel, Separator, type GroupImperativeHandle } from 'react-resizable-panels';
 import { ChevronDown, ChevronUp, Plus, TerminalSquare } from 'lucide-react';
 import Spinner from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import type { ITab, TPanelType } from '@/types/terminal';
+import type { ITab, TAgentPanelType, TPanelType } from '@/types/terminal';
 import { findPane } from '@/lib/layout-tree';
 import useTerminal from '@/hooks/use-terminal';
 import useTerminalWebSocket from '@/hooks/use-terminal-websocket';
@@ -16,6 +18,8 @@ import { useShallow } from 'zustand/react/shallow';
 import TerminalContainer from '@/components/features/workspace/terminal-container';
 import AgentPanel from '@/components/features/workspace/agent-panel';
 import TrustPromptCard from '@/components/features/workspace/trust-prompt-card';
+import AgentViewPrompt from '@/components/features/workspace/agent-view-prompt';
+import { acceptAgentViewPrompt, agentViewPromptRegistry, shouldOfferAgentView } from '@/lib/agent-view-prompt-state';
 import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
 import WebInputBar from '@/components/features/workspace/web-input-bar';
 import QuickPromptBar from '@/components/features/workspace/quick-prompt-bar';
@@ -89,6 +93,7 @@ const EMPTY_TABS: ITab[] = [];
 
 const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   const t = useTranslations('terminal');
+  const tSession = useTranslations('session');
 
   const pane = useLayoutStore((s) => (s.layout ? findPane(s.layout.root, paneId) : null));
   const tabs = pane?.tabs ?? EMPTY_TABS;
@@ -117,8 +122,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
 
   const { theme: terminalTheme } = useTerminalTheme();
   const configFontSize = useConfigStore((s) => s.fontSize);
-  const codexShowTerminal = useConfigStore((s) => s.codexShowTerminal);
-  const showAgentTerminal = codexShowTerminal;
+  const showAgentTerminal = useConfigStore((s) => s.agentShowTerminal);
   const effectiveTerminalCollapsed = activeTab?.terminalCollapsed ?? !showAgentTerminal;
   const [hasEverConnected, setHasEverConnected] = useState(false);
   const [sessionSwitching, setSessionSwitching] = useState(false);
@@ -126,6 +130,8 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isPanelTransitioning, setIsPanelTransitioning] = useState(false);
+  const [offeredAgentView, setOfferedAgentView] = useState<{ tabId: string; provider: TAgentPanelType } | null>(null);
+  const [, setPromptDismissTick] = useState(0);
 
   const tabIds = useMemo(() => tabs.map((t) => t.id), [tabs]);
   const tabTitles = useTabMetadataStore(
@@ -351,7 +357,8 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
         const prevCheckedAt = selectAgentProcessCheckedAt(useTabStore.getState().tabs, tabId);
         fetch(`/api/check-agent?session=${tab.sessionName}`)
           .then((res) => res.json())
-          .then(({ running, checkedAt }) => {
+          .then(({ running, checkedAt, providerPanelType }) => {
+            setOfferedAgentView(running && providerPanelType ? { tabId, provider: providerPanelType } : null);
             const current = useTabStore.getState().tabs[tabId];
             if (current && selectAgentProcessCheckedAt(useTabStore.getState().tabs, tabId) !== prevCheckedAt) {
               if (selectAgentProcess(useTabStore.getState().tabs, tabId) !== running) {
@@ -651,13 +658,47 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   const handleSwitchPanelType = useCallback((next: TPanelType) => {
     if (!activeTabId) return;
     setIsPanelTransitioning(true);
-    updateTabPanelType(paneId, activeTabId, next);
+    const applied = updateTabPanelType(paneId, activeTabId, next);
+    if (!applied) setIsPanelTransitioning(false);
+    return applied;
   }, [paneId, activeTabId, updateTabPanelType]);
 
   const handleSendToAgent = useCallback((text: string) => {
     pendingAgentInputRef.current = text;
-    handleSwitchPanelType(isAgentPanelType(activePanelType) ? activePanelType : DEFAULT_AGENT_PANEL_TYPE);
+    const applied = handleSwitchPanelType(isAgentPanelType(activePanelType) ? activePanelType : DEFAULT_AGENT_PANEL_TYPE);
+    if (!applied) pendingAgentInputRef.current = null;
   }, [handleSwitchPanelType, activePanelType]);
+
+  const agentViewProvider = offeredAgentView && offeredAgentView.tabId === activeTabId
+    && shouldOfferAgentView({
+      runtimeVersion: activeTab?.runtimeVersion,
+      panelType: activePanelType,
+      providerPanelType: offeredAgentView.provider,
+      dismissed: agentViewPromptRegistry.isDismissed(offeredAgentView.tabId, offeredAgentView.provider),
+    })
+    ? offeredAgentView.provider
+    : null;
+
+  const handleAcceptAgentView = useCallback(() => {
+    if (!activeTabId || !agentViewProvider) return;
+    setIsPanelTransitioning(true);
+    const applied = acceptAgentViewPrompt(
+      { updateTabPanelType, setSessionView: useTabStore.getState().setSessionView },
+      { paneId, tabId: activeTabId, providerPanelType: agentViewProvider },
+    );
+    if (!applied) {
+      setIsPanelTransitioning(false);
+      return;
+    }
+    // Shown once per tab and provider: an accepted offer does not come back on a later TERMINAL view.
+    agentViewPromptRegistry.dismiss(activeTabId, agentViewProvider);
+  }, [paneId, activeTabId, agentViewProvider, updateTabPanelType]);
+
+  const handleDismissAgentView = useCallback(() => {
+    if (!activeTabId || !agentViewProvider) return;
+    agentViewPromptRegistry.dismiss(activeTabId, agentViewProvider);
+    setPromptDismissTick((n) => n + 1);
+  }, [activeTabId, agentViewProvider]);
 
   useEffect(() => {
     if (!isAgentPanelType(activePanelType) || !pendingAgentInputRef.current) return;
@@ -698,6 +739,25 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     useTabStore.getState().setSessionView(activeTabId, 'check');
     void requestAgentLaunch({ workspaceId: layoutWsId, paneId, tabId: activeTabId });
   }, [status, activeTabId, layoutWsId, paneId]);
+
+  const handleResumeOtherProvider = useCallback(async (session: ISessionMeta) => {
+    if (!layoutWsId || !activeTabId || !session.providerId) return false;
+    const ok = await requestAgentLaunch({
+      workspaceId: layoutWsId,
+      paneId,
+      tabId: activeTabId,
+      action: 'resume',
+      sessionId: session.sessionId,
+      panelType: session.providerId,
+    }).catch(() => false);
+    if (!ok) {
+      toast.error(tSession('resumeFailed'));
+      return false;
+    }
+    useLayoutStore.getState().applyTabPanelTypeLocal(paneId, activeTabId, session.providerId);
+    useTabStore.getState().setSessionView(activeTabId, 'check');
+    return true;
+  }, [layoutWsId, activeTabId, paneId, tSession]);
 
   const handleRestartAgentSession = useCallback(() => {
     if (status !== 'connected' || !activeTabId) return;
@@ -920,8 +980,10 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   agentSessionId={readAgentSessionId(activeTab)}
                   panelType={activePanelType}
                   cwd={activeTabCwd || activeTab.cwd}
+                  trustPromptVisible={!!trustPrompt}
                   onClose={() => handleSwitchPanelType('terminal')}
                   onNewSession={handleNewAgentSession}
+                  onResumeOtherProvider={handleResumeOtherProvider}
                   scrollToBottomRef={scrollToBottomRef}
                   addPendingMessageRef={addPendingMessageRef}
                   removePendingMessageRef={removePendingMessageRef}
@@ -1007,6 +1069,14 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
             </div>
           </Panel>
         </Group>
+
+        {agentViewProvider && (
+          <AgentViewPrompt
+            providerPanelType={agentViewProvider}
+            onAccept={handleAcceptAgentView}
+            onDismiss={handleDismissAgentView}
+          />
+        )}
 
         {noTabs && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3">

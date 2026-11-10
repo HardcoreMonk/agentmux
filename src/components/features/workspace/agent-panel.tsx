@@ -5,16 +5,22 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import useTimeline from '@/hooks/use-timeline';
 import useSessionList from '@/hooks/use-session-list';
+import useSessionProviderFilter from '@/hooks/use-session-provider-filter';
 import useStartingPrompt from '@/hooks/use-starting-prompt';
+import useAgentBootElapsed from '@/hooks/use-agent-boot-elapsed';
 import useTabStore, { selectAgentInstalled, selectAgentProcess, selectSessionView } from '@/hooks/use-tab-store';
 import { useSessionMetaCompute } from '@/hooks/use-session-meta';
 import SessionListView from '@/components/features/workspace/session-list-view';
 import SessionEmptyView from '@/components/features/workspace/session-empty-view';
 import BypassPromptCard from '@/components/features/workspace/bypass-prompt-card';
+import AgentBootView from '@/components/features/workspace/agent-boot-view';
 import TimelineView from '@/components/features/timeline/timeline-view';
 import SessionMetaBar, { SessionMetaBarSkeleton } from '@/components/features/workspace/session-meta-bar';
 import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
 import { selectAgentSessionListRenderMode } from '@/lib/session-list-rendering';
+import { decideSessionSelectAction } from '@/lib/session-select-action';
+import { getAgentLabel, getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { isAgentBootActive, resolveAgentBootDisplay } from '@/lib/agent-boot-display';
 import type { ISessionMeta } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
 
@@ -24,9 +30,13 @@ interface IAgentPanelProps {
   agentSessionId?: string | null;
   panelType?: TPanelType;
   cwd?: string;
+  // The parent draws the trust card; the panel only hides its boot progress while it is up.
+  trustPromptVisible?: boolean;
   className?: string;
   onClose?: () => void;
   onNewSession?: () => void;
+  // Resumes a session of another provider in this tab; resolves true when the server accepted it.
+  onResumeOtherProvider?: (session: ISessionMeta) => Promise<boolean>;
   scrollToBottomRef?: React.MutableRefObject<(() => void) | undefined>;
   addPendingMessageRef?: React.MutableRefObject<((text: string, options?: { autoHide?: boolean; attachmentPlaceholder?: boolean }) => string) | undefined>;
   removePendingMessageRef?: React.MutableRefObject<((id: string) => void) | undefined>;
@@ -38,15 +48,19 @@ const AgentPanel = ({
   agentSessionId,
   panelType = DEFAULT_AGENT_PANEL_TYPE,
   cwd,
+  trustPromptVisible = false,
   className,
   onClose,
   onNewSession,
+  onResumeOtherProvider,
   scrollToBottomRef,
   addPendingMessageRef,
   removePendingMessageRef,
 }: IAgentPanelProps) => {
   const t = useTranslations('terminal');
+  const tSession = useTranslations('session');
   const tTimeline = useTranslations('timeline');
+  const agentLabel = getAgentLabel(panelType);
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
 
   const agentProcess = useTabStore((s) => selectAgentProcess(s.tabs, tabId));
@@ -126,6 +140,8 @@ const AgentPanel = ({
     getCliState: () => useTabStore.getState().tabs[tabId]?.cliState,
   });
 
+  const providerFilter = useSessionProviderFilter(tabId);
+
   const {
     sessions,
     total: sessionListTotal,
@@ -140,6 +156,7 @@ const AgentPanel = ({
     enabled: isAgentPanel && !!sessionName && view === 'session-list',
     cwd,
     panelType,
+    providers: providerFilter.providers,
   });
 
   useEffect(() => {
@@ -174,6 +191,20 @@ const AgentPanel = ({
 
   const startingPromptOptions = useStartingPrompt(view === 'check', sessionName);
 
+  const bypassPrompt = !!startingPromptOptions?.isBypassPrompt && startingPromptOptions.options.length > 0;
+  const hasEntries = entries.length > 0;
+  const bootElapsedMs = useAgentBootElapsed(isAgentBootActive({ view, agentProcess, hasEntries, cliState: storeCliState }));
+  const bootDisplay = resolveAgentBootDisplay({
+    view,
+    agentProcess,
+    hasEntries,
+    trustPrompt: trustPromptVisible,
+    bypassPrompt,
+    startingPrompt: !!startingPromptOptions && !bypassPrompt,
+    cliState: storeCliState,
+    elapsedMs: bootElapsedMs,
+  });
+
   const isHeaderLoading = agentProcess === null || (entries.length === 0 && isTimelineLoading);
   const freshMeta = useSessionMetaCompute(entries, sessionSummary, initMeta, sessionStats, tabAgentSummary, tabLastUserMessage);
 
@@ -186,6 +217,25 @@ const AgentPanel = ({
   const handleSelectSession = useCallback(
     (session: ISessionMeta) => {
       if (resumingSessionId) return;
+      const action = session.providerId
+        ? decideSessionSelectAction({
+          tabPanelType: panelType,
+          itemProviderId: session.providerId,
+          agentProcess: agentProcess === true,
+        })
+        : 'open';
+      if (action === 'blocked-running') {
+        toast.warning(tSession('switchWhileRunning', {
+          agent: getAgentProviderMeta(panelType)?.label ?? panelType,
+        }));
+        return;
+      }
+      if (action === 'resume-other-provider') {
+        if (!onResumeOtherProvider) return;
+        setResumingSessionId(session.sessionId);
+        void onResumeOtherProvider(session).finally(() => setResumingSessionId(null));
+        return;
+      }
       setResumingSessionId(session.sessionId);
       if (session.jsonlPath) {
         if (openJsonlSession(session.jsonlPath, session.sessionId)) {
@@ -198,7 +248,7 @@ const AgentPanel = ({
       }
       sendResume(session.sessionId, sessionName);
     },
-    [openJsonlSession, resumingSessionId, retrySession, sendResume, sessionName, tabId],
+    [agentProcess, onResumeOtherProvider, openJsonlSession, panelType, resumingSessionId, retrySession, sendResume, sessionName, tSession, tabId],
   );
 
   const handleRefreshSessions = useCallback(async () => {
@@ -208,8 +258,8 @@ const AgentPanel = ({
   if (!agentInstalled) {
     return (
       <div className={cn('flex h-full w-full flex-col items-center justify-center gap-3 text-muted-foreground', className)}>
-        <span className="text-sm font-medium">{tTimeline('installCodex')}</span>
-        <span className="text-xs">{tTimeline('installCodexHint')}</span>
+        <span className="text-sm font-medium">{tTimeline('installAgent', { agent: agentLabel })}</span>
+        <span className="text-xs">{tTimeline('installAgentHint', { agent: agentLabel, path: getAgentProviderMeta(panelType)?.configDir ?? '' })}</span>
       </div>
     );
   }
@@ -217,30 +267,20 @@ const AgentPanel = ({
   if (view === 'check') {
     return (
       <div className={cn('flex h-full w-full flex-col items-center justify-center animate-delayed-fade-in', className)}>
-        <Spinner className="h-4 w-4 text-muted-foreground" />
-        <span className="mt-2 text-sm text-muted-foreground">{(agentSessionId || sessionId) ? t('resumingSession') : t('creatingConversation')}</span>
-        {startingPromptOptions && (
-          startingPromptOptions.isBypassPrompt && startingPromptOptions.options.length > 0 ? (
-            <BypassPromptCard
-              sessionName={sessionName}
-              options={startingPromptOptions.options}
-              fallback={
-                <button
-                  className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                  onClick={onClose}
-                >
-                  {t('checkTerminal')}
-                </button>
-              }
-            />
-          ) : (
-            <button
-              className="mt-3 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
-              onClick={onClose}
-            >
-              {t('checkTerminal')}
-            </button>
-          )
+        <AgentBootView panelType={panelType} display={bootDisplay} onCheckTerminal={onClose} />
+        {bootDisplay === 'bypass' && startingPromptOptions && (
+          <BypassPromptCard
+            sessionName={sessionName}
+            options={startingPromptOptions.options}
+            fallback={
+              <button
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={onClose}
+              >
+                {t('checkTerminal')}
+              </button>
+            }
+          />
         )}
       </div>
     );
@@ -256,7 +296,7 @@ const AgentPanel = ({
     if (renderMode === 'empty') {
       return (
         <div className={cn('h-full w-full', className)}>
-          <SessionEmptyView onClose={onClose} onNewSession={onNewSession} />
+          <SessionEmptyView onClose={onClose} onNewSession={onNewSession} panelType={panelType} />
         </div>
       );
     }
@@ -281,7 +321,9 @@ const AgentPanel = ({
           onRefresh={handleRefreshSessions}
           onLoadMore={loadMoreSessions}
           onNewSession={onNewSession}
-          emptyView={<SessionEmptyView onClose={onClose} onNewSession={onNewSession} />}
+          providerFilter={providerFilter.filter}
+          onProviderFilterChange={providerFilter.setFilter}
+          emptyView={<SessionEmptyView onClose={onClose} onNewSession={onNewSession} panelType={panelType} />}
         />
       </div>
     );
@@ -305,6 +347,11 @@ const AgentPanel = ({
         <SessionMetaBarSkeleton />
       )}
       <div className="min-h-0 flex-1">
+        {(bootDisplay === 'waiting-session' || bootDisplay === 'recover') && !timelineError ? (
+          <div className="flex h-full w-full flex-col items-center justify-center">
+            <AgentBootView panelType={panelType} display={bootDisplay} onCheckTerminal={onClose} />
+          </div>
+        ) : (
         <TimelineView
           entries={entries}
           tasks={tasks}
@@ -322,7 +369,9 @@ const AgentPanel = ({
           onLoadMore={loadMoreTimeline}
           hasMore={timelineHasMore}
           scrollToBottomRef={scrollToBottomRef}
+          panelType={panelType}
         />
+        )}
       </div>
     </div>
   );

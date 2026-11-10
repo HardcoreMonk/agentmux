@@ -20,5 +20,12 @@ export const isPanelType = (panelType: unknown): panelType is TPanelType =>
 export const isAgentPanelType = (panelType: unknown): panelType is TAgentPanelType =>
   typeof panelType === 'string' && AGENT_PANEL_TYPE_SET.has(panelType);
 
+export const parseAgentPanelTypeList = (value: string | string[] | undefined): TAgentPanelType[] | undefined => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return undefined;
+  const parsed = [...new Set(raw.split(',').map((item) => item.trim()).filter(isAgentPanelType))];
+  return parsed.length > 0 ? parsed : undefined;
+};
+
 export const normalizePanelType = (panelType: TPanelType | string | null | undefined): TPanelType | undefined =>
   isPanelType(panelType) ? panelType : undefined;

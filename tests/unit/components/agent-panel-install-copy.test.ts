@@ -8,16 +8,17 @@ const readSource = (path: string) => readFileSync(resolve(process.cwd(), path), 
 
 describe('agent panel install copy', () => {
   for (const locale of ['ko', 'en'] as const) {
-    it(`resolves installCodex copy from the timeline namespace (${locale})`, () => {
+    it(`resolves installAgent copy from the timeline namespace (${locale})`, () => {
       const timeline = readJson(`messages/${locale}/timeline.json`);
-      expect(timeline.installCodex).toBeTypeOf('string');
-      expect(timeline.installCodexHint).toBeTypeOf('string');
+      expect(timeline.installAgent).toBeTypeOf('string');
+      expect(timeline.installAgentHint).toBeTypeOf('string');
       const t = createTranslator({ locale, messages: { timeline }, namespace: 'timeline' });
-      for (const key of ['installCodex', 'installCodexHint'] as const) {
-        const text = t(key);
-        expect(text).not.toBe(key);
-        expect(text).not.toContain('timeline.');
-      }
+      const installText = t('installAgent', { agent: 'Claude Code' });
+      expect(installText).toContain('Claude Code');
+      const hintText = t('installAgentHint', { agent: 'Claude Code', path: '~/.claude' });
+      expect(hintText).toContain('Claude Code');
+      expect(hintText).toContain('~/.claude');
+      for (const text of [installText, hintText]) expect(text).not.toContain('timeline.');
     });
   }
 
@@ -25,11 +26,11 @@ describe('agent panel install copy', () => {
     'src/components/features/workspace/agent-panel.tsx',
     'src/components/features/mobile/mobile-agent-panel.tsx',
   ]) {
-    it(`${file} reads installCodex through the timeline translator`, () => {
+    it(`${file} reads installAgent through the timeline translator`, () => {
       const source = readSource(file);
       expect(source).toContain("useTranslations('timeline')");
-      expect(source).toMatch(/tTimeline\('installCodex'\)/);
-      expect(source).toMatch(/tTimeline\('installCodexHint'\)/);
+      expect(source).toMatch(/tTimeline\('installAgent',/);
+      expect(source).toMatch(/tTimeline\('installAgentHint',/);
     });
   }
 });

@@ -143,6 +143,40 @@ describe('/api/timeline/sessions', () => {
     );
   });
 
+  it('passes the providers query to the session list', async () => {
+    const response = createResponse();
+
+    await handler(createRequest({
+      tmuxSession: 'dead-tmux-session',
+      panelType: 'claude',
+      providers: 'claude',
+    }), response.res);
+
+    expect(mocks.listSessionPage).toHaveBeenCalledWith(
+      'dead-tmux-session',
+      undefined,
+      'claude',
+      { offset: 0, limit: 50, providers: ['claude'] },
+    );
+  });
+
+  it('ignores unknown provider values', async () => {
+    const response = createResponse();
+
+    await handler(createRequest({
+      tmuxSession: 'dead-tmux-session',
+      panelType: 'codex',
+      providers: 'bogus,claude',
+    }), response.res);
+
+    expect(mocks.listSessionPage).toHaveBeenCalledWith(
+      'dead-tmux-session',
+      undefined,
+      'codex',
+      { offset: 0, limit: 50, providers: ['claude'] },
+    );
+  });
+
   it('uses runtime v2 read ownership in default mode', async () => {
     process.env.AGENTMUX_RUNTIME_V2 = '1';
     process.env.AGENTMUX_RUNTIME_TIMELINE_V2_MODE = 'default';

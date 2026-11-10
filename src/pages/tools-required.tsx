@@ -10,38 +10,51 @@ import InstallDialog from '@/components/features/login/install-dialog';
 import { useRuntimePreflight } from '@/hooks/use-runtime-preflight';
 import {
   isRuntimeOk,
-  readRuntimeAgentStatus,
   readRuntimeTerminalName,
   readRuntimeTerminalStatus,
 } from '@/types/preflight';
-import type { IRuntimePreflightResult } from '@/types/preflight';
+import type { IRuntimePreflightResult, IToolStatus } from '@/types/preflight';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
+import { AGENT_PROVIDER_META } from '@/lib/agent-provider-meta';
+import { AGENT_PANEL_TYPES } from '@/lib/panel-type';
+import { toInstallCommand } from '@/lib/onboarding-agents';
 
-const getNextInstall = (
+type TInstallOption = { command: string; label: string };
+
+const isAgentOk = (agent: IToolStatus | undefined): boolean =>
+  !!agent && agent.installed && agent.compatible !== false;
+
+// Terminal and git come first; once they pass, any one agent is enough, so a
+// host with no agent is offered a choice instead of a single install.
+const getNextInstalls = (
   status: IRuntimePreflightResult,
-  t: (key: string) => string,
-): { command: string; label: string } | null => {
+  t: (key: string, values?: Record<string, string>) => string,
+): TInstallOption[] => {
   const terminal = readRuntimeTerminalStatus(status);
   if (!(terminal.installed && terminal.compatible)) {
-    if (terminal.adapter !== 'tmux') return null;
+    if (terminal.adapter !== 'tmux') return [];
     const needsUpgrade = terminal.installed && !terminal.compatible;
-    return {
+    return [{
       command: needsUpgrade ? 'tmux-upgrade' : 'tmux-install',
       label: needsUpgrade ? t('upgradeTmux') : t('installTmux'),
-    };
+    }];
   }
   if (!status.git.installed) {
-    return { command: 'git', label: t('installGit') };
+    return [{ command: 'git', label: t('installGit') }];
   }
-  const agent = readRuntimeAgentStatus(status);
-  if (!agent.installed || agent.compatible === false) {
+  if (AGENT_PANEL_TYPES.some((panelType) => isAgentOk(status.agents[panelType]))) return [];
+  return AGENT_PANEL_TYPES.map((panelType) => {
+    const agent = status.agents[panelType];
+    const label = AGENT_PROVIDER_META[panelType].label;
+    if (agent && !agent.installed && agent.binaryPath) {
+      return { command: toInstallCommand(panelType, 'path'), label: t('fixAgentPath', { agent: label }) };
+    }
     return {
-      command: 'codex',
-      label: agent.installed ? t('updateCodex') : t('installCodex'),
+      command: toInstallCommand(panelType, 'install'),
+      label: agent?.installed ? t('updateAgent', { agent: label }) : t('installAgent', { agent: label }),
     };
-  }
-  return null;
+  });
 };
-
 
 const ToolsRequiredPage = () => {
   const t = useTranslations('toolsRequired');
@@ -64,16 +77,25 @@ const ToolsRequiredPage = () => {
           version: readRuntimeTerminalStatus(status).version,
         },
         { name: 'Git', ok: status.git.installed, version: status.git.version },
-        {
-          name: 'Codex CLI',
-          ok: readRuntimeAgentStatus(status).installed
-            && readRuntimeAgentStatus(status).compatible !== false,
-          version: readRuntimeAgentStatus(status).version,
-        },
       ]
     : [];
 
-  const nextInstall = status ? getNextInstall(status, t) : null;
+  const agentRows = status
+    ? AGENT_PANEL_TYPES.map((panelType) => {
+        const agent = status.agents[panelType];
+        const ok = isAgentOk(agent);
+        const state = ok
+          ? 'ready'
+          : agent?.installed
+            ? 'needsUpdate'
+            : agent?.binaryPath
+              ? 'pathMissing'
+              : 'notInstalled';
+        return { panelType, ok, version: agent?.version ?? null, state };
+      })
+    : [];
+
+  const nextInstalls = status ? getNextInstalls(status, t) : [];
 
   return (
     <>
@@ -117,18 +139,36 @@ const ToolsRequiredPage = () => {
                     )}
                   </div>
                 ))}
+                <p className="pt-1 text-xs text-muted-foreground [word-break:keep-all]">{t('agentsHint')}</p>
+                {agentRows.map((row) => (
+                  <div key={row.panelType} className="flex items-center gap-2 text-sm">
+                    {row.ok ? (
+                      <Check className="h-4 w-4 shrink-0 text-positive" />
+                    ) : (
+                      <X className="h-4 w-4 shrink-0 text-negative" />
+                    )}
+                    <AgentProviderIcon panelType={row.panelType} className="h-4 w-4 shrink-0" />
+                    <span className={row.ok ? 'text-muted-foreground' : 'text-foreground font-medium'}>
+                      {AGENT_PROVIDER_META[row.panelType].label}
+                    </span>
+                    <span className="text-xs text-muted-foreground [word-break:keep-all]">
+                      {row.version ? `(${row.version})` : t(`agentState.${row.state}`)}
+                    </span>
+                  </div>
+                ))}
               </div>
               <div className="flex flex-col gap-2">
-                {nextInstall && (
+                {nextInstalls.map((option) => (
                   <Button
+                    key={option.command}
                     size="lg"
-                    className="h-12 w-full"
-                    onClick={() => setInstallTarget(nextInstall)}
+                    className="h-12 w-full active:scale-[0.99] focus-visible:ring-2"
+                    onClick={() => setInstallTarget(option)}
                   >
                     <Download className="mr-1 h-4 w-4" />
-                    {nextInstall.label}
+                    {option.label}
                   </Button>
-                )}
+                ))}
                 <Button
                   variant="outline"
                   size="lg"

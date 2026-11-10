@@ -66,6 +66,7 @@ export const createSessionCatalogQueryService = (repository: TSessionCatalogRepo
     const after = query.cursor ? decodeCursor(query.cursor) : undefined;
     const repositoryInput = {
       ...(match ? { match } : {}),
+      ...(query.providers ? { providers: query.providers } : {}),
       ...(query.projects ? { projects: query.projects } : {}),
       ...(query.models ? { models: query.models } : {}),
       ...(query.dateFrom ? { dateFrom: query.dateFrom } : {}),

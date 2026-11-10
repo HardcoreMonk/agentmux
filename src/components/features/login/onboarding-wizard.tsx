@@ -16,9 +16,17 @@ import useConfigStore from '@/hooks/use-config-store';
 import {
   readPreflightTerminalName,
   readPreflightTerminalStatus,
-  type IPreflightResult,
 } from '@/types/preflight';
 import { LOCALE_OPTIONS } from '@/lib/locales';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
+import { AGENT_PROVIDER_META } from '@/lib/agent-provider-meta';
+import { AGENT_PANEL_TYPES } from '@/lib/panel-type';
+import {
+  pickReadyAgents,
+  readAgentRowAction,
+  readAgentRowState,
+  toInstallCommand,
+} from '@/lib/onboarding-agents';
 
 type TStep = 'preflight' | 'password' | 'language' | 'appearance' | 'theme' | 'network' | 'complete';
 type TAppTheme = 'dark' | 'light' | 'system';
@@ -105,8 +113,6 @@ interface IOnboardingWizardProps {
   hostEnvLocked?: boolean;
 }
 
-const readPreflightAgent = (status: IPreflightResult) => status.agent;
-
 const OnboardingWizard = ({ onComplete, hostEnvLocked = false }: IOnboardingWizardProps) => {
   const t = useTranslations('onboarding');
   const tc = useTranslations('common');
@@ -123,15 +129,13 @@ const OnboardingWizard = ({ onComplete, hostEnvLocked = false }: IOnboardingWiza
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { status: preflightStatus, checking: preflightChecking } = usePreflight({
     onReady: (data) => {
-      const agent = readPreflightAgent(data);
       const terminal = readPreflightTerminalStatus(data);
       if (terminal.installed && terminal.compatible && data.git.installed
-        && agent.installed && agent.compatible !== false && agent.loggedIn) {
+        && pickReadyAgents(data.agents ?? {}).length > 0) {
         setStep('password');
       }
     },
   });
-  const preflightAgent = preflightStatus ? readPreflightAgent(preflightStatus) : null;
   const [installTarget, setInstallTarget] = useState<{ command: string; label: string } | null>(null);
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const storeLocale = useConfigStore((s) => s.locale);
@@ -257,51 +261,8 @@ const OnboardingWizard = ({ onComplete, hostEnvLocked = false }: IOnboardingWiza
               <Loader2 className="h-5 w-5 animate-spin" />
               <span className="text-sm">{t('checking')}</span>
             </div>
-          ) : preflightStatus && preflightAgent &&
-            readPreflightTerminalStatus(preflightStatus).installed &&
-            readPreflightTerminalStatus(preflightStatus).compatible &&
-            preflightStatus.git.installed && preflightAgent.installed
-            && preflightAgent.compatible !== false &&
-            !preflightAgent.loggedIn ? (
-            <div className="flex flex-col gap-4">
-              <p className="text-sm text-muted-foreground">{t('codexLoginDescription')}</p>
-              <div className="flex flex-col gap-2">
-                <Button
-                  size="lg"
-                  className="h-12 w-full"
-                  onClick={() => setInstallTarget({ command: 'codex-login', label: t('codexLogin') })}
-                >
-                  <LogIn className="mr-1 h-4 w-4" />
-                  {t('codexLogin')}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="h-12 w-full"
-                  onClick={() => window.location.reload()}
-                >
-                  <RefreshCcw className="mr-1 h-4 w-4" />
-                  {tc('refresh')}
-                </Button>
-              </div>
-              {installTarget && (
-                <InstallDialog
-                  open
-                  onOpenChange={() => setInstallTarget(null)}
-                  command={installTarget.command}
-                  label={installTarget.label}
-                />
-              )}
-            </div>
-          ) : preflightStatus && !(
-            readPreflightTerminalStatus(preflightStatus).installed &&
-            readPreflightTerminalStatus(preflightStatus).compatible &&
-            preflightStatus.git.installed &&
-            preflightAgent?.installed && preflightAgent.compatible !== false
-          ) ? (() => {
-            const agent = preflightStatus.agent;
+          ) : preflightStatus ? (() => {
             const terminal = readPreflightTerminalStatus(preflightStatus);
-            const codexNeedsPath = !agent.installed && !!agent.binaryPath;
             const brewInstalled = preflightStatus.brew?.installed ?? true;
             const cltInstalled = preflightStatus.clt?.installed ?? true;
             const missingTools: { name: string; show: boolean }[] = [
@@ -309,14 +270,10 @@ const OnboardingWizard = ({ onComplete, hostEnvLocked = false }: IOnboardingWiza
               { name: 'Homebrew', show: !brewInstalled },
               { name: readPreflightTerminalName(preflightStatus), show: !(terminal.installed && terminal.compatible) },
               { name: 'Git', show: !preflightStatus.git.installed },
-              {
-                name: codexNeedsPath ? t('codexPathMissing') : 'Codex CLI',
-                show: !agent.installed || agent.compatible === false,
-              },
-            ];
+            ].filter((tool) => tool.show);
 
             const needsUpgrade = terminal.adapter === 'tmux' && terminal.installed && !terminal.compatible;
-            const nextInstall =
+            const baseInstall =
               !cltInstalled && !brewInstalled
                 ? { command: 'clt', label: t('installClt') }
               : !brewInstalled
@@ -325,33 +282,78 @@ const OnboardingWizard = ({ onComplete, hostEnvLocked = false }: IOnboardingWiza
                 ? { command: needsUpgrade ? 'tmux-upgrade' : 'tmux-install', label: needsUpgrade ? t('upgradeTmux') : t('installTmux') }
               : !preflightStatus.git.installed
                 ? { command: 'git', label: t('installGit') }
-              : codexNeedsPath
-                ? { command: 'codex-path', label: t('fixCodexPath') }
-              : { command: 'codex', label: t('installCodex') };
+              : null;
 
             return (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-2 text-ui-amber">
-                <AlertTriangle className="h-5 w-5 shrink-0" />
-                <p className="text-sm font-medium">{t('missingTools')}</p>
-              </div>
-              <div className="space-y-1.5">
-                {missingTools.filter((t) => t.show).map((tool) => (
-                  <div key={tool.name} className="flex items-center gap-2 text-sm">
-                    <X className="h-4 w-4 shrink-0 text-negative" />
-                    <span className="text-foreground font-medium">{tool.name}</span>
+              {missingTools.length > 0 && (
+                <>
+                  <div className="flex items-center gap-2 text-ui-amber">
+                    <AlertTriangle className="h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">{t('missingTools')}</p>
                   </div>
-                ))}
+                  <div className="space-y-1.5">
+                    {missingTools.map((tool) => (
+                      <div key={tool.name} className="flex items-center gap-2 text-sm">
+                        <X className="h-4 w-4 shrink-0 text-negative" />
+                        <span className="text-foreground font-medium">{tool.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium">{t('agentsHeading')}</p>
+                <p className="text-xs text-muted-foreground [word-break:keep-all]">{t('agentsHint')}</p>
+                {AGENT_PANEL_TYPES.map((panelType) => {
+                  const state = readAgentRowState(preflightStatus.agents?.[panelType]);
+                  const action = readAgentRowAction(state);
+                  const label = AGENT_PROVIDER_META[panelType].label;
+                  return (
+                    <div key={panelType} className="flex flex-col gap-2 rounded-lg border border-border/70 p-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <AgentProviderIcon panelType={panelType} className="h-4 w-4 shrink-0" />
+                        <span className="font-medium">{label}</span>
+                        {state === 'ready' ? (
+                          <Check className="ml-auto h-4 w-4 shrink-0 text-positive" />
+                        ) : (
+                          <X className="ml-auto h-4 w-4 shrink-0 text-negative" />
+                        )}
+                        <span className="text-xs text-muted-foreground [word-break:keep-all]">
+                          {t(`agentState.${state}`)}
+                        </span>
+                      </div>
+                      {action && !baseInstall && (
+                        <Button
+                          variant={action === 'install' ? 'outline' : 'default'}
+                          className="min-h-11 w-full active:scale-[0.99] focus-visible:ring-2"
+                          onClick={() => setInstallTarget({
+                            command: toInstallCommand(panelType, action),
+                            label: t(`agentActions.${action}`, { agent: label }),
+                          })}
+                        >
+                          {action === 'login' ? <LogIn className="mr-1 h-4 w-4" /> : <Download className="mr-1 h-4 w-4" />}
+                          {t(`agentActions.${action}`, { agent: label })}
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}
+                {AGENT_PANEL_TYPES.some((p) => readAgentRowState(preflightStatus.agents?.[p]) === 'needsLogin') && (
+                  <p className="text-xs text-muted-foreground [word-break:keep-all]">{t('agentLoginHint')}</p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
-                <Button
-                  size="lg"
-                  className="h-12 w-full"
-                  onClick={() => setInstallTarget(nextInstall)}
-                >
-                  <Download className="mr-1 h-4 w-4" />
-                  {nextInstall.label}
-                </Button>
+                {baseInstall && (
+                  <Button
+                    size="lg"
+                    className="h-12 w-full"
+                    onClick={() => setInstallTarget(baseInstall)}
+                  >
+                    <Download className="mr-1 h-4 w-4" />
+                    {baseInstall.label}
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="lg"

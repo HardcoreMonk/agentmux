@@ -113,7 +113,10 @@ interface ILayoutState {
   reorderTabsInPane: (paneId: string, tabIds: string[]) => void;
   removeTabLocally: (paneId: string, tabId: string) => void;
   equalizeRatios: () => void;
-  updateTabPanelType: (paneId: string, tabId: string, panelType: TPanelType) => void;
+  // Returns true when applied, false when blocked (runtime v2 guard or busy agent switch lock).
+  updateTabPanelType: (paneId: string, tabId: string, panelType: TPanelType) => boolean;
+  // Local-only sync after the server already stored the new panelType (no PATCH).
+  applyTabPanelTypeLocal: (paneId: string, tabId: string, panelType: TPanelType) => void;
   updateTabTerminalLayout: (paneId: string, tabId: string, patch: { terminalRatio?: number; terminalCollapsed?: boolean }) => void;
   clearLayout: () => void;
   focusTab: (tabId: string) => boolean;
@@ -610,7 +613,22 @@ const useLayoutStore = create<ILayoutState>((set, get) => ({
           onClick: () => { void get().createTabInPane(paneId, panelType, undefined, true); },
         },
       });
-      return;
+      return false;
+    }
+
+    // Lock agent-to-agent switching while the current agent is working or waiting on input.
+    const fromPanelType = currentTab?.panelType;
+    if (
+      isAgentPanelType(fromPanelType)
+      && isAgentPanelType(panelType)
+      && fromPanelType !== panelType
+    ) {
+      const cliState = useTabStore.getState().tabs[tabId]?.cliState;
+      if (cliState === 'busy' || cliState === 'needs-input') {
+        const agent = getAgentProviderMeta(fromPanelType)?.label ?? fromPanelType;
+        toast.error(t('terminal', 'agentSwitchLocked').replaceAll('{agent}', agent));
+        return false;
+      }
     }
 
     applyPaneUpdate(set, get, paneId, (pane) => ({
@@ -631,6 +649,15 @@ const useLayoutStore = create<ILayoutState>((set, get) => ({
     patchApi(wsQuery(`/api/layout/pane/${paneId}/tabs/${tabId}`, workspaceId), { panelType }).then((data) => {
       if (data) applyLayoutPreserveFocus(set, get, data);
     });
+    return true;
+  },
+
+  applyTabPanelTypeLocal: (paneId, tabId, panelType) => {
+    applyPaneUpdate(set, get, paneId, (pane) => ({
+      ...pane,
+      tabs: pane.tabs.map((t) => (t.id === tabId ? { ...t, panelType } : t)),
+    }));
+    useTabStore.getState().setPanelType(tabId, panelType);
   },
 
   updateTabTerminalLayout: (paneId, tabId, patch) => {
@@ -878,6 +905,7 @@ const useLayout = ({ workspaceId, onFetchError }: { workspaceId: string | null; 
     removeTabLocally: s.removeTabLocally,
     equalizeRatios: s.equalizeRatios,
     updateTabPanelType: s.updateTabPanelType,
+    applyTabPanelTypeLocal: s.applyTabPanelTypeLocal,
     clearLayout: s.clearLayout,
     fetchLayout: s.fetchLayout,
     focusTab: s.focusTab,

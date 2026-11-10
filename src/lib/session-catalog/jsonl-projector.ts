@@ -235,6 +235,7 @@ export const projectCodexJsonl = (
   }));
   const entry: ISessionCatalogEntry = {
     sessionId,
+    provider: 'codex',
     projectLabel,
     ...(model ? { model } : {}),
     startedAt,

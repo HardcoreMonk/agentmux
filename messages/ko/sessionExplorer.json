@@ -29,10 +29,15 @@
   "degradedTitle": "세션 검색 인덱스를 사용할 수 없습니다.",
   "rebuild": "인덱스 재구축",
   "rebuildTitle": "세션 검색 인덱스를 재구축할까요?",
-  "rebuildSafety": "검색 projection만 복구하며 Codex 원본 세션을 삭제하지 않습니다.",
+  "rebuildSafety": "검색 projection만 복구하며 에이전트 원본 세션을 삭제하지 않습니다.",
   "cancel": "취소",
   "replayTitle": "세션 복기",
   "replayReadOnly": "읽기 전용 기록입니다. 세션 재개나 shell 명령을 실행하지 않습니다.",
+  "providerFilter": {
+    "label": "에이전트별 보기",
+    "all": "전체"
+  },
+  "providerBadge": "에이전트: {agent}",
   "health": {
     "ready": "정상",
     "building": "구축 중",

@@ -6,10 +6,12 @@ import readline from 'readline';
 import { execFile } from 'child_process';
 import { randomUUID } from 'crypto';
 import { getDataDir } from '@/lib/app-identity';
-import { getShellPath } from '@/lib/preflight';
+import { getCachedRuntimePreflight, getShellPath } from '@/lib/preflight';
 import { normalizeLocale } from '@/lib/locales';
-import { collectJsonlFiles } from './stats-cache';
+import { extractClaudeUserPromptText } from '@/lib/providers/claude/user-prompt';
+import { collectAgentJsonlFiles, filterAgentJsonlFilesByDates } from './agent-jsonl-files';
 import type { IDailyReportDay } from '@/types/stats';
+import type { IToolStatus } from '@/types/preflight';
 
 const CACHE_DIR = path.join(getDataDir(), 'stats', 'daily-reports');
 
@@ -66,8 +68,18 @@ export const shortenCwd = (cwd: string): string => {
     .replace(/^Downloads/g, 'Downloads');
 };
 
+// Codex files are read as before. Claude paths carry no date, so those are narrowed to the target date first.
+const collectReportFilePaths = async (targetDate: string): Promise<string[]> => {
+  const files = await collectAgentJsonlFiles();
+  const claudeFiles = await filterAgentJsonlFilesByDates(
+    files.filter((file) => file.source === 'claude'),
+    new Set([targetDate]),
+  );
+  return [...files.filter((file) => file.source === 'codex'), ...claudeFiles].map((file) => file.filePath);
+};
+
 const extractSessionsForDate = async (targetDate: string): Promise<ISessionData[]> => {
-  const files = await collectJsonlFiles();
+  const files = await collectReportFilePaths(targetDate);
   const sessions: ISessionData[] = [];
 
   for (const filePath of files) {
@@ -122,27 +134,7 @@ const extractSessionsForDate = async (targetDate: string): Promise<ISessionData[
           }
 
           if (type === 'user') {
-            const message = entry.message as Record<string, unknown> | undefined;
-            if (!message) continue;
-            const content = message.content;
-            let text = '';
-
-            if (typeof content === 'string') {
-              text = content.slice(0, 300);
-            } else if (Array.isArray(content)) {
-              const texts: string[] = [];
-              for (const c of content) {
-                if (typeof c === 'object' && c !== null && (c as Record<string, unknown>).type === 'text') {
-                  texts.push(String((c as Record<string, unknown>).text ?? '').slice(0, 300));
-                }
-              }
-              text = texts.join(' | ');
-            }
-
-            if (text.includes('<command-message>')) {
-              const match = text.match(/<command-name>\/([^<]+)<\/command-name>/);
-              text = `[Command: ${match ? match[1] : 'unknown'}]`;
-            }
+            const text = extractClaudeUserPromptText(entry)?.slice(0, 300) ?? '';
             if (text.includes('<local-command-caveat>') || text.includes('<task-notification>')) {
               continue;
             }
@@ -185,7 +177,7 @@ const extractSessionsForDate = async (targetDate: string): Promise<ISessionData[
   return sessions;
 };
 
-// --- Codex CLI summary generation ---
+// --- Agent CLI summary generation ---
 
 const buildPromptData = (sessions: ISessionData[]): string => {
   return sessions
@@ -246,6 +238,69 @@ const callCodexCli = async (input: string, systemPrompt: string): Promise<string
   });
 };
 
+export const DAILY_REPORT_CLAUDE_ARGS: readonly string[] = [
+  '-p',
+  '--output-format',
+  'text',
+  '--no-session-persistence',
+  '--restricted',
+  '--tools',
+  '',
+  '--strict-mcp-config',
+  '--disable-slash-commands',
+];
+
+// The Claude counterpart of `codex exec --ephemeral --sandbox read-only`: no transcript, no tools, no
+// user/project/local settings or MCP servers, and an empty working directory that is removed afterwards.
+const callClaudeCli = async (input: string, systemPrompt: string): Promise<string> => {
+  const resolvedPath = await getShellPath();
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-report-'));
+
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const child = execFile(
+        'claude',
+        [...DAILY_REPORT_CLAUDE_ARGS],
+        {
+          cwd,
+          timeout: 180_000,
+          maxBuffer: 1024 * 1024,
+          env: { ...process.env, PATH: resolvedPath },
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(new Error(`claude -p failed: ${error.message}${stderr ? `\n${stderr}` : ''}`));
+            return;
+          }
+          resolve(stdout.trim());
+        },
+      );
+      child.stdin?.write(`${systemPrompt}\n\n${input}`);
+      child.stdin?.end();
+    });
+  } finally {
+    await fs.rm(cwd, { recursive: true, force: true }).catch(() => {});
+  }
+};
+
+type TDailyReportGenerator = 'codex' | 'claude';
+
+const isAgentUsable = (status: IToolStatus | undefined): boolean =>
+  !!status?.installed && status.compatible !== false;
+
+// Codex stays the default; Claude is used only when Codex is unavailable. With neither, the Codex path
+// runs and fails the way it always has.
+const resolveDailyReportGenerator = async (): Promise<TDailyReportGenerator> => {
+  try {
+    const { agents } = await getCachedRuntimePreflight();
+    if (isAgentUsable(agents.codex)) return 'codex';
+    if (isAgentUsable(agents.claude)) return 'claude';
+  } catch {
+    // fall through to the Codex path
+  }
+  return 'codex';
+};
+
 const LOCALE_LANGUAGE_NAMES: Record<string, string> = {
   en: 'English',
   ko: 'Korean (한국어)',
@@ -256,7 +311,7 @@ const resolveLanguageName = (locale: string): string =>
 
 const SUMMARY_PROMPT = (date: string, locale: string) => {
   const languageName = resolveLanguageName(locale);
-  return `Summarize the Codex session history for ${date}.
+  return `Summarize the coding agent session history for ${date}.
 
 Output format (use exactly this structure):
 
@@ -325,7 +380,10 @@ export const generateDailyReport = async (
   }
 
   const promptData = buildPromptData(sessions);
-  const response = await callCodexCli(promptData, SUMMARY_PROMPT(date, resolvedLocale));
+  const summaryPrompt = SUMMARY_PROMPT(date, resolvedLocale);
+  const response = await resolveDailyReportGenerator() === 'claude'
+    ? await callClaudeCli(promptData, summaryPrompt)
+    : await callCodexCli(promptData, summaryPrompt);
   const { brief, detail } = parseSummaryResponse(response);
 
   const report: IDailyReportDay = {

@@ -1,5 +1,7 @@
 import { Buffer } from 'node:buffer';
+import type { TAgentPanelType } from '@/types/terminal';
 import type { TSessionCatalogRepository } from '@/lib/session-catalog/index-repository';
+import { projectClaudeJsonl } from '@/lib/session-catalog/claude-jsonl-projector';
 import { projectCodexJsonl } from '@/lib/session-catalog/jsonl-projector';
 
 export interface ISessionCatalogIndexFileInput {
@@ -8,6 +10,7 @@ export interface ISessionCatalogIndexFileInput {
   fileIdentity: string;
   mtimeMs: number;
   sizeBytes: number;
+  provider?: TAgentPanelType;
 }
 
 export type TSessionCatalogIndexMode = 'full' | 'append' | 'skipped';
@@ -66,7 +69,8 @@ export const createSessionCatalogIndexer = ({
     const fallbackEntry = append && cursor?.sessionId
       ? repository.getSessionEntry(cursor.sessionId) ?? undefined
       : undefined;
-    const projection = projectCodexJsonl(complete.content, {
+    const project = input.provider === 'claude' ? projectClaudeJsonl : projectCodexJsonl;
+    const projection = project(complete.content, {
       indexedAt: now(),
       ...(fallbackEntry ? { fallbackEntry } : {}),
       sequenceOffset: startByte,
@@ -78,7 +82,11 @@ export const createSessionCatalogIndexer = ({
     if (append) repository.appendProjection(projection);
     else repository.replaceProjection(projection);
     repository.upsertFileCursor({
-      ...input,
+      fileKey: input.fileKey,
+      canonicalPath: input.canonicalPath,
+      fileIdentity: input.fileIdentity,
+      mtimeMs: input.mtimeMs,
+      sizeBytes: input.sizeBytes,
       safeByte,
       sessionId: projection.entry.sessionId,
       updatedAt: now(),

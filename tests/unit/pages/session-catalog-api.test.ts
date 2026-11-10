@@ -132,6 +132,36 @@ describe('session catalog API', () => {
     });
   });
 
+  it('passes the comma-separated providers query to the search and drops unknown values', async () => {
+    const result = createResponse();
+    await searchHandler(createRequest({ query: { query: 'worker', providers: 'claude,bogus' } }), result.response);
+    expect(result.statusCode).toBe(200);
+    expect(mocks.supervisor.searchSessionCatalog).toHaveBeenCalledWith({ query: 'worker', providers: ['claude'] });
+
+    mocks.supervisor.searchSessionCatalog.mockClear();
+    const both = createResponse();
+    await searchHandler(createRequest({ query: { query: '', providers: 'codex,claude' } }), both.response);
+    expect(mocks.supervisor.searchSessionCatalog).toHaveBeenCalledWith({ query: '', providers: ['codex', 'claude'] });
+  });
+
+  it('serves a Claude session replay without sending a panelType to the Supervisor', async () => {
+    mocks.supervisor.readSessionCatalogEntries.mockResolvedValueOnce({
+      entries: [{ id: 'claude-entry', type: 'assistant-message', timestamp: 1, markdown: 'hi' }],
+      startByteOffset: 0,
+      hasMore: false,
+    });
+    const entries = createResponse();
+    await entriesHandler(createRequest({
+      query: { sessionId: 'claude-session-1', beforeByte: '500', limit: '50' },
+      url: '/api/sessions/claude-session-1/entries',
+    }), entries.response);
+    expect(entries.statusCode).toBe(200);
+    expect(entries.body).toMatchObject({ entries: [{ id: 'claude-entry' }] });
+    expect(mocks.supervisor.readSessionCatalogEntries).toHaveBeenCalledWith({
+      sessionId: 'claude-session-1', beforeByte: 500, limit: 50,
+    });
+  });
+
   it('returns the Supervisor filtered page metadata without recomputing it', async () => {
     mocks.supervisor.searchSessionCatalog.mockResolvedValueOnce({
       results: [{
@@ -175,7 +205,7 @@ describe('session catalog API', () => {
     }), entries.response);
     expect(entries.statusCode).toBe(200);
     expect(mocks.supervisor.readSessionCatalogEntries).toHaveBeenCalledWith({
-      sessionId: 'session-1', beforeByte: 900, limit: 100, panelType: 'codex',
+      sessionId: 'session-1', beforeByte: 900, limit: 100,
     });
   });
 

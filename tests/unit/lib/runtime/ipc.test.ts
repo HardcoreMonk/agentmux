@@ -447,6 +447,38 @@ describe('runtime ipc', () => {
       limit: 50,
     });
 
+    expect(parseRuntimeCommandPayload('timeline.list-sessions', {
+      tmuxSession: 'pt-ws-a-pane-b-tab-c',
+      panelType: 'claude',
+      offset: 0,
+      limit: 50,
+      providers: ['claude'],
+    }).providers).toEqual(['claude']);
+
+    const relationship = {
+      providerId: 'codex',
+      sourceSessionId: 's1',
+      parentSessionId: null,
+      rootSessionId: 's1',
+      relationshipType: 'root' as const,
+      relationshipConfidence: 'high' as const,
+    };
+    const listReply = parseRuntimeReplyPayload('timeline.list-sessions', {
+      sessions: [{
+        sessionId: 's1',
+        startedAt: '2026-01-01T00:00:00.000Z',
+        lastActivityAt: '2026-01-01T00:00:00.000Z',
+        firstMessage: 'hi',
+        turnCount: 1,
+        providerId: 'claude',
+        relationship,
+      }],
+      total: 1,
+      hasMore: false,
+    });
+    expect(listReply.sessions[0].providerId).toBe('claude');
+    expect(listReply.sessions[0].relationship).toEqual(relationship);
+
     expect(() => parseRuntimeCommandPayload('timeline.list-sessions', {
       tmuxSession: 'pt-ws-a-pane-b-tab-c',
       panelType: 'codex',

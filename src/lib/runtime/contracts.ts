@@ -153,6 +153,7 @@ export interface IRuntimeTimelineSessionListInput {
   panelType: string;
   offset: number;
   limit: number;
+  providers?: TAgentPanelType[];
 }
 
 export interface IRuntimeSessionCatalogHealth {
@@ -179,7 +180,8 @@ export interface IRuntimeSessionCatalogReadEntriesInput {
   sessionId: string;
   beforeByte: number;
   limit: number;
-  panelType: string;
+  /** Ignored by the catalog; kept optional for older callers. */
+  panelType?: string;
 }
 
 export interface IRuntimeSessionCatalogRebuildResult {

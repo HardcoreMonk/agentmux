@@ -115,15 +115,23 @@ installer/package gate로 확인합니다.
 
 | 항목 | 상태 |
 | --- | --- |
-| Live build | `47ea57e7`, version `0.5.0` (2026-11-10 Claude Code provider 단계 2 Task 1 main merge 배포: 모르는 panelType 읽기 정규화. main CI `42813980564` 성공. 이전 live는 단계 1 `19a44ca8`, logo 수정 `e369598b`, agentmux 전환 build는 `5b0cf14f`) |
+| Live build | `d1accfc6`, version `0.5.0` (2026-11-11 hotfix #48 배포: Claude JSONL의 catalog `observeFile` 거절이 timeline worker를 죽이던 결함. 이전 live는 단계 2 `f46890ba`, 단계 2 Task 1 `47ea57e7`, 단계 1 `19a44ca8`, logo 수정 `e369598b`, agentmux 전환 build는 `5b0cf14f`) |
 | user service | `agentmux.service` enabled, `active/running`, authenticated, port `8122`. Rollback unit `codexmux.service`(legacy)는 disable 보존 |
 | Runtime v2 | terminal `new-tabs`, storage/timeline/status `default` |
 | Session Catalog/Governance | Session Catalog `ready`, Governance `state=ready`, `writeState=disabled`, DB/WAL/SHM `0600` |
 | governance gate | `agentmux.service.d/governance-writes.conf` 미설치 → governed write 비활성. 활성화는 별도 승인 뒤 |
 | latest backup | `runtime-v2-storage-20260823T135639Z`, service 정지 중 durable/workspace state 5개, `0700/0600` |
-| latest restart | 2026-11-10 21:18 KST `deploy:local` 재시작(사용자가 직접 실행), PID `2865470`, health commit `47ea57e7`. tmux 서버 `43870`과 session 1개는 재시작 전후 유지, service log error 0. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
+| latest restart | 2026-11-11 02:35 KST `deploy:local` 재시작(hotfix #48, 사용자가 직접 실행), PID `1705635`(NRestarts 0), health commit `d1accfc6`, worker 재시작 02:35:38, service log error 0. 같은 날 02:16 KST 단계 2 배포(health `f46890ba`, PID `1471777`). 이전 2026-11-10 21:18 KST 재시작은 PID `2865470`, health `47ea57e7`. tmux 서버 `43870`과 session 1개는 재시작 전후 유지. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
 | issue (이전 이름 저장소 기록) | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
 | 운영 handoff | `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
+
+Claude Code provider 운영 기록(2026-11-11): 단계 2는 main merge 뒤 02:16 KST에 배포했습니다(health `f46890ba`).
+Live catalog가 shadow mode인 상태에서 Claude JSONL의 `catalog.observeFile` 거절이 처리되지 않아 timeline worker가
+죽는 결함을 hotfix #48(`d1accfc6`, CI 성공)로 고쳐 02:35 KST에 배포했습니다(worker 재시작 02:35:38, log error 0).
+원격 branch `feat/claude-provider-phase2`, `fix/timeline-catalog-observe-rejection`는 사용자가 지웠습니다. 단계 3 배포 때는
+통계 cache(legacy 실제 경로 `~/.codexmux/stats/cache.json`, 현재 v4, 2026-03-26부터 127일, claude-* model은 03-26~04-27에만 있음)가 첫 통계
+요청에서 `cache.v4.json`으로 한 번 복사된 뒤 v5로 옮겨집니다(Claude 사용량은 첫 Claude transcript 날짜 2026-10-11부터 더함).
+배포 뒤 이 이동을 확인합니다.
 
 Browser 인증 설정 뒤 `HOST=0.0.0.0` unit을 다시 시작해 실제 외부 listener를
 활성화했습니다. 승인된 Phase 3 배포에서 governance write gate도 활성화했고 CLI token 기반
@@ -274,9 +282,28 @@ hook `transcriptPath`를 탭 provider root로만 검사하게 했습니다.
 | Claude process 감지 | process 인자 regex가 `/claude`로 끝나는 인자 경로(`cat /x/claude`)도 맞춤. Command basename만 비교. Pidfile fallback이 pane tree의 모든 PID를 시도함. `~/.claude/sessions` watcher error handler가 no-op(liveness poll이 보완) |
 | Client 정리 | `sidebar-rate-limits.tsx`가 `getAgentProviderMeta` 대신 `AGENT_PROVIDER_META`를 직접 읽음. `createTrustPromptTracker()`가 render마다 `useRef` 초기값으로 평가됨(lazy init). Trust hook 동작은 tracker test로만 확인했고 모바일 trust 카드 배치는 browser로 보지 않음. 모바일 보기 전환 aria-label "Terminal"/"Diff"가 영어 고정(좁은 화면 보기 메뉴의 행 label도 같음, 새 탭 dialog와 같은 방식) |
 | Claude 권한 요청 분류 | 기존 분류 규칙에 맞지 않는 Claude 화면(header 없는 "Do you want to proceed?" 등)은 `promptType: unknown`으로 남아 approval queue의 위험·종류 표시가 덜 구체적. "Bash command" header는 `command`, Write "Create file"은 `file`로 분류됨 |
-| 단계 3으로 넘김 | agent가 하나도 없는 호스트의 `/tools-required` 화면·표가 아직 Codex만 보여 줌. `findClaudeBinary`가 `findCodexBinary`와 중복 |
+| 단계 3으로 넘김 | `findClaudeBinary`가 `findCodexBinary`와 중복(`lib/preflight.ts`). agent가 하나도 없는 호스트의 `/tools-required` 화면·표는 단계 3 Task 9에서 provider별 행으로 닫음 |
 | Codex session test 불안정 | 전체 suite 부하에서 `codex-session-detection`("does not attach a session by cwd alone")과 `session-list`("lists Linux Codex sessions across workspace cwd values")가 가끔 실패하고 단독 실행은 통과. 단계 2 변경 전부터 있던 불안정으로 판단 |
 | Test data dir 격리 | `tests/unit/lib/layout-store.test.ts`가 실제 data dir(legacy 실제 경로 `~/.codexmux/workspaces`) 아래 `ws-layout-store-*` directory를 만들고 지움. 이전 실행이 남긴 4개가 있고 live data dir라 지우지 않음. Test data dir를 임시 directory로 격리하고 남은 directory 정리는 사용자가 결정 |
+
+## Claude Code provider 단계 3 후속
+
+단계 3(공통 agent UI: 공통 session 목록과 provider 간 재개, Session Explorer provider column·filter, 통계·일일 리포트의
+Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, provider별 onboarding, 중립 문구)은 branch
+`feat/claude-provider-phase3`에 구현과 검증을 마쳤고 main merge와 live 배포는 전입니다. 단계 2 후속 중 단계 3이 닫은
+것은 `/tools-required`의 provider별 표시입니다. 단계 4(위임 안내, `permissions.allow`, CLI 변경)는 별도입니다.
+
+| 항목 | 내용 |
+| --- | --- |
+| Live `new-tabs` mode 보기 제안 | 새 plain Terminal 탭은 Runtime v2라 agent 보기 제안이 뜨지 않음(v1 Terminal 탭만 제안). Runtime v2 agent 탭 지원과 묶음 |
+| 직접 실행한 Claude의 timeline 연결 | Terminal 탭에서 직접 `claude`를 실행하면 hook이 없어 "Claude Code 세션 대기 중"과 web 입력 "연결 중"이 보임. 터미널에서 친 첫 prompt 뒤 timeline이 묶이는지 미확인 |
+| `history-parser` prompt 중복 | fork/resume이 복사한 Claude prompt를 파일마다 세어 약 0.5% 과대 집계. 보류 |
+| Uptime disk cache | 지난 날의 Codex 전용 값이 window가 지날 때까지 남음 |
+| 일일 리포트 fallback smoke | Preflight가 알려진 install path에서 Codex를 찾아 PATH만으로 fallback 경로를 강제할 수 없음. 생성기 test 전용 override를 두면 smoke로 확인 가능(지금은 정확한 `claude -p` 인자 배열을 단위 test가, 실제 호출을 손 실행 1회가 확인) |
+| Smoke tooling 메모 | 격리 `TMUX_TMPDIR`는 짧은 경로여야 함(긴 경로는 108바이트 Unix socket 한도로 tmux `new-session` 실패). Setup POST는 같은 origin의 `Origin` header 필요 |
+| 통계 cache v5 확인 | 배포 뒤 첫 통계 요청에서 `cache.v4.json` 백업과 v5 이동, Claude token 표시를 live에서 확인. rollback 때는 service를 멈추고 `cache.v4.json`을 `cache.json`으로 복사한 뒤 이전 build를 시작한다(이전 build는 v5를 버리고 원본이 없는 날짜를 잃는다) |
+| Codex 지난 세션 목록 확인 | 배포 뒤 live Codex 탭의 지난 세션 목록 개수와 순서가 배포 전과 같은지 확인(격리 확인에서는 Codex index 첫 scan 중이라 Codex 항목을 보지 못함) |
+| 문서 외 미검증 | Claude 직접 실행 뒤 timeline 연결, 일일 리포트의 실제 Claude 생성 경로(생성기 전체) |
 
 ## Codex lifecycle 기준
 

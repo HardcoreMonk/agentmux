@@ -1,4 +1,5 @@
 import type { IAgentSessionRelationship } from '@/lib/agent-session-relationship';
+import type { TAgentPanelType } from '@/types/terminal';
 
 export type TSessionDetectionStatus = 'unknown' | 'starting' | 'running' | 'not-running' | 'not-initialized' | 'not-installed';
 
@@ -461,4 +462,5 @@ export interface ISessionMeta {
   jsonlPath?: string;
   cwd?: string | null;
   relationship?: IAgentSessionRelationship;
+  providerId?: TAgentPanelType;
 }

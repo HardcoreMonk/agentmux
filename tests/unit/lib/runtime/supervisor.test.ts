@@ -285,7 +285,6 @@ describe('runtime supervisor', () => {
       sessionId: 'session-1',
       beforeByte: 100,
       limit: 50,
-      panelType: 'codex',
     })).resolves.toMatchObject({ entries: [], hasMore: false });
     await expect(supervisor.rebuildSessionCatalog()).resolves.toEqual({ started: true, state: 'building' });
 
@@ -294,7 +293,7 @@ describe('runtime supervisor', () => {
       { type: 'timeline.catalog-search', payload: { query: 'worker', limit: 50 } },
       {
         type: 'timeline.catalog-read-entries',
-        payload: { sessionId: 'session-1', beforeByte: 100, limit: 50, panelType: 'codex' },
+        payload: { sessionId: 'session-1', beforeByte: 100, limit: 50 },
       },
       { type: 'timeline.catalog-rebuild', payload: {} },
     ]));
@@ -340,7 +339,7 @@ describe('runtime supervisor', () => {
 
     expect(timeline.commands).toContainEqual({
       type: 'timeline.catalog-read-entries',
-      payload: { sessionId: 'session-1', beforeByte: 0, limit: 1, panelType: 'codex' },
+      payload: { sessionId: 'session-1', beforeByte: 0, limit: 1 },
     });
     expect(storage.commands).toEqual(expect.arrayContaining([
       { type: 'storage.list-session-annotations', payload: { sessionIds: ['session-1'] } },

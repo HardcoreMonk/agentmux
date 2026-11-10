@@ -12,7 +12,8 @@
     "agent": "Agent",
     "notification": "Notification",
     "system": "System",
-    "codex": "Codex"
+    "codex": "Codex",
+    "claude": "Claude Code"
   },
   "general": {
     "theme": "Theme",
@@ -40,7 +41,9 @@
   },
   "terminal": {
     "theme": "Terminal Theme",
-    "themeDescription": "Select terminal color themes for each mode."
+    "themeDescription": "Select terminal color themes for each mode.",
+    "showTerminal": "Show terminal with agents",
+    "showTerminalDescription": "Display the terminal area alongside Codex and Claude Code. When off, new agent tabs open with the terminal collapsed."
   },
   "editor": {
     "preset": "Editor",
@@ -81,7 +84,7 @@
   },
   "notification": {
     "enable": "Enable Notifications",
-    "enableDescription": "Show system notifications when Codex tasks complete.",
+    "enableDescription": "Show system notifications when {agent} tasks complete.",
     "permissionDenied": "Browser notification permission denied. Please allow in browser settings.",
     "notSupported": "Web Push is not supported in this browser.",
     "soundEnable": "Task complete sound",
@@ -254,8 +257,25 @@
     },
     "webSearch": "Web search",
     "webSearchDescription": "Adds --search so Codex can use live web search.",
-    "showTerminal": "Show terminal with Codex",
-    "showTerminalDescription": "Display the terminal area alongside Codex. When off, new Codex tabs open with the terminal collapsed.",
     "commandPreview": "Command preview"
+  },
+  "claude": {
+    "model": "Model",
+    "modelDescription": "Optional model passed as --model. Leave blank to follow your Claude settings.",
+    "modelPlaceholder": "e.g. sonnet, claude-sonnet-4.5",
+    "modelInvalid": "Use up to 128 letters, digits, \".\", \"_\", \":\" or \"-\".",
+    "followClaude": "Follow Claude settings",
+    "permissionMode": "Permission mode",
+    "permissionModeDescription": "Controls the --permission-mode value for new and resumed Claude Code sessions.",
+    "permissionModeOptions": {
+      "acceptEdits": "acceptEdits",
+      "auto": "auto",
+      "bypassPermissions": "bypassPermissions",
+      "manual": "manual",
+      "dontAsk": "dontAsk",
+      "plan": "plan"
+    },
+    "commandPreview": "Command preview",
+    "commandPreviewNote": "The --settings path and --session-id value are filled in at launch."
   }
 }

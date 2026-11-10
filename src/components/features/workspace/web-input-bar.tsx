@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Ban, Loader2, Paperclip, SendHorizontal, Square, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAgentLabel } from '@/lib/agent-provider-meta';
 import { Button } from '@/components/ui/button';
 import useWebInput, { clearInputDraft } from '@/hooks/use-web-input';
 import useIsMobileDevice from '@/hooks/use-is-mobile-device';
@@ -80,6 +81,7 @@ const WebInputBar = ({
 }: IWebInputBarProps) => {
   const t = useTranslations('terminal');
   const tc = useTranslations('common');
+  const agentLabel = getAgentLabel(panelType);
   const { entries, isLoading, isError, fetchHistory, addHistory, deleteHistory } =
     useMessageHistory({ wsId });
   const persistUserMessageClaim = useCallback((message: string) => {
@@ -230,7 +232,7 @@ const WebInputBar = ({
       }
 
       if (!allConfirmed) {
-        toast.error(t('attachmentNotConfirmed'));
+        toast.error(t('attachmentNotConfirmed', { agent: agentLabel }));
         if (pendingId) onRemovePendingMessage?.(pendingId);
         return;
       }
@@ -248,7 +250,7 @@ const WebInputBar = ({
     } finally {
       setIsDispatching(false);
     }
-  }, [canSend, isDispatching, value, attachments, send, sendStdin, setValue, onSend, agentSessionId, sessionName, tabId, handleMessageSent, onAddPendingMessage, onRemovePendingMessage, t]);
+  }, [canSend, isDispatching, value, attachments, send, sendStdin, setValue, onSend, agentSessionId, sessionName, tabId, handleMessageSent, onAddPendingMessage, onRemovePendingMessage, t, agentLabel]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
@@ -455,7 +457,7 @@ const WebInputBar = ({
           <div className="mx-auto w-full max-w-content px-3 pb-1">
             <div className="grid grid-cols-[1fr_auto_1fr] items-center px-2 text-[11px] text-muted-foreground/70">
               <Loader2 size={10} className="mr-1.5 justify-self-end animate-spin" />
-              <span>{t('agentConnecting')}</span>
+              <span>{t('agentConnecting', { agent: agentLabel })}</span>
               <span />
             </div>
           </div>
@@ -539,7 +541,7 @@ const WebInputBar = ({
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               placeholder={t('inputPlaceholder')}
-              aria-label={t('inputAriaLabel')}
+              aria-label={t('inputAriaLabel', { agent: agentLabel })}
               className="flex-1 resize-none bg-transparent py-1 text-sm text-foreground outline-none placeholder:text-muted-foreground"
               rows={1}
               style={{
@@ -589,6 +591,7 @@ const WebInputBar = ({
         open={interruptDialogOpen}
         onOpenChange={setInterruptDialogOpen}
         onConfirm={handleInterruptConfirm}
+        panelType={panelType}
       />
     </>
   );

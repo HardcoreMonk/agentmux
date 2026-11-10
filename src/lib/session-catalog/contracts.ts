@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { TAgentPanelType } from '@/types/terminal';
 
 const catalogIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
 const tagPattern = /^[\p{L}\p{N}][\p{L}\p{N}._ -]{0,39}$/u;
@@ -10,11 +11,14 @@ export const sessionTagSchema = z.string().regex(tagPattern);
 export const cursorSchema = z.string().regex(cursorPattern);
 export const SESSION_ANNOTATION_SELECTION_MAX_IDS = 10_000;
 
+const providerSchema = z.enum(['codex', 'claude']) satisfies z.ZodType<TAgentPanelType>;
+
 export type TSessionRelationship = 'root' | 'child' | 'fork' | 'subagent' | 'unknown';
 export type TSessionCatalogHealth = 'ready' | 'building' | 'degraded' | 'disabled';
 
 export interface ISessionCatalogEntry {
   sessionId: string;
+  provider: TAgentPanelType;
   projectLabel: string;
   model?: string;
   startedAt: string;
@@ -28,6 +32,7 @@ export interface ISessionCatalogEntry {
 
 export const sessionCatalogEntrySchema: z.ZodType<ISessionCatalogEntry> = z.object({
   sessionId: sessionIdSchema,
+  provider: providerSchema,
   projectLabel: z.string().trim().min(1).max(160),
   model: z.string().trim().min(1).max(120).optional(),
   startedAt: isoTimestampSchema,
@@ -41,6 +46,7 @@ export const sessionCatalogEntrySchema: z.ZodType<ISessionCatalogEntry> = z.obje
 
 export interface ISessionSearchQuery {
   query: string;
+  providers?: TAgentPanelType[];
   models?: string[];
   projects?: string[];
   tags?: string[];
@@ -53,6 +59,7 @@ export interface ISessionSearchQuery {
 
 export const sessionSearchQuerySchema = z.object({
   query: z.string().trim().max(512),
+  providers: z.array(providerSchema).max(2).optional(),
   models: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
   projects: z.array(z.string().trim().min(1).max(160)).max(50).optional(),
   tags: z.array(sessionTagSchema).max(20).optional(),

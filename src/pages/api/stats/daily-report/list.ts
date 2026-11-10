@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getStatsCache } from '@/lib/stats/stats-cache';
-import { buildOverview } from '@/lib/stats/stats-cache-parser';
+import { estimateCostForDays } from '@/lib/stats/stats-cache-parser';
 import { readAllCachedReports } from '@/lib/stats/daily-report-builder';
-import type { IDailyReportListResponse, IDailyReportListItem } from '@/types/stats';
+import type { IDailyReportListResponse, IDailyReportListItem, IStatsCacheDailyTokens } from '@/types/stats';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'GET') {
@@ -18,21 +18,26 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     readAllCachedReports(),
   ]);
 
-  const overview = buildOverview(statsCache, 'all');
+  const tokensByDate = new Map(statsCache.dailyModelTokens.map((day) => [day.date, day]));
 
-  const totalAllTokens = overview.dailyTokens.reduce((s, t) => s + t.input + t.output + t.cacheRead + t.cacheCreation, 0);
-  const totalCost = Object.values(overview.modelTokens).reduce((s, m) => s + m.cost, 0);
+  // Null only when the day used unpriced models alone (no cost estimate); a day without token usage stays $0.
+  const dayCost = (tokenDay: IStatsCacheDailyTokens | undefined): number | null => {
+    if (!tokenDay) return 0;
+    const cost = estimateCostForDays(statsCache, [tokenDay]);
+    if (cost !== null) return cost;
+    const hasUsage = Object.values(tokenDay.tokensByModel)
+      .some((b) => b.input + b.output + b.cacheRead + b.cacheCreation > 0);
+    return hasUsage ? null : 0;
+  };
 
-  const allDays: IDailyReportListItem[] = overview.dailyActivity
+  const allDays: IDailyReportListItem[] = statsCache.dailyActivity
     .filter((d) => d.sessionCount > 0)
     .map((d) => {
-      const tokenDay = overview.dailyTokens.find((t) => t.date === d.date);
-      const dayTokens = tokenDay ? tokenDay.input + tokenDay.output + tokenDay.cacheRead + tokenDay.cacheCreation : 0;
-      const cost = totalAllTokens > 0 ? totalCost * (dayTokens / totalAllTokens) : 0;
+      const tokenDay = tokensByDate.get(d.date);
       return {
         date: d.date,
         sessionCount: d.sessionCount,
-        cost,
+        cost: dayCost(tokenDay),
         report: reportCache[d.date] ?? null,
       };
     })

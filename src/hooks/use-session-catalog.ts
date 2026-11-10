@@ -46,6 +46,7 @@ const queryString = (query: ISessionSearchQuery): string => {
   for (const model of query.models ?? []) params.append('models', model);
   for (const project of query.projects ?? []) params.append('projects', project);
   for (const tag of query.tags ?? []) params.append('tags', tag);
+  if (query.providers?.length) params.set('providers', query.providers.join(','));
   if (query.pinned !== undefined) params.set('pinned', String(query.pinned));
   if (query.dateFrom) params.set('dateFrom', query.dateFrom);
   if (query.dateTo) params.set('dateTo', query.dateTo);

@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl';
 import Spinner from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import SessionListItem from '@/components/features/workspace/session-list-item';
+import AgentProviderFilter from '@/components/features/workspace/agent-provider-filter';
+import type { TSessionProviderFilter } from '@/hooks/use-session-provider-filter';
 import type { ISessionMeta } from '@/types/timeline';
 
 interface ISessionListViewProps {
@@ -19,6 +21,8 @@ interface ISessionListViewProps {
   onLoadMore: () => Promise<void>;
   onNewSession?: () => void;
   emptyView?: ReactNode;
+  providerFilter?: TSessionProviderFilter;
+  onProviderFilterChange?: (filter: TSessionProviderFilter) => void;
 }
 
 const SessionListSkeleton = () => (
@@ -55,6 +59,25 @@ const SessionListError = ({
   </div>
 );
 
+const SessionProviderFilter = ({
+  value,
+  onChange,
+}: {
+  value: TSessionProviderFilter;
+  onChange: (filter: TSessionProviderFilter) => void;
+}) => {
+  const t = useTranslations('session');
+  return (
+    <AgentProviderFilter
+      value={value}
+      onChange={onChange}
+      ariaLabel={t('providerFilter.label')}
+      allLabel={t('providerFilter.all')}
+      className="border-b px-4 py-2"
+    />
+  );
+};
+
 const SessionListView = ({
   sessions,
   total,
@@ -68,6 +91,8 @@ const SessionListView = ({
   onLoadMore,
   onNewSession,
   emptyView,
+  providerFilter,
+  onProviderFilterChange,
 }: ISessionListViewProps) => {
   const t = useTranslations('terminal');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -110,6 +135,10 @@ const SessionListView = ({
           )}
         </div>
       </div>
+
+      {providerFilter && onProviderFilterChange && (
+        <SessionProviderFilter value={providerFilter} onChange={onProviderFilterChange} />
+      )}
 
       {isLoading && sessions.length === 0 ? (
         <SessionListSkeleton />

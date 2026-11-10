@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyRuntimeV2ApiAuth } from '@/lib/runtime/api-auth';
 import { sendRuntimeApiError, sendRuntimeDisabled } from '@/lib/runtime/api-handler';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
-import { DEFAULT_AGENT_PANEL_TYPE, normalizePanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, normalizePanelType, parseAgentPanelTypeList } from '@/lib/panel-type';
 import type { TPanelType } from '@/types/terminal';
 
 const DEFAULT_LIMIT = 50;
@@ -41,12 +41,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   try {
     const supervisor = getRuntimeSupervisor();
+    const providers = parseAgentPanelTypeList(req.query.providers);
     const page = await supervisor.listTimelineSessions({
       tmuxSession,
       cwd: firstQueryValue(req.query.cwd),
       panelType: parsePanelType(req.query.panelType),
       offset: parseBoundedInteger(firstQueryValue(req.query.offset), 0, 0, Number.MAX_SAFE_INTEGER),
       limit: parseBoundedInteger(firstQueryValue(req.query.limit), DEFAULT_LIMIT, 1, MAX_LIMIT),
+      ...(providers ? { providers } : {}),
     });
     return res.status(200).json(page);
   } catch (err) {
