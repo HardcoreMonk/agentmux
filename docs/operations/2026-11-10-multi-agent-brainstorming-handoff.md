@@ -227,19 +227,22 @@ skipped), `build` 모두 통과.
   단계 1 implement 완료(branch `feat/claude-provider-phase1`). 전체 gate와 격리 Codex 회귀 확인을 마쳤다. 최종
   code-review는 "수정 후 merge"였고, 수정(`de0087ee`: 기존 Runtime v2 terminal 탭의 agent 보기 전환 차단, 새 agent
   탭 cwd 기본값 복구, hook capability 고정 값 test, 등록되지 않은 종류의 resume 400)과 범위 재검토를 마쳤다. 최종
-  확인: test 1819 통과(3 skip), tsc, lint error 0, 문서 gate 통과. Push·PR·main merge와 live 배포 전.
+  확인: test 1819 통과(3 skip), tsc, lint error 0, 문서 gate 통과. 사용자 선택으로 main에 로컬 merge(`19a44ca8`), 사용자가
+  직접 push(main CI `42805309103` 성공)와 `deploy:local`(20:27 KST, PID `2553990`, health commit `19a44ca8`, tmux 서버
+  `43870` 유지, log error 0)을 실행했다. Auto mode가 main push와 production deploy를 막아 사용자가 `!` 명령으로 실행했다.
+- 설계 1 단계 2: 계획 작성(`docs/superpowers/plans/2026-11-10-claude-code-provider-phase2.md`, branch
+  `feat/claude-provider-phase2`), plan-eng-review 진행 중.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-사용자 요청 시 단계 1 branch를 push하고 PR을 만들어 main CI 통과 뒤 merge한다. Live 배포는 사용자 확인 뒤에
+단계 2 plan-eng-review를 반영하고 사용자 계획 검토를 받은 뒤, agy에게 Task 1부터 맡기고 Claude가 task마다 검증한다. Live 배포는 사용자 확인 뒤에
 한다. 이어서 단계 2(Claude provider core) 계획을 단계 1 interface 기준으로 쓴다. 단계 3~4 계획도 앞 단계가 merge된
 뒤 쓴다.
 
 ## Follow-Up Tasks
 
-- 설계 1 단계 1: push, PR, main merge, 사용자 확인 뒤 live 배포.
 - 작업 체계(사용자: "단계 2부터 이전처럼 \"agy 구현, Claude 감시·검증\" 체계"): 단계 2부터 구현은 Herdr pane의
   agy(`builder`)가 맡고 Claude는 계획, 감시, 검증을 맡는다. 단계 1은 Claude subagent(subagent-driven)로 구현했다.
   agy의 cwd가 live checkout이므로 agy에게는 `.worktrees/` 아래 worktree에서만 작업하도록 지시한다.

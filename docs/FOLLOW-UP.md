@@ -115,13 +115,13 @@ installer/package gate로 확인합니다.
 
 | 항목 | 상태 |
 | --- | --- |
-| Live build | `e369598b`, version `0.5.0` (2026-11-10 logo 수정 배포, branch `chore/android-launcher-and-handoff`. agentmux 전환 build는 `5b0cf14f`) |
+| Live build | `19a44ca8`, version `0.5.0` (2026-11-10 Claude Code provider 단계 1 main merge 배포. 이전 live는 logo 수정 `e369598b`, agentmux 전환 build는 `5b0cf14f`) |
 | user service | `agentmux.service` enabled, `active/running`, authenticated, port `8122`. Rollback unit `codexmux.service`(legacy)는 disable 보존 |
 | Runtime v2 | terminal `new-tabs`, storage/timeline/status `default` |
 | Session Catalog/Governance | Session Catalog `ready`, Governance `state=ready`, `writeState=disabled`, DB/WAL/SHM `0600` |
 | governance gate | `agentmux.service.d/governance-writes.conf` 미설치 → governed write 비활성. 활성화는 별도 승인 뒤 |
 | latest backup | `runtime-v2-storage-20260823T135639Z`, service 정지 중 durable/workspace state 5개, `0700/0600` |
-| latest restart | 2026-11-10 07:02 KST `deploy:local` 재시작, PID `2076015`. tmux 서버 `43870`과 session은 재시작 전후 유지. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
+| latest restart | 2026-11-10 20:27 KST `deploy:local` 재시작(사용자가 직접 실행), PID `2553990`. tmux 서버 `43870`과 session은 재시작 전후 유지, service log error 0. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
 | issue (이전 이름 저장소 기록) | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
 | 운영 handoff | `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
 
