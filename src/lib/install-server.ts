@@ -28,6 +28,9 @@ const RUNTIME_INSTALL_COMMANDS = new Set([
   'codex',
   'codex-path',
   'codex-login',
+  'claude',
+  'claude-path',
+  'claude-login',
 ]);
 
 const MAC_INSTALL_COMMANDS: Readonly<Record<string, string>> = Object.freeze({
@@ -39,6 +42,9 @@ const MAC_INSTALL_COMMANDS: Readonly<Record<string, string>> = Object.freeze({
   codex: 'npm install -g @openai/codex',
   'codex-path': 'echo "Ensure the npm global bin directory is in PATH, then restart agentmux."; echo ""; codex --version',
   'codex-login': 'codex login',
+  claude: 'curl -fsSL https://claude.ai/install.sh | bash',
+  'claude-path': 'echo "Add ~/.local/bin to your PATH (for example: export PATH=\\"$HOME/.local/bin:$PATH\\"), then restart agentmux."; echo ""; claude --version',
+  'claude-login': 'echo "Run claude in a terminal and complete the sign-in prompt."',
 });
 
 const LINUX_INSTALL_COMMANDS: Readonly<Record<string, string>> = Object.freeze({
@@ -48,6 +54,9 @@ const LINUX_INSTALL_COMMANDS: Readonly<Record<string, string>> = Object.freeze({
   codex: 'npm install -g @openai/codex',
   'codex-path': 'echo "Ensure the npm global bin directory is in PATH, then restart agentmux."; echo ""; codex --version',
   'codex-login': 'codex login',
+  claude: 'curl -fsSL https://claude.ai/install.sh | bash',
+  'claude-path': 'echo "Add ~/.local/bin to your PATH (for example: export PATH=\\"$HOME/.local/bin:$PATH\\"), then restart agentmux."; echo ""; claude --version',
+  'claude-login': 'echo "Run claude in a terminal and complete the sign-in prompt."',
 });
 
 const MAX_TERMINAL_COLS = 500;

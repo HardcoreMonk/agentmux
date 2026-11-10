@@ -58,11 +58,18 @@ export const getShellPath = async (): Promise<string> => {
 };
 const MIN_TMUX_VERSION = 2.9;
 export const MIN_CODEX_VERSION = '0.144.1';
+export const MIN_CLAUDE_VERSION = '2.0.0';
 
 interface IToolStatus {
   installed: boolean;
   version: string | null;
 }
+
+type TToolStatusWithCompat = IToolStatus & {
+  compatible: boolean;
+  minimumVersion: string;
+  binaryPath?: string | null;
+};
 
 const checkTool = async (
   cmd: string,
@@ -135,6 +142,39 @@ const withCodexCompatibility = <T extends IToolStatus>(status: T): T & {
   compatible: status.installed && isSemanticVersionAtLeast(status.version, MIN_CODEX_VERSION),
   minimumVersion: MIN_CODEX_VERSION,
 });
+
+const CLAUDE_KNOWN_DIRS = [path.join(os.homedir(), '.local', 'bin')];
+
+const findClaudeBinary = async (): Promise<string | null> => {
+  for (const dir of CLAUDE_KNOWN_DIRS) {
+    try {
+      await access(path.join(dir, 'claude'));
+      return dir;
+    } catch {
+      // not found
+    }
+  }
+  return null;
+};
+
+// When the binary exists outside PATH, binaryPath carries its directory so the
+// install flow can offer the claude-path step instead of a reinstall.
+export const checkClaudeTool = async (): Promise<TToolStatusWithCompat> => {
+  const tool = await checkTool('claude', ['--version'], parseToolSemanticVersion);
+  if (!tool.installed) {
+    return {
+      ...tool,
+      compatible: false,
+      minimumVersion: MIN_CLAUDE_VERSION,
+      binaryPath: await findClaudeBinary(),
+    };
+  }
+  return {
+    ...tool,
+    compatible: isSemanticVersionAtLeast(tool.version, MIN_CLAUDE_VERSION),
+    minimumVersion: MIN_CLAUDE_VERSION,
+  };
+};
 
 const CODEX_KNOWN_DIRS = [path.join(os.homedir(), '.local', 'bin')];
 
@@ -266,21 +306,24 @@ export const getCachedPreflightStatus = async (): Promise<IPreflightResult> => {
 export const getRuntimePreflightStatus = async (): Promise<IRuntimePreflightResult> => {
   shellPathCache = await resolveShellPathAsync();
   const platform = process.platform;
-  const [tmux, git, codex] = await Promise.all([
+  const [tmux, git, codex, claude] = await Promise.all([
     platform === 'win32'
       ? Promise.resolve({ installed: false, version: null })
       : checkTool('tmux', ['-V'], parseToolSemanticVersion),
     checkTool('git', ['--version'], parseToolSemanticVersion),
     checkTool('codex', ['--version'], parseToolSemanticVersion),
+    checkClaudeTool(),
   ]);
   const tmuxStatus = { ...tmux, compatible: isTmuxCompatible(tmux) };
+  const codexStatus = withCodexCompatibility(codex);
 
   return {
     platform,
     tmux: tmuxStatus,
     terminalRuntime: createTerminalRuntimePreflightStatus({ platform, tmux: tmuxStatus }),
     git,
-    agent: withCodexCompatibility(codex),
+    agent: codexStatus,
+    agents: { codex: codexStatus, claude },
   };
 };
 

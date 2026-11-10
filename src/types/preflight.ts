@@ -1,8 +1,12 @@
+import type { TAgentPanelType } from '@/types/terminal';
+
 export interface IToolStatus {
   installed: boolean;
   version: string | null;
   compatible?: boolean;
   minimumVersion?: string;
+  /** Directory of a binary found outside PATH, when the tool itself is not runnable. */
+  binaryPath?: string | null;
 }
 
 export type TTerminalRuntimeAdapter = 'tmux' | 'windows';
@@ -32,7 +36,10 @@ export interface IRuntimePreflightResult {
   tmux: IToolStatus & { compatible: boolean };
   terminalRuntime?: TTerminalRuntimePreflightStatus;
   git: IToolStatus;
+  /** Codex status, kept for screens that predate multi-agent preflight. */
   agent: IToolStatus;
+  /** Per-provider status keyed by agent id (equals the agent panel type). */
+  agents: Partial<Record<TAgentPanelType, IToolStatus>>;
 }
 
 export const readRuntimeAgentStatus = (status: IRuntimePreflightResult): IToolStatus =>
@@ -58,5 +65,4 @@ export const isRuntimeOk = (status: IRuntimePreflightResult): boolean =>
   readRuntimeTerminalStatus(status).installed
   && readRuntimeTerminalStatus(status).compatible
   && status.git.installed
-  && readRuntimeAgentStatus(status).installed
-  && readRuntimeAgentStatus(status).compatible !== false;
+  && Object.values(status.agents).some((agent) => agent.installed && agent.compatible !== false);

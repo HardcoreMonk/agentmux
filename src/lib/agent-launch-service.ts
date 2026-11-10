@@ -5,6 +5,7 @@ import { getProviderByPanelType } from '@/lib/providers';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { resolveTabRuntimeVersion } from '@/lib/runtime/terminal-mode';
 import { getCachedRuntimePreflight } from '@/lib/preflight';
+import type { TAgentPanelType } from '@/types/terminal';
 
 export type TAgentLaunchAction = 'launch' | 'resume';
 
@@ -18,7 +19,7 @@ export interface IAgentLaunchInput {
 
 export interface IAgentLaunchResult {
   ok: boolean;
-  code?: 'tab-not-found' | 'invalid-panel' | 'unsafe-process' | 'invalid-session' | 'codex-update-required';
+  code?: 'tab-not-found' | 'invalid-panel' | 'unsafe-process' | 'invalid-session' | 'agent-unavailable';
   processName?: string;
 }
 
@@ -35,8 +36,9 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
   }
 
   const preflight = await getCachedRuntimePreflight();
-  if (!preflight.agent.installed || preflight.agent.compatible === false) {
-    return { ok: false, code: 'codex-update-required' };
+  const agentStatus = preflight.agents[provider.id as TAgentPanelType];
+  if (!agentStatus?.installed || agentStatus.compatible === false) {
+    return { ok: false, code: 'agent-unavailable' };
   }
 
   if (resolveTabRuntimeVersion(tab) === 1) {

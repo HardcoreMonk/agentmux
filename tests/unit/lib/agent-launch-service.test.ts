@@ -23,14 +23,14 @@ vi.mock('@/lib/tmux', () => ({
   sendKeys: mocks.sendKeys,
 }));
 const codexTestProvider = {
-  id: 'codex-test',
+  id: 'codex',
   panelType: 'codex',
   isValidSessionId: (value: unknown) => typeof value === 'string' && value.startsWith('session-'),
   buildLaunchCommand: mocks.buildLaunchCommand,
   buildResumeCommand: mocks.buildResumeCommand,
 };
 const claudeTestProvider = {
-  id: 'claude-test',
+  id: 'claude',
   panelType: 'claude',
   isValidSessionId: (value: unknown) => typeof value === 'string' && value.startsWith('session-'),
   buildLaunchCommand: mocks.buildClaudeLaunchCommand,
@@ -76,6 +76,10 @@ describe('launchAgentInTab', () => {
     vi.clearAllMocks();
     mocks.getCachedRuntimePreflight.mockResolvedValue({
       agent: { installed: true, compatible: true, version: '0.147.0' },
+      agents: {
+        codex: { installed: true, compatible: true, version: '0.147.0' },
+        claude: { installed: true, compatible: true, version: '2.1.322' },
+      },
     });
     mocks.checkTerminalProcess.mockResolvedValue({ isSafe: true, processName: 'bash' });
     mocks.buildLaunchCommand.mockResolvedValue('codex -c hooks');
@@ -183,9 +187,36 @@ describe('launchAgentInTab', () => {
 
     mocks.getCachedRuntimePreflight.mockResolvedValue({
       agent: { installed: true, compatible: false, version: '0.143.0' },
+      agents: { codex: { installed: true, compatible: false, version: '0.143.0' } },
     });
     await expect(launchAgentInTab({
       workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch',
-    })).resolves.toMatchObject({ ok: false, code: 'codex-update-required' });
+    })).resolves.toMatchObject({ ok: false, code: 'agent-unavailable' });
+  });
+
+  it('rejects a claude tab with agent-unavailable when only Codex is installed', async () => {
+    mocks.getCachedRuntimePreflight.mockResolvedValue({
+      agent: { installed: true, compatible: true, version: '0.147.0' },
+      agents: { codex: { installed: true, compatible: true, version: '0.147.0' } },
+    });
+    mocks.readLayoutFile.mockResolvedValue(layout(2, 'claude'));
+    await expect(launchAgentInTab({
+      workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch',
+    })).resolves.toMatchObject({ ok: false, code: 'agent-unavailable' });
+    expect(mocks.writeTerminalSession).not.toHaveBeenCalled();
+  });
+
+  it('launches a claude tab on a host without Codex', async () => {
+    mocks.getCachedRuntimePreflight.mockResolvedValue({
+      agent: { installed: false, version: null },
+      agents: {
+        codex: { installed: false, version: null },
+        claude: { installed: true, compatible: true, version: '2.1.322' },
+      },
+    });
+    mocks.readLayoutFile.mockResolvedValue(layout(2, 'claude'));
+    await expect(launchAgentInTab({
+      workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch',
+    })).resolves.toEqual({ ok: true });
   });
 });
