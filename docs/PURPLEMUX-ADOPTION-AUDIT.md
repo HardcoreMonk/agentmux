@@ -6,8 +6,76 @@
 > Codexmux 감사 baseline: `main@cafc8de9` (`v0.4.16`)
 > 감사 당시 Windows stable release: `v0.4.22@4af02209`
 > 현재 제품/runtime target: ADR-031 Linux 단일 엔진, source/live `0.4.24`, public npm `0.4.23`
+> 보충 분석: 2026-11-10, agentmux `main@1b7408b4` (`0.5.0`). 아래
+> [보충 분석](#보충-분석-2026-11-10-서비스-기능과-agentmux-차이) 절이 본문보다 우선합니다.
 
-## 결론
+## 보충 분석 (2026-11-10): 서비스 기능과 agentmux 차이
+
+### 기준과 방법
+
+- Purplemux `main`은 여전히 `52140216`(`v0.4.5`, 2026-07-04)입니다. 본문과 같은 commit이며 그 뒤 commit은
+  없습니다. 나머지 branch는 dependabot과 `add-codex`(main에 이미 포함, 이후 commit 없음)뿐입니다.
+- 본문은 "Codex 전용 제품에 무엇을 가져올까" 관점이었습니다. 이번에는 multi-agent 목표(Claude Code와
+  Codex 동시 운영)에 맞춰 서비스 기능 전체를 다시 봤습니다.
+- README, 문서 목록과 provider, hook, CLI, 통계, git, 권한 처리 코드를 직접 읽었습니다. 그다음 두 repo의
+  `src`/`bin`/`electron` 파일 목록(purplemux 455개, agentmux 622개)을 대조하고, purplemux에만 있는 파일을
+  agentmux의 다른 이름 구현과 기능 단위로 다시 맞춰 봤습니다.
+
+### Purplemux 서비스 기능
+
+| 영역 | 기능 | 근거 |
+| --- | --- | --- |
+| Agent 지원 | Claude Code와 Codex를 같은 provider interface로 지원. 탭 종류 `terminal`, `claude-code`, `codex-cli`, `agent-sessions`, `web-browser`, `diff` | `src/lib/providers/{claude,codex}`, `providers/types.ts` |
+| Claude 상태 감지 | `claude --settings <file>`로 SessionStart, UserPromptSubmit, Notification, Stop, StopFailure, PreCompact, PostCompact hook과 statusLine script를 설치하고 JSONL 감시, process tree 판정을 함께 씀 | `hook-settings.ts`, `claude-command.ts` |
+| Codex 상태 감지 | SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, PermissionRequest hook | `providers/codex/hook-config.ts` |
+| 상태 모델 | session-start→idle, prompt-submit→busy, notification→needs-input, stop→ready-for-review, compaction 별도 | `TAgentWorkStateEvent` |
+| Agent 간 위임 | Agent 실행 시 "purplemux context"를 주입. Claude는 `--append-system-prompt-file`, Codex는 `-c developer_instructions=`. Workspace ID와 CLI를 알려 주고 "작업을 다른 탭에 맡기고 `status`를 조회한 뒤 `result`로 확인하라"고 안내 | `claude-prompt.ts`, `providers/codex/prompt.ts` |
+| CLI·HTTP API | `workspaces`, `tab list/create/send/status/result/close`, `api-guide`, browser 탭의 `url/screenshot/console/network/eval` | `bin/cli.js`, `src/pages/api/cli/` |
+| Live timeline | 메시지, tool call, exec stream, MCP, patch, plan, reasoning, web search, task checklist/진행, subagent group, compaction, 오류 | `components/features/timeline/` |
+| 웹에서 응답 | 권한 요청, plan 승인, AskUserQuestion, trust/bypass 확인, Codex update prompt를 브라우저에서 처리(tmux 화면에서 선택지를 읽어 키 입력) | `api/tmux/permission-options.ts`, `plan-options.ts`, `*-card.tsx` |
+| 사용량 | 5시간/7일 rate limit과 reset countdown(Claude는 statusLine payload, Codex는 JSONL), 토큰·비용·프로젝트·세션·uptime·활동 통계 | `api/status/statusline.ts`, `lib/stats/` |
+| 일일 AI 리포트 | 하루 세션을 모아 `claude -p` 또는 `codex exec`로 요약 | `stats/daily-report-builder.ts` |
+| Git | diff, history, fetch/pull/push, ahead/behind, terminal 옆 Git side panel, sync 실패 시 "Ask Claude/Codex" | `git-side-panel.tsx`, `diff-panel.tsx` |
+| Web browser | Electron 내장 browser와 device emulator, agent가 CLI로 화면·console·network 확인 | `web-browser-panel.tsx` |
+| 세션 관리 | tmux 유지, 서버 시작 시 자동 재개, 한 번 클릭 resume, agent 탭의 Chat/Terminal 보기 전환 | `auto-resume.ts`, `agent-mode-switcher.tsx` |
+| 모바일·원격 | PWA, Web Push, `/sync` WebSocket multi-device sync, 설정 화면의 Tailscale Serve 켜기/끄기, 모바일 WebSocket hard reload 복구 | `api/tailscale/serve.ts`, `ws-reload-recovery.ts` |
+| 기타 | scrypt 비밀번호, CLI token, 접근 필터, 11개 언어, 테마, custom CSS, 에디터 연동, quick prompt, 첨부, 메시지 history, macOS Electron 앱 | `auth.ts`, `access-filter.ts` 등 |
+
+### agentmux에 이미 있는 것 (이름이나 위치가 다름)
+
+- CLI 명령 집합(`bin/cli.js`의 case 목록이 같음), 통계와 일일 리포트, quick prompt, web browser 패널,
+  statusline API, Tailscale 설정.
+- Codex 탭: `agent-panel.tsx`, `session-list-view.tsx`, `mobile-agent-panel.tsx`.
+- Rich timeline(exec, web search, MCP, patch, reasoning, compaction): `codex-session-parser.ts`,
+  `rich-timeline-presentation.ts`, `timeline-view.tsx`. 승인은 `approval-queue-item.tsx`.
+- Git fetch/pull/push와 ahead/behind: `diff-panel.tsx`, `src/pages/api/git/sync.ts`.
+- Agent 실행 요청: `src/pages/api/agent/launch.ts`. Rate limit 표시: `sidebar-rate-limits.tsx`.
+- 이미지 첨부 upload: `upload-image-client.ts`, outer-owned upload ingress.
+
+### agentmux에 없는 것
+
+| 묶음 | 기능 | Purplemux 근거 |
+| --- | --- | --- |
+| A. Claude Code provider | Provider(client, hook handler, runtime snapshot, session detection, preflight, history stats), `claude-code` 탭과 모바일 패널, Claude JSONL timeline, Claude statusLine 기반 rate limit/context, Claude 토큰·비용, folder trust prompt card, Claude 자동 재개, 설치 확인 API(`check-claude`) | `providers/claude/*`, `claude-code-panel.tsx`, `claude-command.ts`, `claude-tokens.ts`, `trust-prompt-detector.ts` |
+| B. 공통 agent 기반 | Claude/Codex 세션 통합 목록 탭(`agent-sessions`), Chat/Terminal 보기 전환, agent 설치·가용성 확인, agent 전환 lock, boot progress | `agent-sessions-panel.tsx`, `agent-mode-switcher.tsx`, `agent-availability.ts`, `agent-switch-lock.ts` |
+| C. 위임 안내 주입 | Claude와 Codex 실행 시 CLI 사용법과 위임 지침 주입 | `claude-prompt.ts`, `providers/codex/prompt.ts` |
+| D. Codex 보조 | Codex update prompt 감지와 웹 응답 card, Codex TUI ready 감지 | `codex-update-prompt-detector.ts`, `codex-tui-ready-detector.ts` |
+| E. 일반 UI | Terminal 옆 Git side panel과 sync 실패 시 agent에게 묻기, 모바일 Git 전체 화면, 모바일 WebSocket hard reload 복구 안내 | `git-side-panel.tsx`, `mobile-git-fullscreen.tsx`, `ws-reload-recovery.ts` |
+
+`src/lib/providers/claude/`는 agentmux 작업 디렉터리에 빈 디렉터리로만 있고 git이 추적하지 않습니다.
+등록된 provider는 `codexProvider` 하나이고 panel type은 `terminal | codex | web-browser | diff`입니다.
+
+### 본문 결정의 변경
+
+- 본문 "비채택 항목"의 "Claude Code provider와 combined provider session model"은 2026-11-10 사용자
+  결정으로 뒤집혔습니다. 사용자는 purplemux에 있고 agentmux에 없는 기능을 agentmux에 추가하라고
+  지시했습니다.
+- Purplemux의 위임은 "다른 탭에 입력을 보내고 status를 조회해 화면을 읽는" 수준입니다. 부모/자식 관계,
+  회신 메시지, blocked 입력 가드, 역할 template은 없습니다. 이 부분은 Herdr `hc`(`docs/HERDR-ADOPTION-AUDIT.md`
+  보충 감사)가 참고 모델입니다.
+- 구현은 purplemux 코드를 그대로 옮기지 않고 agentmux의 Runtime v2 worker(status, timeline, storage),
+  provider registry, approval contract 위에 다시 설계합니다. 본문의 "rich timeline component 직접 복사
+  금지" 원칙은 유지합니다.
 
 Purplemux를 merge하거나 릴리스 단위로 따라가는 방식은 권장하지 않습니다. 두 저장소는
 같은 계보지만 제품과 runtime 방향이 이미 갈라졌습니다. Purplemux는 Claude Code와 Codex,

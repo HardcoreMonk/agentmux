@@ -17,7 +17,7 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `ADR.md` | 오래가는 아키텍처 결정과 변경 트리거 |
 | `PROJECT-DESIGN.md` | 제품/아키텍처 설계 요약과 주요 구성 |
 | `WINDOWS-ONLY-GAP-AUDIT.md` | ADR-023 기간의 Windows 전환 gap과 release 증거 보존 |
-| `PURPLEMUX-ADOPTION-AUDIT.md` | Purplemux 계보, 보안/구조 차이, 선택 이식 우선순위 |
+| `PURPLEMUX-ADOPTION-AUDIT.md` | Purplemux 계보, 보안/구조 차이, 선택 이식 우선순위, 2026-11-10 서비스 기능 보충 분석과 agentmux 미보유 기능 목록 |
 | `HERDR-ADOPTION-AUDIT.md` | Herdr 기능 인벤토리, agentmux(이전 이름 `codexmux`) 대비 비교, 차용 후보와 제외 범위, 2026-11-10 보충 감사(herdr-core/app, multi-agent 기능) |
 | `ARCHITECTURE-LOGIC.md` | Linux engine, runtime worker, Session Catalog, Project Governance와 API 흐름 |
 | `RUNTIME-V2-CUTOVER.md` | runtime v2 production 전환 단계와 rollback 기준 |

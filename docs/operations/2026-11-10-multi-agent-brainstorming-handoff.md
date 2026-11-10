@@ -66,10 +66,32 @@
 - `pane wait-output`은 event-driven이 아니라 polling이다.
 - 상세와 근거 위치는 `docs/HERDR-ADOPTION-AUDIT.md`의 "보충 감사 (2026-11-10)" 절에 정리했다.
 
+### Purplemux 기능 대조 (같은 날)
+
+- `subicura/purplemux` `52140216`(`v0.4.5`)의 서비스 기능을 다시 정리하고 agentmux와 기능 단위로
+  대조했다. 결과는 `docs/PURPLEMUX-ADOPTION-AUDIT.md`의 "보충 분석 (2026-11-10)" 절에 있다.
+- 사용자 결정: purplemux에 있고 agentmux에 없는 기능을 agentmux에 추가한다. 기존 감사의 "Claude Code
+  provider 비채택" 결정은 뒤집혔다.
+- 빠진 기능 묶음: A. Claude Code provider, B. 공통 agent 기반(세션 통합 목록, Chat/Terminal 전환 등),
+  C. 위임 안내 주입, D. Codex 보조(update prompt, TUI ready), E. 일반 UI(Git side panel, 모바일 Git,
+  reload 복구).
+- Behavior·contract 변경이므로 Full lifecycle로 진행한다. 설계 문서 승인 전에는 구현하지 않는다.
+- 순서 확정(사용자: "이 순서(설계 1 → 2 → 3)로 진행"): 설계 1 = A+B+C, 설계 2 = D+E, 설계 3 = Herdr 방식
+  회신·상호 리뷰 흐름.
+- 위임 확인 방식 결정(사용자: "확인 없이 바로 진행"): agent가 다른 탭을 만들거나 지시를 보낼 때 사용자 확인을
+  거치지 않는다. 화면에 보이면 된다.
+- Claude Code 자체 권한 확인 결정(사용자: "미리 허용"): agentmux가 띄운 Claude Code에서 `agentmux tab` 명령을
+  미리 허용한다. Live Codex가 `danger-full-access` + 승인 없음이라 Claude가 보낸 지시가 확인 없이 실행된다는
+  점을 설명한 뒤 받은 결정이다.
+- 설계 1 초안: `docs/superpowers/specs/2026-11-10-claude-code-provider-design.md`. Builder check(독립 subagent)
+  9개 질문을 반영했다. 조사 결과(서버 약 40곳,
+  화면 약 25개 파일의 Codex 고정 지점, purplemux 구현 방식, Claude Code hook 공식 문서 확인)를 문서의 "현재
+  사실"과 "Hook 계약 확인"에 담았다.
+
 ## 설계에서 정할 것 (미결)
 
-1. 사람이 어느 시점에 개입하는가: 위임마다 승인, 최종 리뷰 결과만 확인, 또는 그 중간. 마지막으로
-   사용자에게 던진 질문이며 답을 기다리는 중이다.
+1. 사람이 어느 시점에 개입하는가: 위임 자체는 확인 없이 진행하기로 결정했다(2026-11-10). 리뷰 결과를
+   언제 사람이 보는지는 설계 3에서 다룬다.
 2. 누가 일을 나누는가: 한 agent가 lead로 위임하는지, 사람이 두 agent에게 각각 주는지.
 3. 리뷰를 누가 언제 시작하는가: 구현 agent가 끝나면 자동으로 리뷰 agent에게 넘기는지.
 4. Claude Code 상태 감지 방식: 화면 감지, hook, OSC 7501 같은 상태 protocol 중 무엇을 쓰는가.
@@ -126,24 +148,25 @@
   test 1774개 통과, lint error 0(경고 6개는 기존 파일), typecheck 통과. `deploy:local`로 live에
   배포했다(07:02 KST, PID `2076015`, health commit `e369598b`). tmux 서버 `43870`과 session은
   유지되었고 service log에 오류가 없다. 폰 로그인 화면에서 `agent`+`mux` 표시를 확인했다.
-- Live service는 이 branch에서 build되어 있다. main에는 아직 merge되지 않았다.
-- 이 변경은 아직 commit하지 않았다.
+- Branch `chore/android-launcher-and-handoff`는 PR #45로 CI 통과 뒤 main에 merge했다(merge commit
+  `1b7408b4`, main CI 성공). Branch는 local과 GitHub에서 지웠다. Live build `e369598b`는 merge된 내용과 같다.
 
 ## Current Lifecycle Stage
 
-- Multi-agent: `superpowers:brainstorming` (설계 문서 전).
-- Android와 웹 logo: release 서명 설치와 live 배포 완료, branch commit 뒤 PR 전 (rename 설계의 "보이는 모든 surface" 범위에서 빠진 부분 보완).
+- Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): `superpowers:brainstorming`, 설계
+  문서 builder check 반영 뒤 사용자 승인 대기.
+- Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-사용자에게 사람의 개입 시점을 묻는 질문의 답을 받고 brainstorming을 이어 간다. 설계가 모이면
-`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`를 쓰고 독립 builder check를 거쳐 사용자 승인을
-받는다. 승인 전에는 구현하지 않는다.
+설계 1 문서(`docs/superpowers/specs/2026-11-10-claude-code-provider-design.md`)의 builder check 결과를
+반영하고 사용자 승인을 받는다. 승인 뒤 grill-me, plan-design-review, writing-plans 순서로 간다. 승인 전에는
+구현하지 않는다.
 
 ## Follow-Up Tasks
 
-- Multi-agent 설계 문서 작성과 승인, 이어서 `superpowers:writing-plans`.
-- 3번 프로젝트(위임 자동화와 agent split)를 2번에 합칠지 결정.
-- Branch `chore/android-launcher-and-handoff` push, PR, CI 뒤 main merge.
+- 설계 1 builder check 반영과 사용자 승인, 이어서 grill-me, plan-design-review, `superpowers:writing-plans`.
+- 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
+- 이번 문서 변경 commit(사용자 요청 시).
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.
