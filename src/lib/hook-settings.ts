@@ -34,12 +34,35 @@ process.stdin.on('data', (chunk) => {
   received += Math.min(buffer.byteLength, remaining);
 });
 
+const FORWARDED_FIELDS = {
+  session_id: 'agentSessionId',
+  transcript_path: 'transcriptPath',
+  source: 'source',
+  notification_type: 'notificationType',
+};
+const MAX_FIELD_LENGTH = 512;
+
+const readForwardedFields = () => {
+  try {
+    const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    if (!input || typeof input !== 'object') return {};
+    const fields = {};
+    for (const [from, to] of Object.entries(FORWARDED_FIELDS)) {
+      const value = input[from];
+      if (typeof value === 'string' && value.length <= MAX_FIELD_LENGTH) fields[to] = value;
+    }
+    return fields;
+  } catch {
+    return {};
+  }
+};
+
 process.stdin.on('end', () => {
   try {
     const port = Number.parseInt(fs.readFileSync(path.join(baseDir, 'port'), 'utf8').trim(), 10);
     const token = fs.readFileSync(path.join(baseDir, 'cli-token'), 'utf8').trim();
     if (!Number.isInteger(port) || port < 1 || port > 65535 || !token) process.exit(0);
-    const body = JSON.stringify({ event, session, capability });
+    const body = JSON.stringify({ event, session, capability, ...readForwardedFields() });
     const request = http.request({
       host: '127.0.0.1',
       port,

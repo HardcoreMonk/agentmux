@@ -511,6 +511,19 @@ describe('runtime ipc', () => {
       event: 'notification',
       notificationType: 'permission_prompt',
     });
+    expect(parseRuntimeCommandPayload('status.live-hook-event', {
+      tmuxSession: 'pt-ws-a-pane-b-tab-c',
+      event: 'session-start',
+      agentSessionId: 'sid-1',
+      transcriptPath: '/home/test/.claude/projects/x/sid-1.jsonl',
+      source: 'clear',
+    })).toEqual({
+      tmuxSession: 'pt-ws-a-pane-b-tab-c',
+      event: 'session-start',
+      agentSessionId: 'sid-1',
+      transcriptPath: '/home/test/.claude/projects/x/sid-1.jsonl',
+      source: 'clear',
+    });
     expect(parseRuntimeCommandPayload('status.live-client-event', {
       eventType: 'ack-notification',
       tabId: 'tab-a',

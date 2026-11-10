@@ -33,7 +33,11 @@ interface IStatusLiveManagerLike {
   shutdown(): void;
   getAllForClient(): Record<string, IClientTabStatusEntry>;
   getRateLimitsForClient(): IRateLimitsUpdateMessage['data'] | null;
-  updateTabFromHook(tmuxSession: string, event: string, notificationType?: string): void;
+  updateTabFromHook(
+    tmuxSession: string,
+    event: string,
+    options?: { notificationType?: string; agentSessionId?: string; transcriptPath?: string; source?: string },
+  ): void;
   dismissTab(tabId: string): boolean;
   ackNotificationInput(tabId: string, seq: number): boolean;
   notifyLastUserMessage(sessionName: string, message: string): boolean;
@@ -182,7 +186,8 @@ export const createStatusWorkerService = (options: ICreateStatusWorkerServiceOpt
         }
         if (command.type === 'status.live-hook-event') {
           const input = parseRuntimeCommandPayload('status.live-hook-event', command.payload);
-          getLiveManager().updateTabFromHook(input.tmuxSession, input.event, input.notificationType);
+          const { tmuxSession, event, ...options } = input;
+          getLiveManager().updateTabFromHook(tmuxSession, event, options);
           return ok(command, { accepted: true });
         }
         if (command.type === 'status.live-client-event') {

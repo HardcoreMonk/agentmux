@@ -22,6 +22,8 @@ const codexStatusBehavior: IAgentProviderStatusBehavior = {
   deferStopHookUntilJsonlIdle: true,
   reconcileStateFromJsonl: true,
   recoverPaneInput: true,
+  bindSessionFromHook: false,
+  leaveNeedsInputOnJsonlGrowth: false,
 };
 
 const passiveStatusBehavior: IAgentProviderStatusBehavior = {
@@ -29,6 +31,8 @@ const passiveStatusBehavior: IAgentProviderStatusBehavior = {
   deferStopHookUntilJsonlIdle: false,
   reconcileStateFromJsonl: false,
   recoverPaneInput: false,
+  bindSessionFromHook: false,
+  leaveNeedsInputOnJsonlGrowth: false,
 };
 
 const baseDetected = {

@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { getWorkspaces } from '@/lib/workspace-store';
-import { readLayoutFile, resolveLayoutFile, collectAllTabs, updateTabCliStatus, parseSessionName, setLayoutReconciler } from '@/lib/layout-store';
+import { readLayoutFile, resolveLayoutFile, collectAllTabs, updateTabCliStatus, updateTabAgentSessionId, updateTabAgentJsonlPath, parseSessionName, setLayoutReconciler } from '@/lib/layout-store';
 import { getAllPanesInfo, getListeningPorts, SAFE_SHELLS, getSessionCwd, getSessionPanePid } from '@/lib/tmux';
 import { getChildPids } from '@/lib/session-detection';
 import {
@@ -58,6 +58,7 @@ import { createStatusPaneRecoveryService } from '@/lib/status/pane-recovery-serv
 import { StatusPollService } from '@/lib/status/poll-service';
 import { StatusJsonlWatchService } from '@/lib/status/jsonl-watch-service';
 import { evaluateStatusHookEvent } from '@/lib/status/hook-event-service';
+import { decideHookSessionRebind, decideNeedsInputJsonlExit } from '@/lib/status/hook-session-binding';
 import { evaluateResolveUnknownStatus } from '@/lib/status/resolve-unknown-service';
 import { StatusStopRecheckService } from '@/lib/status/stop-recheck-service';
 import {
@@ -953,7 +954,12 @@ export class StatusManager {
     return undefined;
   }
 
-  updateTabFromHook(tmuxSession: string, event: string, notificationType?: string): void {
+  updateTabFromHook(
+    tmuxSession: string,
+    event: string,
+    options: { notificationType?: string; agentSessionId?: string; transcriptPath?: string; source?: string } = {},
+  ): void {
+    const { notificationType } = options;
     const tabId = this.findTabIdBySession(tmuxSession);
     if (!tabId) {
       hookLog.debug({ tmuxSession, event, notificationType }, 'no tabId for session');
@@ -966,6 +972,7 @@ export class StatusManager {
     }
 
     const provider = getProviderByPanelType(entry.panelType);
+    this.rebindSessionFromHook(tabId, entry, options);
     const hookEvent = evaluateStatusHookEvent({
       event,
       notificationType,
@@ -1025,6 +1032,48 @@ export class StatusManager {
     if (hookEvent.shouldRefreshStopSnippet && entry.jsonlPath) {
       this.stopRecheckService.scheduleStopSnippetRefresh({ tabId, jsonlPath: entry.jsonlPath });
     }
+  }
+
+  private rebindSessionFromHook(
+    tabId: string,
+    entry: ITabStatusEntry,
+    options: { agentSessionId?: string; transcriptPath?: string },
+  ): void {
+    const provider = getProviderByPanelType(entry.panelType);
+    const decision = decideHookSessionRebind({
+      behavior: provider?.statusBehavior ?? null,
+      currentSessionId: entry.agentSessionId ?? null,
+      hookSessionId: options.agentSessionId,
+      transcriptPath: options.transcriptPath,
+    });
+    if (!provider || !decision.rebind) return;
+
+    entry.agentSessionId = decision.sessionId;
+    entry.jsonlPath = decision.jsonlPath;
+    this.stopJsonlWatch(tabId);
+    hookLog.debug({ tabId, agentSessionId: decision.sessionId }, 'rebinding tab to hook session');
+
+    const { tmuxSession } = entry;
+    updateTabAgentSessionId(tmuxSession, provider, decision.sessionId).catch(() => {});
+    void (async () => {
+      let jsonlPath = decision.jsonlPath;
+      if (!jsonlPath) {
+        const cwd = await getSessionCwd(tmuxSession);
+        jsonlPath = cwd ? await provider.resolveJsonlPath(decision.sessionId, cwd) : null;
+      }
+      const current = this.tabs.get(tabId);
+      if (!current || current.agentSessionId !== decision.sessionId) return;
+      current.jsonlPath = jsonlPath;
+      await updateTabAgentJsonlPath(tmuxSession, provider, jsonlPath).catch(() => {});
+      const keepWatching = shouldKeepStatusJsonlWatch({
+        cliState: current.cliState,
+        watchJsonlWhenBound: provider.statusBehavior.watchJsonlWhenBound,
+      });
+      if (jsonlPath && keepWatching) this.startJsonlWatch(tabId, jsonlPath);
+      this.broadcastUpdate(tabId, current);
+    })().catch((err) => {
+      hookLog.debug({ tabId, err }, 'hook session rebind failed');
+    });
   }
 
   private recheckCodexStop(tabId: string, tmuxSession: string): void {
@@ -1193,7 +1242,9 @@ export class StatusManager {
       if (layout) {
         const tab = collectAllTabs(layout.root).find((t) => t.sessionName === tmuxSession);
         const provider = getProviderByPanelType(entry.panelType);
-        const tabAgentSessionId = tab ? normalizeSessionId(readAgentSessionId(tab)) : null;
+        const tabAgentSessionId = provider?.statusBehavior.bindSessionFromHook && entry.agentSessionId
+          ? entry.agentSessionId
+          : tab ? normalizeSessionId(readAgentSessionId(tab)) : null;
         if (provider && tabAgentSessionId) {
           const cwd = await getSessionCwd(tmuxSession);
           if (cwd) {
@@ -1272,6 +1323,20 @@ export class StatusManager {
       ? await checkProviderJsonlIdle(provider, jsonlPath, (data) => this.publishRateLimits(data))
       : await checkJsonlIdle(jsonlPath);
     const { interrupted, lastEntryTs } = check;
+
+    const needsInputExit = decideNeedsInputJsonlExit({
+      behavior: statusBehavior,
+      cliState: entry.cliState,
+      needsInputSince: entry.lastEvent?.at ?? null,
+      lastEntryTs,
+      interrupted,
+    });
+    if (needsInputExit !== 'none') {
+      hookLog.debug({ tabId, lastEntryTs, to: needsInputExit }, 'left needs-input after JSONL growth');
+      this.applyCliState(tabId, entry, needsInputExit);
+      this.persistToLayout(entry);
+      this.broadcastUpdate(tabId, entry);
+    }
 
     if (lastEntryTs !== null && shouldEmitSyntheticJsonlInterrupt({
       currentState: entry.cliState,

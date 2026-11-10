@@ -36,6 +36,8 @@ const makeProvider = (overrides: Partial<IAgentProvider> = {}): IAgentProvider =
     deferStopHookUntilJsonlIdle: true,
     reconcileStateFromJsonl: true,
     recoverPaneInput: true,
+    bindSessionFromHook: false,
+    leaveNeedsInputOnJsonlGrowth: false,
   },
   matchesProcess: vi.fn(),
   isValidSessionId: (id: unknown): id is string => typeof id === 'string',
@@ -127,6 +129,8 @@ describe('timeline resume session service', () => {
         deferStopHookUntilJsonlIdle: false,
         reconcileStateFromJsonl: false,
         recoverPaneInput: false,
+        bindSessionFromHook: false,
+        leaveNeedsInputOnJsonlGrowth: false,
       },
       resolveLatestJsonlPath: vi.fn(async () => ({
         jsonlPath: '/tmp/latest.jsonl',

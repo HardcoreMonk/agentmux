@@ -205,15 +205,21 @@ UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agent
 | `deferStopHookUntilJsonlIdle` | stop hook을 바로 `ready-for-review`로 처리하지 않고 JSONL idle 확인 뒤 상태를 갱신합니다 | hook reducer(`status-state-machine.ts`). `hook-event-service.ts`가 전달합니다 | `true` |
 | `reconcileStateFromJsonl` | JSONL 상태 읽기 결과로 `cliState`를 맞춥니다(`reduceCodexState` 경로). 꺼져 있으면 초기 상태 보정과 cwd 최신 JSONL 채택 판단도 하지 않습니다 | `status-manager.ts` reconcile, `poll-tab-reconciliation.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `timeline/resume-session-service.ts` | `true` |
 | `recoverPaneInput` | 중단된 prompt나 남은 입력을 pane capture로 확인해 복구합니다 | `status-manager.ts` JSONL 변경 처리, `poll-recovery-service.ts`, `pane-recovery-service.ts`, `scan-tab-bootstrap.ts` | `true` |
+| `bindSessionFromHook` | hook stdin의 `session_id`가 tab의 `agentSessionId`와 다르면 session과 JSONL 경로를 새 값으로 다시 묶고 JSONL watch를 새 경로로 옮깁니다(`/clear`, resume 등) | `status-manager.ts` `updateTabFromHook`, `status/hook-session-binding.ts` | `false` |
+| `leaveNeedsInputOnJsonlGrowth` | `needs-input`에서 JSONL이 `needs-input` 전환 시각보다 늦은 entry를 쓰면 terminal에서 직접 응답한 것으로 보고 `busy`(JSONL 검사가 interrupted면 `idle`)로 바꿉니다. Synthetic interrupt 검사보다 먼저 판단합니다 | `status-manager.ts` JSONL 변경 처리, `status/hook-session-binding.ts` | `false` |
 
 - JSONL 상태는 provider의 `readJsonlStatus(jsonlPath)`로 읽습니다. Codex 구현은 기존
   `checkCodexJsonlState` 경로와 rate-limit 관찰을 그대로 씁니다. Provider 공통 tail 검사(`checkJsonlIdle`)와
   cache 삭제(`clearJsonlCheckCache`)는 `src/lib/status/jsonl-check.ts`에 있습니다.
 - JSONL 경로 허용 root는 provider의 `jsonlRoots()`를 모은 `isAllowedAgentJsonlPath`가 판정합니다.
-- Runtime v2 status IPC의 `statusBehavior` wire schema(`runtime/ipc.ts`)는 바꾸지 않았습니다. Worker로는
-  여전히 `watchJsonlWhenBound`와 `deferStopHookUntilJsonlIdle` 두 key만 보내고, hook reducer와 side-effect
+- Runtime v2 status IPC의 `statusBehavior` wire schema(`runtime/ipc.ts`)는 바꾸지 않았습니다(새 두 flag도 보내지
+  않습니다). Worker로는 여전히 `watchJsonlWhenBound`와 `deferStopHookUntilJsonlIdle` 두 key만 보내고, hook reducer와 side-effect
   policy는 이 두 key만 받는 `TAgentHookStatusBehavior`를 입력으로 씁니다.
 - Pane 입력 복구가 꺼진 provider에서 복구 결과의 reason은 `not-supported`입니다(이전 `not-codex`).
+
+Hook bridge는 stdin의 `session_id`, `transcript_path`, `source`, `notification_type`만(문자열, 512자 이하) 골라
+`agentSessionId`, `transcriptPath`, `source`, `notificationType`으로 보냅니다. `hook.ts`가 탭의 provider 기준으로
+검증하고 통과하지 못한 필드는 버린 뒤 이벤트는 처리합니다.
 
 Codex 전용 JSONL parsing(`checkCodexJsonlState`, `reduceCodexState`)과 pane prompt 판정은 여전히 Codex
 adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 legacy tmux adapter로 만들므로

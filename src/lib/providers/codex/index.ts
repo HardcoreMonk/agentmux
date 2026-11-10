@@ -63,6 +63,8 @@ export const codexProvider: IAgentProvider = {
     deferStopHookUntilJsonlIdle: true,
     reconcileStateFromJsonl: true,
     recoverPaneInput: true,
+    bindSessionFromHook: false,
+    leaveNeedsInputOnJsonlGrowth: false,
   },
 
   matchesProcess: (commandName) => commandName === 'codex',

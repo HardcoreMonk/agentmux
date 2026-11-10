@@ -70,6 +70,8 @@ describe('agent providers', () => {
       deferStopHookUntilJsonlIdle: true,
       reconcileStateFromJsonl: true,
       recoverPaneInput: true,
+      bindSessionFromHook: false,
+      leaveNeedsInputOnJsonlGrowth: false,
     });
   });
 

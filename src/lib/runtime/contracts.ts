@@ -474,6 +474,9 @@ export interface IRuntimeStatusLiveHookEventInput {
   tmuxSession: string;
   event: string;
   notificationType?: string;
+  agentSessionId?: string;
+  transcriptPath?: string;
+  source?: string;
 }
 
 export interface IRuntimeStatusLiveClientEventInput {

@@ -143,7 +143,7 @@ describe('status worker service', () => {
     }));
     await service.handleCommand(command('status.live-poll'));
 
-    expect(liveManager.updateTabFromHook).toHaveBeenCalledWith('pt-ws-a-pane-b-tab-c', 'notification', 'permission_prompt');
+    expect(liveManager.updateTabFromHook).toHaveBeenCalledWith('pt-ws-a-pane-b-tab-c', 'notification', { notificationType: 'permission_prompt' });
     expect(liveManager.ackNotificationInput).toHaveBeenCalledWith('tab-a', 4);
     expect(liveManager.notifyLastUserMessage).toHaveBeenCalledWith('pt-ws-a-pane-b-tab-c', 'hello');
     expect(liveManager.registerTab).toHaveBeenCalledWith('tab-a', {

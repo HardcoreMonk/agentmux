@@ -667,6 +667,9 @@ const statusLiveHookEventPayloadSchema = z.object({
   tmuxSession: z.string().min(1),
   event: z.string().min(1),
   notificationType: z.string().optional(),
+  agentSessionId: z.string().optional(),
+  transcriptPath: z.string().optional(),
+  source: z.string().optional(),
 }).strict();
 const statusLiveClientEventPayloadSchema = z.object({
   eventType: statusClientEventTypeSchema,

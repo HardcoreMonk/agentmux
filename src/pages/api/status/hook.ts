@@ -5,23 +5,50 @@ import { createLogger } from '@/lib/logger';
 import { getRuntimeStatusV2Mode } from '@/lib/runtime/status-mode';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { verifyAgentHookCapability } from '@/lib/agent-hooks';
+import { getProviderByPanelType, isAllowedAgentJsonlPath } from '@/lib/providers';
 import { parseSessionName, readLayoutFile, resolveLayoutFile } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { recordPerfCounter } from '@/lib/perf-metrics';
+import type { ITab } from '@/types/terminal';
 
 const log = createLogger('hooks');
 
 const shouldUseRuntimeStatusLive = (): boolean =>
   process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
-const verifyHookTarget = async (sessionName: string, capability: string): Promise<boolean> => {
+const HOOK_SOURCES = new Set(['startup', 'resume', 'clear', 'compact', 'fork']);
+const NOTIFICATION_TYPE_PATTERN = /^[a-z_]{1,64}$/;
+
+interface IHookEventOptions {
+  notificationType?: string;
+  agentSessionId?: string;
+  transcriptPath?: string;
+  source?: string;
+}
+
+const findHookTarget = async (sessionName: string, capability: string): Promise<ITab | null> => {
   const parsed = parseSessionName(sessionName);
   const verified = verifyAgentHookCapability(capability, sessionName);
-  if (!parsed || !verified || verified.tabId !== parsed.tabId) return false;
+  if (!parsed || !verified || verified.tabId !== parsed.tabId) return null;
   const layout = await readLayoutFile(resolveLayoutFile(parsed.wsId));
   const pane = layout ? findPane(layout.root, parsed.paneId) : null;
   const tab = pane?.tabs.find((candidate) => candidate.id === parsed.tabId);
-  return tab?.sessionName === sessionName;
+  return tab?.sessionName === sessionName ? tab : null;
+};
+
+const sanitizeHookOptions = (body: Record<string, unknown>, tab: ITab): IHookEventOptions => {
+  const provider = getProviderByPanelType(tab.panelType);
+  const options: IHookEventOptions = {};
+  const { notificationType, agentSessionId, transcriptPath, source } = body;
+  if (typeof notificationType === 'string' && NOTIFICATION_TYPE_PATTERN.test(notificationType)) {
+    options.notificationType = notificationType;
+  }
+  if (provider && provider.isValidSessionId(agentSessionId)) options.agentSessionId = agentSessionId;
+  if (typeof transcriptPath === 'string' && isAllowedAgentJsonlPath(transcriptPath)) {
+    options.transcriptPath = transcriptPath;
+  }
+  if (typeof source === 'string' && HOOK_SOURCES.has(source)) options.source = source;
+  return options;
 };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -34,24 +61,27 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
-  const { event, session, capability, notificationType } = req.body ?? {};
+  const body: Record<string, unknown> = req.body ?? {};
+  const { event, session, capability } = body;
   if (typeof event === 'string' && event !== 'poll' && typeof session === 'string' && session) {
-    if (typeof capability !== 'string' || !await verifyHookTarget(session, capability)) {
+    const tab = typeof capability === 'string' ? await findHookTarget(session, capability) : null;
+    if (!tab) {
       recordPerfCounter('status.hook_bridge.rejected');
       log.warn({ event }, 'rejected status hook target');
       return res.status(403).json({ error: 'Invalid hook target' });
     }
-    const type = typeof notificationType === 'string' && notificationType ? notificationType : undefined;
-    log.debug({ event, session, notificationType: type }, `received ${event}${type ? `(${type})` : ''}`);
+    const options = sanitizeHookOptions(body, tab);
+    const type = options.notificationType;
+    log.debug({ event, session, notificationType: type, source: options.source }, `received ${event}${type ? `(${type})` : ''}`);
     if (shouldUseRuntimeStatusLive()) {
       try {
-        await getRuntimeSupervisor().sendStatusLiveHookEvent({ tmuxSession: session, event, ...(type ? { notificationType: type } : {}) });
+        await getRuntimeSupervisor().sendStatusLiveHookEvent({ tmuxSession: session, event, ...options });
         return res.status(204).end();
       } catch (err) {
         log.warn('runtime status hook failed, falling back: %s', err instanceof Error ? err.message : String(err));
       }
     }
-    getStatusManager().updateTabFromHook(session, event, type);
+    getStatusManager().updateTabFromHook(session, event, options);
   } else {
     log.debug('poll trigger');
     if (shouldUseRuntimeStatusLive()) {

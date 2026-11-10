@@ -36,6 +36,8 @@ export interface IAgentProviderStatusBehavior {
   readonly deferStopHookUntilJsonlIdle: boolean;
   readonly reconcileStateFromJsonl: boolean;
   readonly recoverPaneInput: boolean;
+  readonly bindSessionFromHook: boolean;
+  readonly leaveNeedsInputOnJsonlGrowth: boolean;
 }
 
 export type TAgentHookStatusBehavior = Pick<
