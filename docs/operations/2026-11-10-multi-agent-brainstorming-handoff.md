@@ -397,6 +397,12 @@ Branch 전체 최종 검토가 merge 전 수정 2개와 작은 수정 3개를 �
     통과한다. 안정화 필요.
   - `tests/unit/lib/layout-store.test.ts`가 실제 data dir 아래 `ws-layout-store-*` directory를 만든다. 이전 실행이 남긴 4개가
     legacy 실제 경로 `~/.codexmux/workspaces`에 있고 live data dir라 지우지 않았다. Test 격리와 정리는 사용자가 정한다.
+  - `vitest.config.ts`가 실행마다 `/tmp/agentmux-vitest-tmux-*` directory를 만들고 지우지 않는다(2026-11-11 기준 123개).
+    Subagent의 삭제는 auto mode가 막아 Claude가 대신 지우지 않았다. 정리(`rm -rf /tmp/agentmux-vitest-tmux-*`)는 사용자가
+    실행하고, 설정이 test 종료 때 지우도록 고친다.
+- 다음 Claude live 확인 때 볼 미검증 항목(단계 2 최종 검토): 병렬 tool 호출에서 자동 승인된 tool 결과가 권한 요청 뒤에
+  기록될 때 needs-input이 잘못 풀리는지, 웹 trust 카드 경로(xterm buffer → 카드 → stdin)의 browser 확인, 모바일 보기 전환
+  메뉴의 browser 확인(440px 미만), AskUserQuestion·plan 승인이 `permission_prompt` 알림을 보내는지.
 - Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
 - 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.
