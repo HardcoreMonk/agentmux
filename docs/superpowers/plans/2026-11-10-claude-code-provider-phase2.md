@@ -10,13 +10,15 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-10-claude-code-provider-design.md` (2절 "Claude Code provider (A)", "Hook 계약 확인", "단계와 배포" 2번)
 
+**Plan review:** `docs/superpowers/reviews/2026-11-10-claude-code-provider-phase2-eng-review.md`
+
 **Base:** main `19a44ca8` (단계 1 merge). 작업 branch `feat/claude-provider-phase2`, worktree `/data/projects/agentcode-zone/agentmux/.worktrees/claude-provider-phase2`.
 
 ## 단계 2 범위
 
 | 항목 | 단계 |
 | --- | --- |
-| 단계 1 이월: panelType 읽기 정규화(rollback 안전), IPC `statusBehavior` schema 함정 | 2 (Task 1) |
+| 단계 1 이월: panelType 읽기 정규화(이후 build의 rollback 안전, Task 1 먼저 main merge·배포), IPC `statusBehavior` schema 함정 | 2 (Task 1) |
 | Hook stdin 필드 전달, session 다시 묶기 | 2 (Task 2) |
 | 실행 명령, project directory 계산, process·session 감지 | 2 (Task 3) |
 | 탭 설정 파일(hook, statusLine), 사용자 statusLine 대신 실행 | 2 (Task 4) |
@@ -70,6 +72,10 @@
 - [ ] **Step 3: Implement** 위 Produces대로.
 - [ ] **Step 4: Run** 같은 명령 + `tests/unit/lib/runtime/` 전체 + `corepack pnpm exec tsc --noEmit` → PASS
 - [ ] **Step 5: Commit** — `fix(runtime): tolerate unknown panel types and extra status behavior keys`
+- [ ] **Step 6: Task 1을 먼저 main에 넣는다** (Claude가 진행)
+  - 단계 1 build(`19a44ca8`)는 모르는 panelType을 정규화하지 않는다. 그래서 Claude 탭이 생긴 뒤 단계 1 build로 되돌리면 status broadcast가 깨진다.
+  - Task 5가 merge되기 전에 Task 1 commit만 main에 merge하고, 사용자에게 push와 `deploy:local` 실행을 요청한다.
+  - `docs/RUNTIME-V2-CUTOVER.md` rollback 절에 "Task 1 이전 build로 되돌리기 전에 Claude 탭을 닫는다"를 적는다.
 
 ---
 
@@ -80,7 +86,9 @@
 - Modify: `src/pages/api/status/hook.ts`, `src/lib/runtime/ipc.ts:666` (`statusLiveHookEventPayloadSchema`), `src/lib/runtime/contracts.ts:473`, `src/lib/runtime/supervisor.ts:1318`, `src/lib/runtime/status/worker-service.ts:36,183-185`
 - Modify: `src/lib/status-manager.ts:956-1030` (`updateTabFromHook`), `:1184-1190` (`resolveAndWatchJsonl` 조기 return)
 - Modify: `src/lib/providers/types.ts` (`IAgentProviderStatusBehavior`), `src/lib/providers/codex/index.ts`
-- Test: `tests/unit/lib/status-hook-bridge.test.ts`, `tests/unit/pages/status-hook-api.test.ts`(있으면 확장, 없으면 생성), `tests/unit/lib/status-hook-session-binding.test.ts` (create), `tests/unit/lib/runtime/ipc.test.ts`
+- Create: `src/lib/status/hook-session-binding.ts` (다시 묶기와 needs-input 해제 판단을 담는 순수 함수)
+- Modify: `src/pages/api/layout/pane/[paneId]/tabs/index.ts:105-112` (status entry 등록에 `panelType` 포함)
+- Test: `tests/unit/lib/status-hook-bridge.test.ts`, `tests/unit/pages/status-hook-api.test.ts`(있으면 확장, 없으면 생성), `tests/unit/lib/status-hook-session-binding.test.ts` (create), `tests/unit/lib/runtime/ipc.test.ts`, `tests/unit/lib/providers.test.ts:68-73`(statusBehavior `toEqual` 갱신), `tests/unit/pages/layout-tabs-api.test.ts`
 
 **Interfaces:**
 - Produces:
@@ -96,14 +104,23 @@
     - `notificationType`: `/^[a-z_]{1,64}$/`
     - 통과하지 못한 필드는 버리고 이벤트는 처리한다.
   - Live IPC payload와 `IRuntimeStatusLiveHookEventInput`에 optional `agentSessionId`, `transcriptPath`, `source`를 더한다.
-  - `updateTabFromHook(tmuxSession: string, event: TEventName, options?: { notificationType?: string; agentSessionId?: string; transcriptPath?: string; source?: string }): void`로 바꾼다. 기존 세 번째 인자 호출처는 `{ notificationType }`으로 옮긴다.
+  - `updateTabFromHook(tmuxSession: string, event: string, options?: { notificationType?: string; agentSessionId?: string; transcriptPath?: string; source?: string }): void`로 바꾼다.
+    - `event`는 `string`으로 둔다. `pre-compact`/`post-compact`는 `TEventName`에 없지만 처리해야 한다.
+    - 기존 세 번째 인자 호출처는 `{ notificationType }`으로 옮긴다.
   - `IAgentProviderStatusBehavior`에 두 key를 더한다. Codex는 둘 다 `false`라 동작이 바뀌지 않는다. 이 key들은 IPC로 보내지 않는다.
     - `readonly bindSessionFromHook: boolean`
     - `readonly leaveNeedsInputOnJsonlGrowth: boolean`
   - needs-input 해제(spec 2절: terminal에서 직접 응답한 경우):
     - `leaveNeedsInputOnJsonlGrowth`가 true인 provider만 적용한다.
-    - `onJsonlFileChange`에서 entry가 `needs-input`이고 JSONL의 `lastEntryTs`가 needs-input으로 바뀐 시각보다 뒤면 `busy`로 바꾼다.
+    - `onJsonlFileChange`에서 entry가 `needs-input`이고 JSONL의 `lastEntryTs`가 needs-input으로 바뀐 시각(`lastEvent.at`)보다 뒤면 바꾼다. 이 판단은 synthetic interrupt 검사보다 **먼저** 한다.
+      - JSONL 검사 결과가 `interrupted`이면(terminal에서 거절하거나 Esc를 누름) `idle`
+      - 아니면 `busy`
     - 웹에서 응답하는 기존 `ack-notification` 경로는 그대로 둔다.
+  - `src/lib/status/hook-session-binding.ts`:
+    - `export const decideHookSessionRebind = (input: { behavior: IAgentProviderStatusBehavior | null; currentSessionId: string | null; hookSessionId?: string; transcriptPath?: string }): { rebind: false } | { rebind: true; sessionId: string; jsonlPath: string | null }`
+    - `export const decideNeedsInputJsonlExit = (input: { behavior: IAgentProviderStatusBehavior | null; cliState: TCliState; needsInputSince: number | null; lastEntryTs: number | null; interrupted: boolean }): 'none' | 'busy' | 'idle'`
+    - `status-manager.ts`는 이 두 함수의 결과만 적용한다. Test는 이 함수들에 한다(`StatusManager`를 만드는 test harness는 없다).
+  - 탭 생성 API가 status entry를 등록할 때 `panelType`을 넣는다. 넣지 않으면 첫 poll(최대 30초)까지 provider를 몰라 다시 묶기와 needs-input 해제가 꺼져 있다.
   - 다시 묶기 규칙(`bindSessionFromHook`이 true인 provider만):
     - `agentSessionId`가 있고 entry의 `agentSessionId`와 다르면 실행한다.
     - entry `agentSessionId`를 새 값으로, `jsonlPath`를 `transcriptPath`(없으면 `provider.resolveJsonlPath(id, cwd)`)로 바꾼다.
@@ -114,11 +131,14 @@
 - [ ] **Step 1: Write the failing tests**
   - Bridge test: stdin `{"session_id":"<uuid>","transcript_path":"/home/test/.claude/projects/x/<uuid>.jsonl","source":"clear","notification_type":"permission_prompt","prompt":"secret"}`이면 POST body에 앞의 네 필드가 이름을 바꿔 들어가고 `prompt`는 없다. stdin이 JSON이 아니면 기존 세 필드만 보낸다.
   - API test: 허용 밖 `transcriptPath`(`/etc/passwd.jsonl`)와 잘못된 `source`는 버려지고 `updateTabFromHook`은 나머지로 불린다.
-  - Binding test:
-    - `bindSessionFromHook: true`인 fake provider 탭에 `session-start` + 새 id가 오면 entry id와 jsonlPath가 바뀌고, watch가 새 경로로 다시 시작되며, 저장 함수가 불린다.
-    - 같은 id면 아무것도 바뀌지 않는다.
-    - Codex(`false`)는 새 id가 와도 바뀌지 않는다.
-    - `leaveNeedsInputOnJsonlGrowth: true` provider 탭이 `needs-input`일 때 그 뒤 시각의 JSONL 줄이 붙으면 `busy`가 된다. 그 전 시각의 줄이면 그대로다. Codex는 바뀌지 않는다.
+  - Binding test(`hook-session-binding.ts`의 순수 함수):
+    - `bindSessionFromHook: true`이고 hook id가 현재 id와 다르면 `rebind: true`와 새 id·경로를 돌려준다.
+    - 같은 id면 `rebind: false`다.
+    - Codex flag(`false`)면 새 id가 와도 `rebind: false`다.
+    - `decideNeedsInputJsonlExit`의 결과:
+      - `needs-input`이고 `lastEntryTs > needsInputSince`이면 `busy`, 같은 조건에 `interrupted`면 `idle`이다.
+      - `lastEntryTs <= needsInputSince`이면 `none`, Codex flag면 `none`이다.
+  - Tab API test: 새 Claude/Codex 탭의 status 등록 entry에 `panelType`이 있다.
   - IPC test: 새 optional 필드가 있는 payload가 parse된다.
 - [ ] **Step 2: Run** 위 test 파일들 → FAIL
 - [ ] **Step 3: Implement**
@@ -155,8 +175,9 @@
       - pane process tree에서 `getProcessCommandLine(pid)`의 command가 `claude`인 process를 찾는다.
       - 단어 경계 regex `/(^|\/)claude(\s|$)/`를 쓴다(`codex-session-detection.ts:70-95` 방식).
     - `export const detectActiveClaudeSession = (panePid: number, childPids?: number[]): Promise<ISessionInfo>` — session id를 아래 순서로 찾는다.
-      1. Claude process args의 `--session-id <uuid>` 또는 `--resume <uuid>`
-      2. `~/.claude/sessions/<pid>.json`의 `sessionId`. 읽기 전용이며, 형식을 모르면 건너뛴다. **파일을 지우지 않는다.**
+      1. `~/.claude/sessions/<pid>.json`의 `sessionId`. 그 `pid`가 pane process tree 안에 있고 id가 UUID일 때만 쓴다. 읽기 전용이며, 형식을 모르면 건너뛴다. **파일을 지우지 않는다.**
+         - 2026-11-10 확인: Claude Code `2.1.322`는 `/clear` 때 이 파일의 `sessionId`를 새 값으로 바꾼다. process args는 바뀌지 않는다. 그래서 args보다 먼저 봐야 status poll과 timeline이 `/clear` 뒤 새 session을 따라간다.
+      2. Claude process args의 `--session-id <uuid>` 또는 `--resume <uuid>`
       3. cwd project directory에서 process 시작 뒤 바뀐 가장 새 `*.jsonl`
       - `jsonlPath`는 `resolveClaudeJsonlPath`로 구한다.
     - `export const watchClaudeSessions = (panePid: number, onChange: (info: ISessionInfo) => void, options?: IAgentSessionWatchOptions): ISessionWatcher`
@@ -169,8 +190,9 @@
   - `toClaudeProjectName('/data/projects/a.b')` → `-data-projects-a-b`. 250자 경로는 길이 200 + `-` + hash이고, 같은 입력은 같은 결과다.
   - `buildClaudeLaunchCommand(<uuid>, { settingsPath: "/tmp/a b/s.json" })` → `claude --settings '/tmp/a b/s.json' --session-id <uuid>`. model·permissionMode가 있으면 순서대로 붙는다. 잘못된 id는 throw.
   - `detectActiveClaudeSession`:
-    - args가 `claude --resume <uuid>`이면 그 id를 쓴다.
-    - args에 id가 없으면 sessions pidfile의 id를 쓰고, 그 파일이 test 뒤에도 남아 있다.
+    - args가 `claude --session-id <A>`이고 pidfile `sessionId`가 `<B>`이면 `<B>`를 쓴다(`/clear` 뒤 상황).
+    - pidfile이 없으면 args의 `--resume <uuid>`를 쓴다.
+    - pidfile은 test 뒤에도 남아 있다.
     - pane에 `claude`가 없으면 `status: 'not-running'`이다.
   - `isClaudeRunning`은 `vim /home/x/.claude/a`를 실행 중으로 보지 않는다.
 - [ ] **Step 2: Run** → FAIL
@@ -185,7 +207,7 @@
 **Files:**
 - Create: `src/lib/providers/claude/tab-settings.ts`
 - Modify: `src/lib/statusline-script.ts`(node `.cjs` script로 교체), `src/lib/hook-settings.ts`(`ensureHookSettings`가 새 script를 씀, `hooks.json`의 `statusLine` 경로 갱신)
-- Test: `tests/unit/lib/claude-tab-settings.test.ts`, `tests/unit/lib/claude-statusline-script.test.ts` (create)
+- Test: `tests/unit/lib/claude-tab-settings.test.ts`, `tests/unit/lib/claude-statusline-script.test.ts` (create), `tests/unit/lib/status-hook-bridge.test.ts:9,119-123`(`buildStatuslineScriptContent` import와 curl 모양 단언 갱신), `tests/unit/lib/hook-settings.test.ts:10`(`statusline.sh` → `statusline.cjs`)
 
 **Interfaces:**
 - Consumes: Task 2의 bridge 이벤트 이름, `createAgentHookCapability`, `STATUS_HOOK_BRIDGE_PATH`
@@ -195,18 +217,18 @@
     - directory 0700, 파일 0600
     - 내용(JSON):
       - `hooks`:
-        - 이벤트별 `[{ matcher: '', hooks: [{ type: 'command', command: <bridge 명령>, async: true, timeout: 3 }] }]`
+        - 이벤트별 `[{ matcher: '', hooks: [{ type: 'command', command: <bridge 명령>, async: true, timeout: 3 }] }]`. 단 `SessionStart`의 matcher는 `startup|resume|clear|fork`다(auto compact 때 `SessionStart(compact)`가 작업 중에 와서 idle로 바꾸지 않게 한다. Codex도 matcher로 거른다).
         - 이벤트 대응: `SessionStart`→`session-start`, `UserPromptSubmit`→`prompt-submit`, `Notification`→`notification`, `Stop`→`stop`, `StopFailure`→`stop`, `PreCompact`→`pre-compact`, `PostCompact`→`post-compact`
         - bridge 명령은 Codex와 같은 `ELECTRON_RUN_AS_NODE=1 '<node>' '<STATUS_HOOK_BRIDGE_PATH>' '<event>' '<sessionName>' '<capability>'`
-      - `statusLine`: `{ type: 'command', command: "'<node>' '<STATUSLINE_SCRIPT_PATH>'" }`
+      - `statusLine`: `{ type: 'command', command: "ELECTRON_RUN_AS_NODE=1 '<node>' '<STATUSLINE_SCRIPT_PATH>'" }`(Electron 안에서는 `process.execPath`가 Electron binary다)
       - 이 단계에서 `permissions`는 넣지 않는다(단계 4).
     - 반환값은 파일 경로다.
   - `export const removeClaudeTabSettings = (tabId: string): Promise<void>` — 없으면 조용히 넘어간다.
-  - `STATUSLINE_SCRIPT_PATH` = `<dataDir>/statusline.cjs`. `buildStatuslineScriptSource(baseDir)`가 만드는 script의 동작:
+  - `STATUSLINE_SCRIPT_PATH` = `<dataDir>/statusline.cjs`. 기존 `buildStatuslineScriptContent`(shell)는 `buildStatuslineScriptSource(baseDir)`(node)로 바꾼다. 이 script의 동작:
     1. stdin(최대 64 KB)을 읽는다.
     2. `/api/status/statusline`에 `x-agentmux-token`으로 POST한다. 1초 timeout이고 실패는 무시한다.
     3. 사용자 원래 statusLine 명령을 찾는다. 순서는 `<workspace.project_dir 또는 cwd>/.claude/settings.local.json` → `<…>/.claude/settings.json` → `~/.claude/settings.json`이고, 첫 `statusLine.command` 문자열을 쓴다.
-    4. 그 명령에 `statusline.cjs`나 `statusline.sh` 경로가 들어 있으면 실행하지 않는다.
+    4. 그 명령에 agentmux 자기 script의 **절대 경로**(`<dataDir>/statusline.cjs`, `<dataDir>/statusline.sh`)가 들어 있으면 실행하지 않는다. 파일 이름만으로 막지 않는다(사용자 `~/.claude/statusline.sh`는 실행돼야 한다).
     5. 찾은 명령은 같은 stdin으로 `sh -c`에서 실행한다.
        - cwd는 project dir이다.
        - 1500 ms가 지나면 kill한다.
@@ -218,13 +240,15 @@
 - [ ] **Step 1: Write the failing tests**
   - Settings test(임시 data dir):
     - 파일 mode가 0600이다.
-    - 7개 hook 이벤트가 위 대응대로 있고 모두 `async: true`다.
+    - 7개 hook 이벤트가 위 대응대로 있고 모두 `async: true`다. `SessionStart` matcher는 `startup|resume|clear|fork`다.
+    - statusLine 명령이 `ELECTRON_RUN_AS_NODE=1 `로 시작한다.
     - capability가 `verifyAgentHookCapability(cap, sessionName)`를 통과한다.
     - `permissions` key가 없다.
     - `removeClaudeTabSettings`를 두 번 불러도 throw하지 않는다.
   - Script test(생성한 script를 `node`로 실행, 임시 `HOME`, server는 로컬 임시 HTTP server):
     - 사용자 settings에 `statusLine.command: "printf hello"`가 있으면 stdout이 `hello`다.
-    - 명령이 `…/statusline.cjs`를 가리키면 출력이 없다.
+    - 명령이 `<임시 data dir>/statusline.cjs`를 가리키면 출력이 없다.
+    - 명령이 `sh <임시 HOME>/.claude/statusline.sh`(사용자 script, `printf mine`)이면 stdout이 `mine`이다.
     - settings가 없으면 출력이 없다.
     - 3초 동안 sleep하는 명령은 약 1.5초 뒤 끝나고 출력이 없다.
     - POST body가 stdin과 같다.
@@ -388,14 +412,30 @@
   - `src/lib/trust-prompt-detector.ts`:
     - `export interface ITrustPromptInfo { agent: 'claude' | 'codex'; folderPath: string | null }`
     - `export const matchTrustPrompt = (screenText: string): ITrustPromptInfo | null`
-      - Claude는 "Quick safety check" + "Yes, I trust this folder" + "No, exit"가 모두 맞을 때 감지한다.
-      - 문구가 바뀐 경우에 대비해, "trust this folder"와 번호 선택지 두 개만 맞아도 감지한다.
-      - folder 경로는 anchor 위 6줄 안의 첫 `/…` 경로다.
-      - Codex 규칙은 purplemux 것을 함께 옮긴다.
-    - `export const trustAnswerKeys = (agent: 'claude' | 'codex', answer: 'yes' | 'no'): string` → Claude `'1\r'`/`'2\r'`, Codex `'1'`/`'2'`
+      - Claude `2.1.322` 실제 화면(2026-11-10 격리 tmux에서 캡처, 응답하지 않고 종료):
+        ```
+         Accessing workspace:
+         /tmp/x
+         Quick safety check: Is this a project you created or one you trust? ...
+         Claude Code'll be able to read, edit, and execute files here.
+         Security guide
+         ❯ No, exit
+           Yes, I trust this folder
+         Enter to confirm · Esc to cancel
+        ```
+      - 선택지에 **번호가 없고**, 기본 선택(`❯`)은 "No, exit"다. purplemux의 숫자 key 방식은 이 버전에 맞지 않는다.
+      - "Quick safety check" + "Yes, I trust this folder" + "No, exit"가 모두 있으면 감지한다. 문구가 바뀐 경우에 대비해 "trust this folder"와 "exit" 선택지 두 개만 있어도 감지한다.
+      - folder 경로는 "Accessing workspace:" 다음 줄이다. 없으면 anchor 위 6줄 안의 첫 `/…` 경로다.
+      - 결과에 선택지 순서와 현재 `❯` 위치(`options: string[]`, `selectedIndex: number`)를 담는다.
+      - Codex 규칙은 purplemux 것(번호 선택지)을 함께 옮긴다.
+    - `export const trustAnswerKeys = (info: ITrustPromptInfo, answer: 'yes' | 'no'): string`
+      - Claude:
+        - `yes`: 목표 선택지("Yes, I trust this folder")까지 `selectedIndex`와의 차이만큼 화살표(`\x1b[B` 아래, `\x1b[A` 위)를 보낸 뒤 `\r`
+        - `no`: `\x1b`(Esc)
+      - Codex: 기존 숫자 `'1'`/`'2'`
   - `useTrustPromptDetector({ enabled, getBufferText, sendStdin })`(purplemux hook을 옮김, 200 ms debounce)와 `TrustPromptCard`:
     - 경로를 보여 주고 "이 folder 신뢰"·"종료" 두 버튼을 둔다(44px 이상, focus-visible).
-    - agent 탭이고 `cliState`가 `inactive`나 `check`일 때만 켠다.
+    - agent 탭이고, `cliState`가 `inactive`나 `unknown`이거나 탭 `sessionView`가 `check`일 때만 켠다(`check`는 cliState가 아니라 `TSessionView` 값이다).
   - 문구 key: `trustPromptTitle`, `trustPromptTrust`, `trustPromptExit`(ko/en).
 
 - [ ] **Step 1: Write the failing tests**
@@ -410,10 +450,11 @@
     ```
     - 선택지 3개, `promptType` `command`, 3번 문구에 `Claude`가 남아 있다.
     - 기존 Codex fixture 결과는 그대로다.
-  - `trust-prompt-detector.test.ts`:
-    - 합성 Claude trust 화면은 `{ agent: 'claude', folderPath: '/tmp/x' }`로 감지된다.
+  - `trust-prompt-detector.test.ts`(위 실제 화면 모양의 합성 fixture):
+    - `{ agent: 'claude', folderPath: '/tmp/x', options: ['No, exit', 'Yes, I trust this folder'], selectedIndex: 0 }`로 감지된다.
     - 일반 출력은 null이다.
-    - `trustAnswerKeys('claude', 'no') === '2\r'`
+    - `trustAnswerKeys(info, 'yes') === '\x1b[B\r'`, `trustAnswerKeys(info, 'no') === '\x1b'`
+    - `selectedIndex`가 1이면 `yes`는 `'\r'`이다.
 - [ ] **Step 2: Run** → FAIL
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** + 관련 component test + tsc + lint → PASS
@@ -467,19 +508,19 @@
     - `AGENTMUX_TMUX_SCOPE=off`, `INVOCATION_ID` 해제
   - Workspace directory는 이 worktree다. Claude가 이미 신뢰하는 상위 directory 아래라 trust 확인이 뜨지 않아야 한다.
   - 확인 항목:
-    1. 시작 전 `~/.claude/settings.json`, `~/.claude.json`, `~/.codex/config.toml`의 sha256을 기록한다.
+    1. 시작 전 `~/.claude/settings.json`, `~/.codex/config.toml`의 sha256을 기록한다. `~/.claude.json`은 Claude Code가 시작할 때마다 직접 쓰므로 비교하지 않는다.
     2. 새 탭 API(`{ panelType: 'claude', startAgent: true }`)로 Claude 탭을 만든다.
        - session 이름이 `pt-…`(v1)이다.
        - 실행 명령에 `--settings <임시 data dir>/claude-tabs/<tabId>.json --session-id <uuid>`가 있다.
     3. 짧은 prompt 하나 → 상태가 `busy` → `ready-for-review`로 바뀌고 hook 경로로 들어온다(server log의 hook 이벤트).
     4. timeline API가 그 JSONL의 항목을 돌려준다.
     5. 파일 쓰기를 요구하는 prompt → 권한 요청 화면 → `permission-options`가 Claude 선택지를 돌려주고, "No" 선택이 들어간다.
-    6. `/clear` 입력 → hook `session-start`(`source: clear`)로 탭의 session id가 새 값으로 바뀐다.
+    6. `/clear` 입력 → hook `session-start`(`source: clear`)로 탭의 session id가 새 값으로 바뀐다. 35초 이상(poll 한 번 이상) 기다린 뒤에도 tab id가 새 값이고, timeline API가 새 session의 항목을 돌려준다.
     7. worktree에 임시 `.claude/settings.local.json`(`statusLine.command: "printf phase2-statusline"`)을 두고 탭을 다시 시작하면 Claude 화면 하단에 `phase2-statusline`이 보인다. 확인 뒤 그 파일을 지운다.
     8. Folder trust 화면 확인:
        - 신뢰되지 않은 임시 directory에서 별도 tmux session으로 `claude`만 실행해 화면을 캡처한다.
        - `matchTrustPrompt`가 감지하는지 본다. 감지되지 않으면 Task 8 규칙을 고친다.
-       - 답은 "No, exit"(`2\r`)이고 신뢰를 수락하지 않는다.
+       - 웹 카드의 "종료"(Esc)로 답하고 신뢰를 수락하지 않는다. 그 뒤 `~/.claude.json`의 `projects[<임시 directory>].hasTrustDialogAccepted`가 true가 아님을 확인한다.
     9. 1번 sha256이 그대로다. 임시 서버와 tmux를 끄고 임시 directory를 지운다. Live tmux session 목록과 service PID가 시작 전과 같다.
   - Claude prompt는 합계 4개 이하로 쓴다.
 - [ ] **Step 4: Record** 결과를 handoff 문서에 기록한다.
