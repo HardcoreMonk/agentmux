@@ -42,7 +42,7 @@ Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록된 project filesyst
 | Status | agent(Codex, Claude Code) 작업 상태, approval, notification 판단 투영 | status manager/worker |
 | 런타임 어댑터 | OS별 terminal/process/service 구현 경계 | runtime v2, tmux legacy, Windows runtime |
 | Linux 단일 엔진 호스트 | server, worker, tmux, Codex 데이터와 project read를 한 Linux host가 소유하는 실행 토폴로지 | Runtime v2, systemd user service |
-| Session Catalog | agent JSONL에서 계산한 session metadata와 검색 projection. 현재 index는 Codex JSONL만 다루고 Claude Code session은 단계 3 통합 목록에서 더한다 | Timeline Worker, app-owned index DB |
+| Session Catalog | agent JSONL에서 계산한 session metadata와 검색 projection. Codex rollout과 Claude Code transcript를 함께 index하고 항목마다 provider column(`codex`, `claude`)을 가진다. Session Explorer와 agent 탭 지난 세션 목록은 이 provider로 filter한다 | Timeline Worker, app-owned index DB |
 | Managed Project | 승인된 root 아래에서 guidance, knowledge와 lifecycle 상태를 관리하는 project aggregate | Storage/Governance Worker |
 | Project Governance | Managed Project의 guidance, knowledge, check, audit를 제공하는 bounded context | Governance Worker |
 | Knowledge Index | project-local 문서의 navigation/search를 위한 재생성 가능한 projection | Governance Worker, app-owned index DB |

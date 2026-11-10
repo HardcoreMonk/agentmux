@@ -312,6 +312,27 @@ Codex 전용 JSONL parsing(`checkCodexJsonlState`, `reduceCodexState`)과 pane p
 adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 legacy tmux adapter로 만들므로
 (`RUNTIME-V2-CUTOVER.md` 2단계), 이 상태 경로는 v1 agent 탭을 기준으로 동작합니다.
 
+## 공통 agent UI (설계 1 단계 3)
+
+2026-11-11 단계 3은 branch `feat/claude-provider-phase3`에 구현과 검증을 마쳤습니다. main merge와 live 배포는 아직입니다.
+화면과 목록이 Codex 고정에서 provider(`codex`, `claude`) 공통으로 넓어졌습니다. Provider는 데이터에 담고
+(`providerId`/`provider` column) 화면은 `AGENT_PROVIDER_META`의 icon과 짧은 label로 구분합니다.
+
+| 기능 | 동작 |
+| --- | --- |
+| 공통 session 목록과 provider 간 재개 | Agent 탭의 지난 세션 목록이 Claude와 Codex를 함께 보이고 provider filter(전체, Codex, Claude Code)와 항목 badge를 가집니다. Codex 항목은 이전처럼 cwd와 관계없이 보이고 Claude 항목은 그 탭 cwd의 project directory 기준입니다. 다른 provider 항목을 고르면 탭 종류를 바꾸고 그 session으로 재개합니다(`agentSessionId`가 고른 session id) |
+| Session Explorer | Session Catalog에 `provider` column과 Claude projector를 더했고 provider filter를 둡니다. 목록 filter 컴포넌트는 session 목록과 공유합니다 |
+| 통계와 일일 리포트 | Claude Code transcript의 model별 token을 셉니다. 비용은 추정하지 않아 가격 없는 model은 비용 칸에 `—`를 보이고 합계에 넣지 않습니다(가격 없는 Codex model도 `$0.00` 대신 `—`). 일일 리포트 생성기는 Codex를 쓸 수 없으면 `claude -p`(`--no-session-persistence`, `--restricted`, 빈 임시 cwd)로 fallback합니다. 통계 cache는 v4에서 v5로 한 번 옮기며 v4는 `cache.v4.json`으로 백업합니다 |
+| Agent 전환 잠금과 보기 제안 | Agent가 `busy`일 때 다른 provider로의 전환을 `updateTabPanelType` 한 곳에서 막고 안내 toast를 보입니다. v1 Terminal 탭에서 agent를 직접 실행하면 해당 agent 보기 제안 card가 뜨고(탭·provider별 한 번), 수락하면 다시 시작하지 않고 timeline을 보입니다 |
+| 시작 진행 표시 | Agent가 시작하는 동안 진행 표시를 보이고 bypass·trust 같은 시작 prompt card가 이를 대체합니다. 이미 상태를 보고한 agent는 timeline을 유지합니다 |
+| Claude 설정과 terminal 표시 | 설정에 Claude Code 탭(model, permission mode, 실행 명령 미리보기)이 있고 "agent terminal 기본 표시" 설정은 provider 공통입니다 |
+| Provider별 onboarding | Onboarding과 `/tools-required`가 agent별 설치·로그인 상태를 보입니다. 설치된 호환 agent가 하나라도 있으면 core 준비로 보고, 하나도 없을 때 둘 중 선택을 제안합니다 |
+| Provider 중립 문구 | Codex 고정 문구를 `{agent}`로 바꿨고 보기 전환 label은 짧은 형태입니다. 440px 미만에서는 보기 전환이 현재 보기 메뉴 하나로 접힙니다 |
+
+한계: 이 보기 제안은 v1 Terminal 탭에서만 뜹니다. Live `new-tabs` mode의 새 plain Terminal 탭은 Runtime v2라 제안이
+없습니다(Runtime v2 agent 탭 지원과 묶음, `FOLLOW-UP.md`). Claude를 터미널에서 직접 시작하면 agentmux hook이 없어
+첫 prompt 전까지 timeline이 "Claude Code 세션 대기 중"입니다.
+
 ## 관련 파일
 
 | 파일 | 역할 |

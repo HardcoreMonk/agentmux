@@ -341,6 +341,54 @@ Branch 전체 최종 검토가 merge 전 수정 2개와 작은 수정 3개를 �
   않아 결과에 영향이 없었다.
 - Claude session JSONL 1개가 사용자 `~/.claude/projects/` 아래에 남는다(Claude Code 기본 동작).
 
+## Claude Code provider 단계 3 구현과 검증 (2026-11-11)
+
+공통 agent UI(공통 session 목록과 provider 간 재개, Session Explorer provider column·filter, 통계·일일 리포트의
+Claude, 전환 잠금과 Terminal 보기 제안, 시작 진행 표시, Claude 설정과 terminal 표시 공통 설정, provider별 onboarding,
+provider 중립 문구)를 branch `feat/claude-provider-phase3`(HEAD `8e2dc0e2`, Task 1~10)에 구현했다. Task마다 코드
+검토를 거쳤다. 설계 판단은 plan(`docs/superpowers/plans/2026-11-11-claude-code-provider-phase3.md`)과 plan review에
+있다. 구현 중 확정한 것: 통계 cache v4→v5는 additive 이동(Codex 값 유지, Claude는 첫 Claude transcript 날짜부터 더하고 이미
+claude-* model이 있는 날은 건너뜀, v4 한 번 백업), 비용은 추정하지 않고 가격 없는 model은 `—`.
+
+### 운영 기록 (이번 주기, 사용자 직접 실행)
+
+- 단계 2 배포: 2026-11-11 02:16 KST, health `f46890ba`, PID `1471777`.
+- Hotfix #48(Claude JSONL의 catalog `observeFile` 거절로 timeline worker 종료, live catalog는 shadow mode): `d1accfc6`
+  merge, CI 성공, 02:35 KST 배포, health `d1accfc6`, PID `1705635`, worker 재시작 02:35:38, log error 0. 원격 branch
+  `feat/claude-provider-phase2`, `fix/timeline-catalog-observe-rejection`는 사용자가 삭제.
+- Live 통계 cache(legacy 실제 경로 `~/.codexmux/stats/cache.json`)는 v4(2026-03-26부터 127일, claude-* model은 03-26~04-27만). 단계 3 배포 뒤 첫
+  통계 요청에서 `cache.v4.json`으로 복사되고 v5로 이동한다.
+
+### 전체 gate (worktree `8e2dc0e2`)
+
+`check:project-design` 통과, `check:product-name` 통과, lint error 0(기존 `window.location` 경고 6개), `tsc --noEmit` 통과,
+전체 test 318 files / 2120 통과 / 3 skipped, `build` 통과.
+
+### 격리 browser·live 확인
+
+- 환경은 단계 2 Task 10과 같은 안전 규칙이다: 이 worktree production build, `env -i` 허용 목록, 임시 `AGENTMUX_DATA_DIR`와
+  짧은 경로의 임시 `TMUX_TMPDIR`, port 18122, live와 같은 Runtime v2 mode(terminal `new-tabs`, storage/timeline/status
+  default), `AGENTMUX_TMUX_SCOPE=off`, `INVOCATION_ID` 없음. Claude prompt 3개(한도 4개). Folder trust는 상위 directory가
+  이미 수락돼 화면이 뜨지 않았고 응답하지 않았다.
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 1 | Claude 탭 짧은 prompt | 통과. "OK" 응답, 탭이 session·transcript에 묶임. TUI가 prompt를 처음 그린 직후 보낸 prompt는 유실될 수 있어(transcript·usage 없음) 안정 뒤 다시 보내야 했다. 한 turn 뒤 상태는 `ready-for-review` |
+| 2 | 공통 목록과 provider 간 재개 | 통과(UI). Codex 탭 목록에 "Claude Code" badge 항목, provider filter 동작, `providers=claude` API는 Claude만 반환. 항목 선택 → 서버에서 탭이 CLAUDE로 바뀌고 `agentSessionId`가 그 session에 묶이며 `claude --resume`이 이전 turn을 timeline에 보임. 격리 server의 Codex index가 첫 scan 중이라 Codex 항목은 0개 |
+| 3 | busy 중 CODEX 전환 | 통과(UI). 잠금 toast, 탭은 `claude` 유지 |
+| 4 | Terminal(v1) 보기 제안 | 통과(UI). workspace 첫 탭은 `new-tabs` mode에서도 v1이다(이후 만든 plain 탭은 v2라 제안 없음). `claude` 실행 → 제안 card → 수락하면 재시작 없이(시작 banner 1개) CLAUDE 보기 |
+| 5 | 통계 | 통과. `claude-opus-5-5`, `claude-opus-4-8`이 `cost: null`로 "—", 표시 이름 "Claude Opus 5.5/4.8". Codex 사용자에게 보이는 변화: 가격 없는 Codex model(`gpt-6.1-sol`)도 "$0.00" 대신 "—" |
+| 6 | 일일 리포트 Claude fallback | 부분 통과(의도된 한계). Codex를 PATH에서 빼도 preflight가 알려진 install path에서 찾아 script가 Codex 실행 전에 멈춤. 대신 fallback 호출 `claude -p --output-format text --no-session-persistence --restricted --tools '' --strict-mcp-config --disable-slash-commands`(prompt는 stdin, 빈 임시 cwd)를 손으로 1회 실행: 출력 "OK", exit 0, `~/.claude/projects`에 새 transcript·project directory 없음. 생성기가 이 경로를 고르는지는 `daily-report-builder.test.ts`가 고정 |
+
+- 화면 확인(browser): 모바일 360px 헤더(탭 이름 보임), 데스크톱 보기 전환 짧은 label, 세션 목록 provider filter와 label, Session
+  Explorer provider filter(전체/Codex/Claude Code), 설정 Claude Code 탭(model, permission mode, 명령 미리보기).
+  Screenshot 10장은 commit하지 않았다(scratchpad `p3live/shots/`).
+- 관찰(실패 아님): 직접 실행한 Claude는 agentmux hook이 없어 첫 prompt 전까지 timeline이 "Claude Code 세션 대기 중"이고 web 입력이
+  "연결 중"이다. 터미널에서 친 첫 prompt 뒤 timeline이 묶이는지는 확인하지 않았다.
+- 안전 확인: 전후 `~/.claude/settings.json`, `~/.codex/config.toml` sha256, 기본 `TMUX_TMPDIR`의 live tmux session 목록,
+  `agentmux.service` MainPID `1705635`(NRestarts 0)가 같다. Live tmux server `43870`은 건드리지 않았고 격리 server 2개와 그
+  tmux server, 임시 directory는 정리했다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -355,14 +403,17 @@ Branch 전체 최종 검토가 merge 전 수정 2개와 작은 수정 3개를 �
 - 설계 1 단계 2: plan-eng-review 반영(`01215b73`). Task 1은 main merge(`47ea57e7`)와 live 배포(21:18 KST, PID
   `2865470`)를 마쳤다. Task 2~9 implement와 task별 code-review를 마쳤고, Task 10에서 문서, 전체 gate, 격리 Claude Code
   live smoke(9개 확인 통과, 결함 4개 기록)를 마쳤다. Branch 최종 code-review 수정(`d5f3432a`, 권한 요청 "No" 뒤 `busy`
-  고정과 모바일 탭 이름 폭 포함)과 격리 live 재확인(3개 통과)을 마쳤다. PR, main merge, live 배포 전.
+  고정과 모바일 탭 이름 폭 포함)과 격리 live 재확인(3개 통과)을 마쳤다. PR, main merge, live 배포는 이후 hotfix #48과 함께 완료(위 단계 3 절의 운영 기록).
+- 설계 1 단계 3: plan-eng-review 반영(`2a749a2e`), Task 1~10 implement와 task별 code-review, 전체 gate, 격리 browser·live 확인(5개 통과, 1개 부분)을 마쳤다. Branch `feat/claude-provider-phase3`(`8e2dc0e2`)에서 branch 최종 code-review 전. PR, main merge, live 배포 전.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-단계 2 branch 최종 검토 수정(`d5f3432a`)과 live 재확인 결과를 확인한 뒤 PR을 만들고 main CI 통과 뒤 merge한다. Live 배포는 사용자 확인 뒤에 한다(rollback 때는 Claude 탭을 먼저
-닫는다). agy 한도가 돌아오면 남은 구현을 agy에게 돌려준다. 단계 3~4 계획은 앞 단계가 merge된 뒤 쓴다.
+단계 3은 `feat/claude-provider-phase3`(`8e2dc0e2`)에 구현과 검증을 마쳤다. 다음은 branch 전체 최종 code-review, 수정이 있으면
+반영, PR → CI → merge다. Main push와 `deploy:local`은 사용자가 직접 실행한다(auto mode가 막는다). 배포 뒤 live 통계 cache
+v4→v5 이동(`cache.v4.json` 백업, Claude token 표시)을 확인한다. 배포 때 rollback이 필요하면 Claude 탭을 먼저 닫는다.
+단계 4(위임 안내, `permissions.allow`, CLI 변경)는 단계 3이 merge된 뒤 계획을 쓴다.
 
 ## Follow-Up Tasks
 
@@ -406,3 +457,13 @@ Branch 전체 최종 검토가 merge 전 수정 2개와 작은 수정 3개를 �
 - Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
 - 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.
+- 단계 3 후속(2026-11-11 live 확인에서):
+  - Live `new-tabs` mode에서는 새 plain Terminal 탭이 Runtime v2라 agent 보기 제안이 뜨지 않는다(v1 Terminal 탭만). Runtime v2
+    agent 탭 지원과 묶는다.
+  - 터미널에서 직접 실행한 Claude는 첫 prompt 전까지 timeline이 "Claude Code 세션 대기 중"이고 web 입력이 "연결 중"이다. 터미널에서 친
+    첫 prompt 뒤 timeline이 묶이는지 확인한다.
+  - `history-parser`가 fork/resume이 복사한 Claude prompt를 파일마다 세어 약 0.5% 과대 집계(보류).
+  - Uptime disk cache는 window가 지나기 전까지 지난 날의 Codex 전용 값을 가진다.
+  - Smoke 도구: 격리 `TMUX_TMPDIR`는 짧은 경로여야 하고 setup POST는 `Origin` header가 필요하다. 일일 리포트 fallback은 PATH만으로
+    강제할 수 없어(preflight가 알려진 install path에서 Codex를 찾음) 생성기에 test 전용 override를 두면 smoke로 확인할 수 있다.
+  - Claude 직접 실행 시 hook 없이 timeline 연결, 일일 리포트의 실제 Claude 생성 전체 경로는 live에서 확인하지 않았다.
