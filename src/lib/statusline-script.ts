@@ -1,7 +1,7 @@
 import path from 'path';
 import { getDataDir } from '@/lib/app-identity';
 
-const shQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
+export const shQuote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
 
 export const buildStatuslineScriptContent = (baseDir = getDataDir()): string => {
   const portFile = shQuote(path.join(baseDir, 'port'));
