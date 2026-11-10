@@ -14,6 +14,7 @@ import {
 
 const entry = {
   sessionId: 'session-123',
+  provider: 'codex',
   projectLabel: 'codexmux',
   model: 'gpt-5.6',
   startedAt: '2026-08-21T08:00:00.000Z',
@@ -42,6 +43,19 @@ describe('session catalog contracts', () => {
     for (const prohibited of ['jsonlPath', 'rawToolPayload', 'reasoning', 'terminalBytes']) {
       expect(sessionCatalogEntrySchema.safeParse({ ...entry, [prohibited]: 'secret' }).success).toBe(false);
     }
+  });
+
+  it('accepts a provider filter and rejects unknown providers', () => {
+    expect(sessionSearchQuerySchema.parse({ query: 'x', providers: ['claude'] })).toEqual({ query: 'x', providers: ['claude'] });
+    expect(sessionSearchQuerySchema.safeParse({ query: 'x', providers: ['gemini'] }).success).toBe(false);
+    expect(sessionCatalogEntrySchema.safeParse({ ...entry, provider: 'gemini' }).success).toBe(false);
+    expect(savedSessionFilterSchema.parse({
+      id: 'filter-1',
+      name: 'Claude only',
+      query: { query: '', providers: ['claude'] },
+      createdAt: '2026-08-21T08:00:00.000Z',
+      updatedAt: '2026-08-21T08:00:00.000Z',
+    }).query.providers).toEqual(['claude']);
   });
 
   it('validates bounded search queries and result pages', () => {

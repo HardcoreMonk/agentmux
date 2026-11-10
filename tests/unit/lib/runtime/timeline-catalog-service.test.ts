@@ -39,7 +39,7 @@ describe('timeline catalog service', () => {
     const service = createTimelineCatalogService({
       mode: 'default',
       dbPath: path.join(dir, 'catalog', 'index.db'),
-      sessionsRoot,
+      roots: [{ root: sessionsRoot, provider: 'codex' }],
       getProvider: () => ({ ...codexProvider, readEntriesBefore }),
       now: () => '2026-08-21T09:00:00.000Z',
     });
@@ -70,7 +70,7 @@ describe('timeline catalog service', () => {
     const service = createTimelineCatalogService({
       mode: 'default',
       dbPath: path.join(dir, 'catalog', 'index.db'),
-      sessionsRoot,
+      roots: [{ root: sessionsRoot, provider: 'codex' }],
       getProvider: () => codexProvider,
       now: () => '2026-08-21T09:00:00.000Z',
     });
@@ -86,7 +86,7 @@ describe('timeline catalog service', () => {
     const service = createTimelineCatalogService({
       mode: 'shadow',
       dbPath: path.join(dir, 'catalog', 'index.db'),
-      sessionsRoot,
+      roots: [{ root: sessionsRoot, provider: 'codex' }],
       getProvider: () => codexProvider,
     });
 
@@ -97,17 +97,120 @@ describe('timeline catalog service', () => {
     service.close();
   });
 
-  it('rejects observed paths outside the Codex sessions root', async () => {
+  it('rejects observed paths outside every catalog root', async () => {
     const outside = path.join(dir, 'outside.jsonl');
     await fs.writeFile(outside, content);
     const service = createTimelineCatalogService({
       mode: 'default',
       dbPath: path.join(dir, 'catalog', 'index.db'),
-      sessionsRoot,
+      roots: [{ root: sessionsRoot, provider: 'codex' }],
       getProvider: () => codexProvider,
     });
 
     await expect(service.observeFile(outside)).rejects.toMatchObject({ code: 'catalog-path-forbidden' });
     service.close();
+  });
+
+  describe('with a Claude projects root', () => {
+    const CLAUDE_ID = '11111111-2222-4333-8444-555555555555';
+    const claudeLine = (record: Record<string, unknown>) => JSON.stringify({
+      sessionId: CLAUDE_ID,
+      cwd: '<fixture-root>/claude-demo',
+      ...record,
+    });
+    const claudeContent = [
+      claudeLine({ type: 'user', timestamp: '2026-08-21T08:00:00.000Z', message: { role: 'user', content: 'claude catalog needle' } }),
+      claudeLine({ type: 'assistant', timestamp: '2026-08-21T08:00:01.000Z', message: { role: 'assistant', model: 'claude-synthetic-1', content: [{ type: 'text', text: 'ack' }] } }),
+      '',
+    ].join('\n');
+    let claudeRoot: string;
+
+    beforeEach(async () => {
+      claudeRoot = path.join(dir, 'claude-projects');
+      await fs.mkdir(path.join(claudeRoot, '-fixture-demo'), { recursive: true });
+    });
+
+    const createService = (getProvider: (panelType: string) => IAgentProvider = () => codexProvider) => createTimelineCatalogService({
+      mode: 'default',
+      dbPath: path.join(dir, 'catalog', 'index.db'),
+      roots: [
+        { root: sessionsRoot, provider: 'codex' },
+        { root: claudeRoot, provider: 'claude' },
+      ],
+      getProvider,
+      now: () => '2026-08-21T09:00:00.000Z',
+    });
+
+    it('indexes an observed Claude transcript with provider claude', async () => {
+      const file = path.join(claudeRoot, '-fixture-demo', `${CLAUDE_ID}.jsonl`);
+      await fs.writeFile(file, claudeContent);
+      const service = createService();
+
+      await service.observeFile(file);
+
+      expect(service.search({ query: 'needle', providers: ['claude'] })).toMatchObject({
+        results: [{ entry: { sessionId: CLAUDE_ID, provider: 'claude', projectLabel: 'claude-demo', model: 'claude-synthetic-1' } }],
+      });
+      expect(service.search({ query: 'needle', providers: ['codex'] }).results).toEqual([]);
+      service.close();
+    });
+
+    it('rebuilds both roots and excludes Claude subagent transcripts', async () => {
+      await fs.writeFile(path.join(sessionsRoot, 'codex.jsonl'), content);
+      await fs.writeFile(path.join(claudeRoot, '-fixture-demo', `${CLAUDE_ID}.jsonl`), claudeContent);
+      const subagentDir = path.join(claudeRoot, '-fixture-demo', CLAUDE_ID, 'subagents');
+      await fs.mkdir(subagentDir, { recursive: true });
+      await fs.writeFile(path.join(subagentDir, 'agent-abc.jsonl'), claudeContent.replaceAll(CLAUDE_ID, '99999999-2222-4333-8444-555555555555'));
+      await fs.writeFile(path.join(claudeRoot, '-fixture-demo', 'agent-top.jsonl'), claudeContent);
+      const service = createService();
+
+      await service.rebuild();
+      await service.waitForIdle();
+
+      expect(service.health()).toMatchObject({ state: 'ready', indexedSessions: 2 });
+      service.close();
+    });
+
+    it('rejects Claude subagent paths and paths outside every root', async () => {
+      const subagent = path.join(claudeRoot, '-fixture-demo', CLAUDE_ID, 'subagents', 'agent-abc.jsonl');
+      await fs.mkdir(path.dirname(subagent), { recursive: true });
+      await fs.writeFile(subagent, claudeContent);
+      const outside = path.join(dir, 'outside.jsonl');
+      await fs.writeFile(outside, claudeContent);
+      const service = createService();
+
+      await expect(service.observeFile(subagent)).rejects.toMatchObject({ code: 'catalog-path-forbidden' });
+      await expect(service.observeFile(outside)).rejects.toMatchObject({ code: 'catalog-path-forbidden' });
+      expect(service.health().state).toBe('ready');
+      service.close();
+    });
+
+    it('uses the stored provider for readEntries, ignoring the caller panelType', async () => {
+      const file = path.join(claudeRoot, '-fixture-demo', `${CLAUDE_ID}.jsonl`);
+      await fs.writeFile(file, claudeContent);
+      const getProvider = vi.fn((panelType: string) => ({ ...codexProvider, id: panelType } as unknown as IAgentProvider));
+      const service = createService(getProvider);
+      await service.observeFile(file);
+
+      await service.readEntries({ sessionId: CLAUDE_ID, beforeByte: 10, limit: 5, panelType: 'codex' }).catch(() => undefined);
+
+      expect(getProvider).toHaveBeenCalledWith('claude');
+      service.close();
+    });
+
+    it('treats a missing Claude root as empty and keeps the catalog ready', async () => {
+      await fs.rm(claudeRoot, { recursive: true, force: true });
+      const codexFile = path.join(sessionsRoot, 'codex.jsonl');
+      await fs.writeFile(codexFile, content);
+      const service = createService();
+
+      await service.observeFile(codexFile);
+      await service.rebuild();
+      await service.waitForIdle();
+
+      expect(service.health().state).toBe('ready');
+      expect(service.search({ query: 'runtime' }).results).toHaveLength(1);
+      service.close();
+    });
   });
 });

@@ -21,6 +21,7 @@ const loadBetterSqlite3 = (): IBetterSqlite3Constructor =>
 const CATALOG_SCHEMA = `
 create table if not exists catalog_sessions (
   session_id text primary key,
+  provider text not null default 'codex',
   project_label text not null,
   model text null,
   started_at text not null,
@@ -78,6 +79,15 @@ create index if not exists idx_catalog_messages_session_sequence
   on catalog_messages(session_id, sequence);
 `;
 
+// Catalogs created before provider support lack the column; existing rows are Codex rows.
+const migrateProviderColumn = (db: TSessionCatalogDatabase): void => {
+  const columns = db.pragma('table_info(catalog_sessions)') as { name: string }[];
+  if (!columns.some((column) => column.name === 'provider')) {
+    db.exec(`alter table catalog_sessions add column provider text not null default 'codex'`);
+  }
+  db.exec('create index if not exists idx_catalog_sessions_provider on catalog_sessions(provider)');
+};
+
 const applyPrivateMode = (filePath: string): void => {
   try {
     fs.chmodSync(filePath, 0o600);
@@ -99,6 +109,7 @@ export const openSessionCatalogDatabase = (
   db.pragma('journal_mode = WAL');
   db.pragma('busy_timeout = 5000');
   db.exec(CATALOG_SCHEMA);
+  migrateProviderColumn(db);
   applyPrivateMode(dbPath);
   applyPrivateMode(`${dbPath}-wal`);
   applyPrivateMode(`${dbPath}-shm`);

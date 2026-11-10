@@ -17,17 +17,46 @@ import type {
 } from '@/lib/runtime/contracts';
 import type { TSessionCatalogMode } from '@/lib/runtime/session-catalog-mode';
 import { getProviderByPanelType, type IAgentProvider } from '@/lib/providers';
+import { isValidClaudeSessionId } from '@/lib/claude-command';
+import { getClaudeProjectsDir } from '@/lib/path-validation';
+import type { TAgentPanelType } from '@/types/terminal';
+
+export interface ICatalogRoot {
+  root: string;
+  provider: TAgentPanelType;
+}
 
 export interface ICreateTimelineCatalogServiceOptions {
   mode: Exclude<TSessionCatalogMode, 'off'>;
   dbPath?: string;
-  sessionsRoot?: string;
+  roots?: ICatalogRoot[];
   getProvider?: (panelType: string) => IAgentProvider | null | undefined;
   now?: () => string;
 }
 
-const defaultSessionsRoot = (): string =>
-  path.join(process.env.HOME || process.env.USERPROFILE || os.homedir(), '.codex', 'sessions');
+const defaultHomeDir = (): string => process.env.HOME || process.env.USERPROFILE || os.homedir();
+
+const defaultRoots = (): ICatalogRoot[] => [
+  { root: path.join(defaultHomeDir(), '.codex', 'sessions'), provider: 'codex' },
+  { root: getClaudeProjectsDir(defaultHomeDir()), provider: 'claude' },
+];
+
+// Claude layout: <root>/<project-dir>/<uuid>.jsonl. Subagent transcripts live deeper and are excluded.
+const isClaudeTranscriptPath = (root: string, candidate: string): boolean => {
+  const segments = path.relative(root, candidate).split(path.sep);
+  return segments.length === 2 && isValidClaudeSessionId(path.basename(segments[1], '.jsonl'));
+};
+
+const isMissingError = (error: unknown): boolean => (error as NodeJS.ErrnoException).code === 'ENOENT';
+
+const realpathOrNull = async (target: string): Promise<string | null> => {
+  try {
+    return await fs.realpath(target);
+  } catch (error) {
+    if (isMissingError(error)) return null;
+    throw error;
+  }
+};
 
 const defaultDbPath = (): string =>
   path.join(getDataDir(), 'session-catalog', 'index.db');
@@ -76,7 +105,7 @@ const collectJsonlFiles = async (root: string, depth = 0): Promise<string[]> => 
 export const createTimelineCatalogService = ({
   mode,
   dbPath = defaultDbPath(),
-  sessionsRoot = defaultSessionsRoot(),
+  roots = defaultRoots(),
   getProvider = getProviderByPanelType,
   now = () => new Date().toISOString(),
 }: ICreateTimelineCatalogServiceOptions) => {
@@ -93,13 +122,27 @@ export const createTimelineCatalogService = ({
   let rebuildAbort: AbortController | null = null;
   let closed = false;
 
+  // A root that does not exist yet (e.g. no Claude install) is empty, not an error.
+  const resolveRoots = async (): Promise<ICatalogRoot[]> => {
+    const resolved = await Promise.all(roots.map(async (entry) => {
+      const root = await realpathOrNull(entry.root);
+      return root ? { root, provider: entry.provider } : null;
+    }));
+    return resolved.filter((entry): entry is ICatalogRoot => entry !== null);
+  };
+
   const resolveIndexInput = async (jsonlPath: string): Promise<ISessionCatalogIndexFileInput> => {
-    const [canonicalRoot, canonicalPath] = await Promise.all([
-      fs.realpath(sessionsRoot),
+    const [canonicalRoots, canonicalPath] = await Promise.all([
+      resolveRoots(),
       fs.realpath(jsonlPath),
     ]);
-    if (!isContainedPath(canonicalRoot, canonicalPath) || path.extname(canonicalPath) !== '.jsonl') {
-      throw catalogError('catalog-path-forbidden', 'Session Catalog path is outside the Codex sessions root.');
+    const match = canonicalRoots.find((candidate) => isContainedPath(candidate.root, canonicalPath));
+    if (
+      !match
+      || path.extname(canonicalPath) !== '.jsonl'
+      || (match.provider === 'claude' && !isClaudeTranscriptPath(match.root, canonicalPath))
+    ) {
+      throw catalogError('catalog-path-forbidden', 'Session Catalog path is outside the Session Catalog roots.');
     }
     const stat = await fs.stat(canonicalPath);
     if (!stat.isFile()) throw catalogError('catalog-path-forbidden', 'Session Catalog source is not a file.');
@@ -109,6 +152,7 @@ export const createTimelineCatalogService = ({
       fileIdentity: `${stat.dev}:${stat.ino}`,
       mtimeMs: stat.mtimeMs,
       sizeBytes: stat.size,
+      provider: match.provider,
     };
   };
 
@@ -157,9 +201,13 @@ export const createTimelineCatalogService = ({
     state = 'building';
     rebuildPromise = (async () => {
       try {
-        const files = await collectJsonlFiles(await fs.realpath(sessionsRoot));
         const inputs: ISessionCatalogIndexFileInput[] = [];
-        for (const file of files) inputs.push(await resolveIndexInput(file));
+        for (const entry of await resolveRoots()) {
+          for (const file of await collectJsonlFiles(entry.root)) {
+            if (entry.provider === 'claude' && !isClaudeTranscriptPath(entry.root, file)) continue;
+            inputs.push(await resolveIndexInput(file));
+          }
+        }
         await indexer.rebuild(inputs, { signal: rebuildAbort?.signal, batchSize: 25 });
         lastIndexedAt = now();
         state = 'ready';
@@ -183,8 +231,10 @@ export const createTimelineCatalogService = ({
     readEntries: async (input: IRuntimeSessionCatalogReadEntriesInput): Promise<TRuntimeTimelineEntriesBeforeResult> => {
       assertServing();
       const cursor = repository.getFileCursorBySessionId(input.sessionId);
-      if (!cursor) throw catalogError('catalog-session-not-found', 'Session Catalog entry was not found.');
-      const provider = getProvider(input.panelType);
+      const entry = repository.getSessionEntry(input.sessionId);
+      if (!cursor || !entry) throw catalogError('catalog-session-not-found', 'Session Catalog entry was not found.');
+      // The stored provider wins; the caller's panelType is not trusted for catalog replay.
+      const provider = getProvider(entry.provider);
       if (!provider) throw catalogError('timeline-provider-unknown', 'Timeline provider was not found.');
       const result = await provider.readEntriesBefore(cursor.canonicalPath, input.beforeByte, input.limit);
       return {

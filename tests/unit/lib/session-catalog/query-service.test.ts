@@ -92,4 +92,21 @@ describe('session catalog query service', () => {
       annotationSelection: { mode: 'include', sessionIds: [] },
     })).toEqual({ results: [], nextCursor: null, total: 0, health: 'ready' });
   });
+
+  it('filters search results by provider', () => {
+    const repository = createSessionCatalogRepository(db);
+    repository.replaceProjection(projection('session-codex', 'shared provider text', '2026-08-21T08:00:00.000Z'));
+    const claude = projection('session-claude', 'shared provider text', '2026-08-21T08:01:00.000Z');
+    repository.replaceProjection({
+      ...claude,
+      entry: claude.entry ? { ...claude.entry, provider: 'claude' } : null,
+    });
+    const service = createSessionCatalogQueryService(repository);
+
+    expect(service.search({ query: 'shared', providers: ['claude'] }).results.map((r) => r.entry.sessionId))
+      .toEqual(['session-claude']);
+    expect(service.search({ query: 'shared' }).results.map((r) => r.entry.provider).sort())
+      .toEqual(['claude', 'codex']);
+    expect(service.search({ query: '', providers: ['codex'] }).total).toBe(1);
+  });
 });
