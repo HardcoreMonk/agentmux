@@ -8,6 +8,7 @@ import { createLogger } from '@/lib/logger';
 import { shouldCreateTerminalTabInRuntimeV2 } from '@/lib/runtime/terminal-mode';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { getRuntimeStatusV2Mode } from '@/lib/runtime/status-mode';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType, normalizePanelType } from '@/lib/panel-type';
 import { launchAgentInTab } from '@/lib/agent-launch-service';
 
 const log = createLogger('layout');
@@ -38,9 +39,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   const paneId = req.query.paneId as string;
-  const { name, cwd, panelType, command, resumeSessionId, startAgent } = req.body ?? {};
+  const { name, cwd, command, resumeSessionId, startAgent } = req.body ?? {};
+  const panelType = normalizePanelType(req.body?.panelType);
 
-  const provider = resumeSessionId ? getProviderByPanelType(panelType ?? 'codex') : null;
+  const provider = resumeSessionId ? getProviderByPanelType(panelType ?? DEFAULT_AGENT_PANEL_TYPE) : null;
   if (resumeSessionId) {
     if (!provider) {
       return res.status(400).json({ error: 'Unknown panel type for resume' });
@@ -51,10 +53,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   try {
-    const shouldUseRuntimeV2 = shouldCreateTerminalTabInRuntimeV2() && (
-      isPlainTerminalTabRequest({ panelType, command, resumeSessionId })
-      || (startAgent === true && panelType === 'codex')
-    );
+    const shouldUseRuntimeV2 = shouldCreateTerminalTabInRuntimeV2()
+      && isPlainTerminalTabRequest({ panelType, command, resumeSessionId });
     const workspace = shouldUseRuntimeV2 ? await getWorkspaceById(wsId) : null;
     const effectiveCwd = typeof cwd === 'string' && cwd.trim()
       ? cwd.trim()
@@ -78,7 +78,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
             name: typeof name === 'string' ? name.trim() : runtimeTab.name,
             order: runtimeTab.order,
             cwd: runtimeTab.cwd ?? effectiveCwd,
-            panelType: panelType === 'codex' ? 'codex' : 'terminal',
+            panelType: 'terminal',
             runtimeVersion: 2,
           });
           if (!added) {
@@ -128,7 +128,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       }, SHELL_READY_DELAY_MS);
     }
 
-    if (startAgent === true && panelType === 'codex' && !resumeSessionId && !command) {
+    if (startAgent === true && isAgentPanelType(panelType) && !resumeSessionId && !command) {
       setTimeout(() => {
         launchAgentInTab({
           workspaceId: wsId,

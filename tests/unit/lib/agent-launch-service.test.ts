@@ -20,7 +20,8 @@ vi.mock('@/lib/tmux', () => ({
 }));
 vi.mock('@/lib/providers', () => ({
   getProviderByPanelType: (panelType: string) => panelType === 'codex' ? {
-    id: 'codex',
+    id: 'codex-test',
+    panelType: 'codex',
     isValidSessionId: (value: unknown) => typeof value === 'string' && value.startsWith('session-'),
     buildLaunchCommand: mocks.buildLaunchCommand,
     buildResumeCommand: mocks.buildResumeCommand,

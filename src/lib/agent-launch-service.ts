@@ -29,7 +29,7 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
   if (!tab) return { ok: false, code: 'tab-not-found' };
 
   const provider = getProviderByPanelType(tab.panelType);
-  if (!provider || provider.id !== 'codex') return { ok: false, code: 'invalid-panel' };
+  if (!provider) return { ok: false, code: 'invalid-panel' };
   if (input.action === 'resume' && !provider.isValidSessionId(input.sessionId)) {
     return { ok: false, code: 'invalid-session' };
   }
