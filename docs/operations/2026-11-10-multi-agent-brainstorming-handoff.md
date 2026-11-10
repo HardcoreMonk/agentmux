@@ -257,8 +257,15 @@ skipped), `build` 모두 통과.
 - Smoke script 결함: `smoke-runtime-v2-isolated.mjs`의 `.codexmux/cli-token` 경로(이름 변경 뒤 `.agentmux`), 실패
   시 남는 dev server, `smoke-runtime-v2-phase2-gate.mjs`의 재시작 race(`stop()`이 wrapper 종료만 기다림), 두
   script 모두 `TMUX_TMPDIR`를 격리하지 않는 점.
-- Codex `0.167.0` "Hooks need review" 화면: agentmux session hook이 실행마다 바뀌어 sandbox 모드에서 매번 뜰 수 있고
-  웹 카드가 이 화면을 읽지 못한다. 설계 2(Codex 보조) 범위에서 확인.
+- Codex `0.167.0` "Hooks need review" 화면: 웹 카드가 이 화면을 읽지 못한다. 설계 2(Codex 보조) 범위에서 고친다.
+  - 확인한 사실(2026-11-10, 읽기만 함): Codex는 `~/.codex/config.toml`의 `[hooks.state."<출처>:<이벤트>:<i>:<j>"]` 아래
+    `trusted_hash`(hook 정의의 sha256)로 검토 여부를 기억한다. agentmux는 `-c hooks.*` 명령 안에 실행마다 바뀌는 HMAC
+    capability(`expiresAt` 포함)를 넣는다(`providers/codex/session-hooks.ts`).
+  - 추정: hook 정의 hash가 실행마다 달라져 검토 화면이 매번 뜬다. 검토를 수락하면 사용자 `~/.codex/config.toml`에 기록되므로
+    아직 직접 확인하지 않았다. 확인은 임시 `CODEX_HOME`에서 한다.
+  - 고칠 방향(안): capability를 hook 명령 인자가 아니라 실행 명령 앞의 환경 변수로 넘기고, bridge가 그 값을 읽게 해 hook
+    명령을 모든 탭·실행에서 같게 만든다. 그러면 한 번 검토로 끝나는지 확인한다. Claude Code는 `--settings` hook에 검토 화면이
+    있는지 단계 2 Task 10 live smoke에서 확인한다.
 - 이번 격리 실행에서 `--sandbox read-only`인 Codex의 shell 쓰기가 막히지 않았다. Codex 쪽 동작 확인 필요.
 - Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
 - 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
