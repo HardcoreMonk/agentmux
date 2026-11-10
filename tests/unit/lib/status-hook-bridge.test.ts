@@ -122,7 +122,7 @@ describe('status hook bridge', () => {
     expect(bridgeSource).toContain("'x-agentmux-token': token");
     expect(statuslineSource).toContain(JSON.stringify(path.join(homeDir, '.agentmux')));
     expect(statuslineSource).toContain("'x-agentmux-token': token");
-    expect(statuslineSource).not.toContain('.codexmux');
+    expect(statuslineSource).not.toContain(JSON.stringify(path.join(homeDir, '.codexmux')));
 
     const agentmuxDir = path.join(homeDir, '.agentmux');
     await fs.mkdir(agentmuxDir, { recursive: true });

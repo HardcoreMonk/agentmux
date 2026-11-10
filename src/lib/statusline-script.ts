@@ -15,12 +15,29 @@ const MAX_OUTPUT_BYTES = 16 * 1024;
 const POST_TIMEOUT_MS = 1000;
 const COMMAND_TIMEOUT_MS = 1500;
 const baseDir = ${JSON.stringify(baseDir)};
-const ownScripts = [path.join(baseDir, 'statusline.cjs'), path.join(baseDir, 'statusline.sh')];
+const ACTIVE_ENV = 'AGENTMUX_STATUSLINE_ACTIVE';
+
+// A user statusLine that (directly or through a wrapper) calls this script again must not recurse.
+if (process.env[ACTIVE_ENV] === '1') process.exit(0);
+
+const realpathOrNull = (target) => {
+  try { return fs.realpathSync(target); } catch { return null; }
+};
+const home = os.homedir();
+const ownDirs = new Set();
+for (const dir of [baseDir, path.join(home, '.agentmux'), path.join(home, '.codexmux')]) {
+  ownDirs.add(dir);
+  const real = realpathOrNull(dir);
+  if (real) ownDirs.add(real);
+}
+const ownScripts = [...ownDirs].flatMap((dir) => [path.join(dir, 'statusline.cjs'), path.join(dir, 'statusline.sh')]);
 
 const chunks = [];
 let received = 0;
 
 const postStatus = (body) => new Promise((resolve) => {
+  const hardTimer = setTimeout(resolve, POST_TIMEOUT_MS);
+  hardTimer.unref();
   try {
     const port = Number.parseInt(fs.readFileSync(path.join(baseDir, 'port'), 'utf8').trim(), 10);
     const token = fs.readFileSync(path.join(baseDir, 'cli-token'), 'utf8').trim();
@@ -38,9 +55,12 @@ const postStatus = (body) => new Promise((resolve) => {
     }, (response) => {
       response.resume();
       response.on('end', resolve);
+      response.on('close', resolve);
+      response.on('error', () => resolve());
     });
     request.setTimeout(POST_TIMEOUT_MS, () => request.destroy());
     request.on('error', () => resolve());
+    request.on('close', resolve);
     request.end(body);
   } catch {
     resolve();
@@ -84,7 +104,12 @@ const runUserCommand = (command, projectDir, body) => new Promise((resolve) => {
     finish('');
   }, COMMAND_TIMEOUT_MS);
   try {
-    child = spawn('sh', ['-c', command], { cwd: projectDir, detached: true, stdio: ['pipe', 'pipe', 'ignore'] });
+    child = spawn('sh', ['-c', command], {
+      cwd: projectDir,
+      detached: true,
+      env: { ...process.env, [ACTIVE_ENV]: '1' },
+      stdio: ['pipe', 'pipe', 'ignore'],
+    });
   } catch {
     return finish('');
   }

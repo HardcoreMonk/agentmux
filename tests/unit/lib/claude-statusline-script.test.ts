@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import http from 'http';
+import net from 'net';
 import os from 'os';
 import path from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -69,8 +70,49 @@ describe('claude statusline script', () => {
   it('does not run a command that points at its own script', async () => {
     await writeUserSettings(`sh -c 'printf loop' ${path.join(dataDir, 'statusline.cjs')}`);
     expect((await run()).stdout).toBe('');
+    await fs.writeFile(path.join(dataDir, 'statusline.sh'), 'printf loop');
     await writeUserSettings(`sh ${path.join(dataDir, 'statusline.sh')}`);
     expect((await run()).stdout).toBe('');
+  });
+
+  it('does not recurse through a symlinked alias directory', async () => {
+    const alias = path.join(home, 'alias-dir');
+    await fs.symlink(dataDir, alias);
+    await fs.writeFile(path.join(dataDir, 'statusline.cjs'), buildStatuslineScriptSource(dataDir));
+    await writeUserSettings(`${process.execPath} ${path.join(alias, 'statusline.cjs')}`);
+    const result = await run();
+    expect(result.stdout).toBe('');
+    expect(result.ms).toBeLessThan(2500);
+  });
+
+  it('does not recurse through an indirect wrapper script', async () => {
+    const wrap = path.join(home, 'wrap.sh');
+    await fs.writeFile(wrap, `${process.execPath} "$(dirname "$0")/.agentmux/statusline.cjs"\nprintf wrapped`);
+    await writeUserSettings(`sh ${wrap}`);
+    const result = await run();
+    expect(result.stdout).toBe('wrapped');
+    expect(result.ms).toBeLessThan(2500);
+  });
+
+  it('keeps the user output when the status server stalls', async () => {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    const sockets: net.Socket[] = [];
+    const stall = net.createServer((socket) => {
+      sockets.push(socket);
+      socket.write('HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nx');
+    });
+    await new Promise<void>((resolve) => stall.listen(0, '127.0.0.1', resolve));
+    const address = stall.address();
+    if (!address || typeof address === 'string') throw new Error('port missing');
+    await fs.writeFile(path.join(dataDir, 'port'), String(address.port));
+    server = http.createServer();
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    await writeUserSettings('printf hello');
+    const result = await run();
+    sockets.forEach((socket) => socket.destroy());
+    await new Promise<void>((resolve) => stall.close(() => resolve()));
+    expect(result.stdout).toBe('hello');
+    expect(result.ms).toBeLessThan(2500);
   });
 
   it('runs a user script that only shares the file name', async () => {
