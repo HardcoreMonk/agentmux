@@ -36,5 +36,12 @@
   "richNotice": "Codex notice",
   "richCompaction": "Context compacted",
   "richDetails": "Details",
-  "richTruncated": "truncated"
+  "richTruncated": "truncated",
+  "bootStarting": "Starting {agent}...",
+  "bootStartingHint": "Preparing the session",
+  "bootWaitingSession": "Waiting for {agent} session...",
+  "bootWaitingSessionHint": "The first message will appear here",
+  "bootRecoverTitle": "{agent} is taking longer than expected",
+  "bootRecoverHint": "Check what the terminal is showing",
+  "bootCheckTerminal": "View terminal"
 }

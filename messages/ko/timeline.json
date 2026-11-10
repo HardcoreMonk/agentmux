@@ -36,5 +36,12 @@
   "richNotice": "Codex 알림",
   "richCompaction": "컨텍스트 압축",
   "richDetails": "세부 정보",
-  "richTruncated": "일부 생략됨"
+  "richTruncated": "일부 생략됨",
+  "bootStarting": "{agent} 시작 중...",
+  "bootStartingHint": "세션을 준비하고 있습니다",
+  "bootWaitingSession": "{agent} 세션 대기 중...",
+  "bootWaitingSessionHint": "첫 메시지가 여기에 표시됩니다",
+  "bootRecoverTitle": "{agent} 시작이 오래 걸리고 있습니다",
+  "bootRecoverHint": "터미널에 표시된 내용을 확인하세요",
+  "bootCheckTerminal": "터미널 보기"
 }

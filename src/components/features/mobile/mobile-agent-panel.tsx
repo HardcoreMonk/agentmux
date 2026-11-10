@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import useTimeline from '@/hooks/use-timeline';
 import useStartingPrompt from '@/hooks/use-starting-prompt';
+import useAgentBootElapsed from '@/hooks/use-agent-boot-elapsed';
 import useSessionList from '@/hooks/use-session-list';
 import useSessionProviderFilter from '@/hooks/use-session-provider-filter';
 import useTabStore, { selectAgentInstalled, selectAgentProcess, selectSessionView } from '@/hooks/use-tab-store';
@@ -16,6 +17,7 @@ import useMessageCounts from '@/hooks/use-message-counts';
 import SessionListView from '@/components/features/workspace/session-list-view';
 import SessionEmptyView from '@/components/features/workspace/session-empty-view';
 import BypassPromptCard from '@/components/features/workspace/bypass-prompt-card';
+import AgentBootView from '@/components/features/workspace/agent-boot-view';
 import TimelineView from '@/components/features/timeline/timeline-view';
 import WebInputBar from '@/components/features/workspace/web-input-bar';
 import QuickPromptBar from '@/components/features/workspace/quick-prompt-bar';
@@ -29,6 +31,7 @@ import {
 } from '@/lib/session-list-rendering';
 import { decideSessionSelectAction } from '@/lib/session-select-action';
 import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { isAgentBootActive, resolveAgentBootDisplay } from '@/lib/agent-boot-display';
 import type { ISessionMeta, TCliState } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
 
@@ -39,6 +42,10 @@ interface IMobileAgentPanelProps {
   agentSessionId?: string | null;
   panelType?: TPanelType;
   cwd?: string;
+  // The parent draws the trust card; the panel only hides its boot progress while it is up.
+  trustPromptVisible?: boolean;
+  // Switches the tab to the terminal view (recovery action once boot takes too long).
+  onCheckTerminal?: () => void;
   sendStdin: (data: string) => void;
   terminalWsConnected: boolean;
   focusTerminal: () => void;
@@ -59,6 +66,8 @@ const MobileAgentPanel = ({
   agentSessionId,
   panelType = DEFAULT_AGENT_PANEL_TYPE,
   cwd,
+  trustPromptVisible = false,
+  onCheckTerminal,
   sendStdin,
   terminalWsConnected,
   focusTerminal,
@@ -192,6 +201,17 @@ const MobileAgentPanel = ({
 
   const startingPromptOptions = useStartingPrompt(view === 'check', sessionName);
   const contentMode = selectAgentPanelContentMode({ agentProcess, view });
+  const bypassPrompt = !!startingPromptOptions?.isBypassPrompt && startingPromptOptions.options.length > 0;
+  const hasEntries = entries.length > 0;
+  const bootElapsedMs = useAgentBootElapsed(isAgentBootActive({ view, agentProcess, hasEntries }));
+  const bootDisplay = resolveAgentBootDisplay({
+    view,
+    agentProcess,
+    hasEntries,
+    trustPrompt: trustPromptVisible,
+    bypassPrompt,
+    elapsedMs: bootElapsedMs,
+  });
 
   useEffect(() => {
     onCliStateChange(storeCliState);
@@ -266,20 +286,15 @@ const MobileAgentPanel = ({
   if (contentMode === 'check') {
     return (
       <div className="animate-delayed-fade-in flex min-h-0 flex-1 flex-col items-center justify-center bg-muted">
-        <Spinner className="h-4 w-4 text-muted-foreground" />
-        <span className="mt-2 text-sm text-muted-foreground">{(agentSessionId || sessionId) ? t('resumingSession') : t('creatingConversation')}</span>
-        {startingPromptOptions && (
-          startingPromptOptions.isBypassPrompt && startingPromptOptions.options.length > 0 ? (
-            <BypassPromptCard
-              sessionName={sessionName}
-              options={startingPromptOptions.options}
-              fallback={
-                <span className="text-xs text-muted-foreground">{t('checkTerminal')}</span>
-              }
-            />
-          ) : (
-            <span className="mt-3 text-xs text-muted-foreground">{t('checkTerminal')}</span>
-          )
+        <AgentBootView panelType={panelType} display={bootDisplay} onCheckTerminal={onCheckTerminal} />
+        {bootDisplay === 'bypass' && startingPromptOptions && (
+          <BypassPromptCard
+            sessionName={sessionName}
+            options={startingPromptOptions.options}
+            fallback={
+              <span className="text-xs text-muted-foreground">{t('checkTerminal')}</span>
+            }
+          />
         )}
       </div>
     );
@@ -357,6 +372,11 @@ const MobileAgentPanel = ({
       </div>
 
       <div className="min-h-0 flex-1">
+        {(bootDisplay === 'waiting-session' || bootDisplay === 'recover') && !timelineError ? (
+          <div className="flex h-full w-full flex-col items-center justify-center">
+            <AgentBootView panelType={panelType} display={bootDisplay} onCheckTerminal={onCheckTerminal} />
+          </div>
+        ) : (
         <TimelineView
           entries={entries}
           tasks={tasks}
@@ -375,6 +395,7 @@ const MobileAgentPanel = ({
           hasMore={timelineHasMore}
           scrollToBottomRef={scrollToBottomRef}
         />
+        )}
       </div>
 
       <div className="shrink-0 pb-3">

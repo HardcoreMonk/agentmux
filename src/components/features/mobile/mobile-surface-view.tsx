@@ -593,6 +593,10 @@ const MobileSurfaceView = ({
           agentSessionId={readAgentSessionId(activeTab)}
           panelType={panelType}
           cwd={activeTabCwd}
+          trustPromptVisible={!!trustPrompt}
+          onCheckTerminal={() => {
+            if (activeTabId) onUpdateTabPanelType(paneId, activeTabId, 'terminal');
+          }}
           sendStdin={sendWebStdin}
           terminalWsConnected={status === 'connected'}
           focusTerminal={focus}

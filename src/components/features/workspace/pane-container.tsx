@@ -981,6 +981,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   agentSessionId={readAgentSessionId(activeTab)}
                   panelType={activePanelType}
                   cwd={activeTabCwd || activeTab.cwd}
+                  trustPromptVisible={!!trustPrompt}
                   onClose={() => handleSwitchPanelType('terminal')}
                   onNewSession={handleNewAgentSession}
                   onResumeOtherProvider={handleResumeOtherProvider}
