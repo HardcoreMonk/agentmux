@@ -91,3 +91,54 @@ export const trustAnswerKeys = (info: ITrustPromptInfo, answer: TTrustAnswer): s
   const arrows = (diff >= 0 ? ARROW_DOWN : ARROW_UP).repeat(Math.abs(diff));
   return `${arrows}\r`;
 };
+
+export const TRUST_RESPONSE_SUPPRESS_MS = 1000;
+
+// 탭(scope)별 trust prompt 상태. 탭 전환 시 이전 탭의 카드가 남지 않고,
+// 응답 직후에는 화면이 아직 trust 화면이어도 카드가 다시 뜨지 않는다.
+export interface ITrustPromptTracker {
+  observe: (scopeKey: string | null, screenText: string) => ITrustPromptInfo | null;
+  respond: (scopeKey: string | null, answer: TTrustAnswer) => string | null;
+  reset: () => void;
+}
+
+export const createTrustPromptTracker = (now: () => number = Date.now): ITrustPromptTracker => {
+  let state: { scopeKey: string; info: ITrustPromptInfo } | null = null;
+  let suppress: { scopeKey: string; until: number } | null = null;
+
+  const reset = () => {
+    state = null;
+    suppress = null;
+  };
+
+  const observe = (scopeKey: string | null, screenText: string): ITrustPromptInfo | null => {
+    if (scopeKey === null) {
+      reset();
+      return null;
+    }
+    if (state && state.scopeKey !== scopeKey) state = null;
+    if (suppress && suppress.scopeKey !== scopeKey) suppress = null;
+
+    const matched = matchTrustPrompt(screenText);
+    if (!matched) {
+      // 화면이 한 번 비-trust로 바뀌면 suppress 해제
+      suppress = null;
+      state = null;
+      return null;
+    }
+    if (suppress && now() < suppress.until) return null;
+    suppress = null;
+    state = { scopeKey, info: matched };
+    return matched;
+  };
+
+  const respond = (scopeKey: string | null, answer: TTrustAnswer): string | null => {
+    if (!state || scopeKey === null || state.scopeKey !== scopeKey) return null;
+    const keys = trustAnswerKeys(state.info, answer);
+    state = null;
+    suppress = { scopeKey, until: now() + TRUST_RESPONSE_SUPPRESS_MS };
+    return keys;
+  };
+
+  return { observe, respond, reset };
+};

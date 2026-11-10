@@ -426,6 +426,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     && (agentCliState === 'inactive' || agentCliState === 'unknown' || sessionView === 'check');
   const { trustPrompt, onTerminalData: onTrustTerminalData, onTrustResponse } = useTrustPromptDetector({
     enabled: trustPromptEnabled,
+    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}` : null,
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });

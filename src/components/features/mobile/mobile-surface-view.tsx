@@ -269,6 +269,7 @@ const MobileSurfaceView = ({
     && (trustCliState === 'inactive' || trustCliState === 'unknown' || sessionView === 'check');
   const { trustPrompt, onTerminalData: onTrustTerminalData, onTrustResponse } = useTrustPromptDetector({
     enabled: trustPromptEnabled,
+    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}` : null,
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });
@@ -550,7 +551,7 @@ const MobileSurfaceView = ({
       )}
 
       {isAgentPanel && trustPrompt && (
-        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center p-3">
+        <div className="flex shrink-0 justify-center p-3">
           <TrustPromptCard folderPath={trustPrompt.folderPath} onRespond={onTrustResponse} />
         </div>
       )}
