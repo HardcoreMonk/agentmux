@@ -203,13 +203,15 @@ const MobileAgentPanel = ({
   const contentMode = selectAgentPanelContentMode({ agentProcess, view });
   const bypassPrompt = !!startingPromptOptions?.isBypassPrompt && startingPromptOptions.options.length > 0;
   const hasEntries = entries.length > 0;
-  const bootElapsedMs = useAgentBootElapsed(isAgentBootActive({ view, agentProcess, hasEntries }));
+  const bootElapsedMs = useAgentBootElapsed(isAgentBootActive({ view, agentProcess, hasEntries, cliState: storeCliState }));
   const bootDisplay = resolveAgentBootDisplay({
     view,
     agentProcess,
     hasEntries,
     trustPrompt: trustPromptVisible,
     bypassPrompt,
+    startingPrompt: !!startingPromptOptions && !bypassPrompt,
+    cliState: storeCliState,
     elapsedMs: bootElapsedMs,
   });
 

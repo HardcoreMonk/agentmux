@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { resolveAgentBootDisplay } from '@/lib/agent-boot-display';
+import { isAgentBootActive, resolveAgentBootDisplay } from '@/lib/agent-boot-display';
+import type { TCliState } from '@/types/timeline';
 
 const base = {
   view: 'check' as const,
@@ -7,6 +8,8 @@ const base = {
   hasEntries: false,
   trustPrompt: false,
   bypassPrompt: false,
+  startingPrompt: false,
+  cliState: undefined as TCliState | undefined,
   elapsedMs: 0,
 };
 
@@ -48,5 +51,23 @@ describe('resolveAgentBootDisplay', () => {
   it('returns null in the session list and for a stopped agent', () => {
     expect(resolveAgentBootDisplay({ ...base, view: 'session-list' })).toBeNull();
     expect(resolveAgentBootDisplay({ ...base, view: 'timeline', agentProcess: false })).toBeNull();
+  });
+
+  it('keeps the timeline for a ready agent without entries', () => {
+    const ready = { ...base, view: 'timeline' as const, agentProcess: true, cliState: 'idle' as const };
+    expect(resolveAgentBootDisplay(ready)).toBeNull();
+    expect(resolveAgentBootDisplay({ ...ready, elapsedMs: 60_000 })).toBeNull();
+    expect(isAgentBootActive(ready)).toBe(false);
+  });
+
+  it('waits only while the agent has not reported a state', () => {
+    const waiting = { ...base, view: 'timeline' as const, agentProcess: true };
+    expect(resolveAgentBootDisplay({ ...waiting, cliState: 'inactive' })).toBe('waiting-session');
+    expect(resolveAgentBootDisplay({ ...waiting, cliState: 'unknown', elapsedMs: 60_000 })).toBe('recover');
+    expect(isAgentBootActive({ ...waiting, cliState: 'unknown' })).toBe(true);
+  });
+
+  it('offers recovery at once for a non-bypass startup prompt', () => {
+    expect(resolveAgentBootDisplay({ ...base, startingPrompt: true })).toBe('recover');
   });
 });
