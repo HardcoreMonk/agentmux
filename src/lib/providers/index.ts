@@ -1,4 +1,5 @@
 import { codexProvider } from '@/lib/providers/codex';
+import { isJsonlPathUnderRoots } from '@/lib/path-validation';
 import { clearProviders, listProviders, registerProvider } from '@/lib/providers/registry';
 import type { IAgentProvider } from '@/lib/providers/types';
 import type { ISessionInfo } from '@/types/timeline';
@@ -44,6 +45,12 @@ export const detectAnyActiveSession = async (
 
   return { provider: null, info: allNotInstalled ? NOT_INSTALLED : NOT_RUNNING };
 };
+
+export const isAllowedAgentJsonlPath = (filePath: string, homeDir?: string): boolean =>
+  isJsonlPathUnderRoots(
+    filePath,
+    listProviders().flatMap((provider) => provider.jsonlRoots(homeDir)),
+  );
 
 export const isAnyAgentRunning = async (
   panePid: number,

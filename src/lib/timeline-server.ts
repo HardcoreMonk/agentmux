@@ -13,12 +13,12 @@ import {
   parseSessionName,
 } from './layout-store';
 import { getStatusManager } from './status-manager';
-import { getProviderByPanelType } from '@/lib/providers';
+import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
+import { getProviderByPanelType, isAllowedAgentJsonlPath } from '@/lib/providers';
 import type { IAgentProvider } from '@/lib/providers';
 import { extractSessionIdFromJsonlPath, readSessionStats } from './session-stats';
 import type { ISessionStats } from '@/types/timeline';
 import path from 'path';
-import { isAllowedJsonlPath } from './path-validation';
 import { createLogger } from '@/lib/logger';
 import {
   canSendTimelineMessage as canSend,
@@ -117,7 +117,7 @@ const timelineResumeSessionService = createTimelineResumeSessionService({
   readTabAgentJsonlPath,
   readTabUserMessageClaim,
   getSessionCwd,
-  isAllowedJsonlPath,
+  isAllowedJsonlPath: (jsonlPath) => isAllowedAgentJsonlPath(jsonlPath),
   existsPath: existsSync,
   statFileMtimeMs: async (filePath) => {
     try {
@@ -371,7 +371,7 @@ export const handleTimelineConnection = async (ws: WebSocket, request: IncomingM
     return;
   }
 
-  const panelType = url.searchParams.get('panelType') ?? 'codex';
+  const panelType = url.searchParams.get('panelType') ?? DEFAULT_AGENT_PANEL_TYPE;
   const provider = getProviderByPanelType(panelType);
   if (!provider) {
     ws.close(1008, 'Unknown panel type');
@@ -490,7 +490,7 @@ export const handleTimelineConnection = async (ws: WebSocket, request: IncomingM
     try {
       const msg = JSON.parse(raw.toString());
       if (msg.type === 'timeline:subscribe' && msg.jsonlPath) {
-        if (!isAllowedJsonlPath(msg.jsonlPath)) {
+        if (!isAllowedAgentJsonlPath(msg.jsonlPath)) {
           timelineDelivery.send(ws, { type: 'timeline:error', code: 'forbidden-path', message: 'Not allowed path' });
           return;
         }

@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { isAllowedJsonlPath } from '@/lib/path-validation';
-import { getProviderByPanelType } from '@/lib/providers';
+import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
+import { getProviderByPanelType, isAllowedAgentJsonlPath } from '@/lib/providers';
 import { sendRuntimeApiError } from '@/lib/runtime/api-handler';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { shouldUseRuntimeTimelineV2Reads } from '@/lib/runtime/timeline-mode';
@@ -19,7 +19,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(400).json({ error: 'jsonlPath parameter required' });
   }
 
-  if (!isAllowedJsonlPath(jsonlPath)) {
+  if (!isAllowedAgentJsonlPath(jsonlPath)) {
     return res.status(403).json({ error: 'Path not allowed' });
   }
 
@@ -29,7 +29,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   const limit = parseInt(req.query.limit as string, 10) || DEFAULT_LIMIT;
-  const panelType = typeof req.query.panelType === 'string' ? req.query.panelType : 'codex';
+  const panelType = typeof req.query.panelType === 'string' ? req.query.panelType : DEFAULT_AGENT_PANEL_TYPE;
   const provider = getProviderByPanelType(panelType);
   if (!provider) {
     return res.status(400).json({ error: 'Unknown panel type' });

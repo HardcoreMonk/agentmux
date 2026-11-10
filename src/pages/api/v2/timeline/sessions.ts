@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyRuntimeV2ApiAuth } from '@/lib/runtime/api-auth';
 import { sendRuntimeApiError, sendRuntimeDisabled } from '@/lib/runtime/api-handler';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
-import { normalizePanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, normalizePanelType } from '@/lib/panel-type';
 import type { TPanelType } from '@/types/terminal';
 
 const DEFAULT_LIMIT = 50;
@@ -18,7 +18,7 @@ const parseBoundedInteger = (value: string | undefined, fallback: number, min: n
 };
 
 const parsePanelType = (value: string | string[] | undefined): TPanelType =>
-  normalizePanelType(firstQueryValue(value)) ?? 'codex';
+  normalizePanelType(firstQueryValue(value)) ?? DEFAULT_AGENT_PANEL_TYPE;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (process.env.AGENTMUX_RUNTIME_V2 !== '1') {

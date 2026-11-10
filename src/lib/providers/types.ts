@@ -62,6 +62,7 @@ export interface IAgentProvider {
 
   buildResumeCommand(sessionId: string, options: IAgentResumeCommandOptions): Promise<string>;
   buildLaunchCommand(options: IAgentLaunchCommandOptions): Promise<string>;
+  jsonlRoots(homeDir?: string): string[];
   resolveJsonlPath(sessionId: string, cwd: string): Promise<string | null>;
   resolveLatestJsonlPath?(cwd: string): Promise<IAgentJsonlResolution | null>;
   resolveJsonlPathForClaim?(cwd: string, claim: IAgentPromptClaim): Promise<IAgentJsonlResolution | null>;

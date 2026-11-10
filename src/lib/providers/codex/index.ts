@@ -6,6 +6,7 @@ import {
   isValidCodexThreadId,
 } from '@/lib/codex-command';
 import { getConfig } from '@/lib/config-store';
+import { getCodexSessionsDir } from '@/lib/path-validation';
 import {
   detectActiveCodexSession,
   findCodexSessionJsonlByPromptClaim,
@@ -53,6 +54,7 @@ const readLaunchOptions = async (options: { tabId?: string; sessionName?: string
 };
 
 export const codexProvider: IAgentProvider = {
+  jsonlRoots: (homeDir) => [getCodexSessionsDir(homeDir)],
   id: 'codex',
   displayName: 'Codex',
   panelType: 'codex',

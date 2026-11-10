@@ -1,5 +1,5 @@
 import { getSessionIndexPage, getSessionIndexSnapshot, parseCodexSessionMeta } from '@/lib/session-index';
-import { isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
 import type { ISessionMeta } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
 
@@ -20,7 +20,7 @@ export interface IListSessionPage {
 export const listSessions = async (
   tmuxSession: string,
   cwdHint?: string,
-  panelType: TPanelType = 'codex',
+  panelType: TPanelType = DEFAULT_AGENT_PANEL_TYPE,
 ): Promise<ISessionMeta[]> => {
   void tmuxSession;
   void cwdHint;
@@ -32,7 +32,7 @@ export const listSessions = async (
 export const listSessionPage = async (
   tmuxSession: string,
   cwdHint?: string,
-  panelType: TPanelType = 'codex',
+  panelType: TPanelType = DEFAULT_AGENT_PANEL_TYPE,
   options?: IListSessionPageOptions,
 ): Promise<IListSessionPage> => {
   void tmuxSession;

@@ -19,6 +19,7 @@ vi.mock('@/lib/path-validation', () => ({
 
 vi.mock('@/lib/providers', () => ({
   getProviderByPanelType: mocks.getProviderByPanelType,
+  isAllowedAgentJsonlPath: mocks.isAllowedJsonlPath,
 }));
 
 vi.mock('@/lib/runtime/supervisor', () => ({

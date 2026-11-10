@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { isAllowedJsonlPath } from '@/lib/path-validation';
+import { isAllowedAgentJsonlPath } from '@/lib/providers';
 import { verifyRuntimeV2ApiAuth } from '@/lib/runtime/api-auth';
 import { sendRuntimeApiError, sendRuntimeDisabled } from '@/lib/runtime/api-handler';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
@@ -26,7 +26,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(400).json({ error: 'jsonlPath parameter required' });
   }
 
-  if (!isAllowedJsonlPath(jsonlPath)) {
+  if (!isAllowedAgentJsonlPath(jsonlPath)) {
     return res.status(403).json({ error: 'Path not allowed' });
   }
 

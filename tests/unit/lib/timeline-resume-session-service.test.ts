@@ -44,6 +44,7 @@ const makeProvider = (overrides: Partial<IAgentProvider> = {}): IAgentProvider =
   watchSessions: vi.fn(),
   buildResumeCommand: vi.fn(async (sessionId: string) => `codex resume ${sessionId}`),
   buildLaunchCommand: vi.fn(),
+  jsonlRoots: () => [],
   resolveJsonlPath: vi.fn(async (sessionId: string) => `/tmp/${sessionId}.jsonl`),
   resolveLatestJsonlPath: vi.fn(),
   parseJsonlContent: vi.fn(),

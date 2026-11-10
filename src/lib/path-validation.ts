@@ -25,11 +25,13 @@ export const getCodexSessionsDir = (homeDir = os.homedir()): string => {
   return pathApi.join(homeDir, '.codex', 'sessions');
 };
 
+export const isJsonlPathUnderRoots = (filePath: string, roots: readonly string[]): boolean =>
+  roots.some((root) => {
+    const pathApi = selectPathApi(filePath, root);
+    return isPathInside(filePath, root) && pathApi.extname(filePath) === '.jsonl';
+  });
+
 export const isAllowedJsonlPath = (
   filePath: string,
   options: IJsonlPathValidationOptions = {},
-): boolean => {
-  const sessionsDir = getCodexSessionsDir(options.homeDir);
-  const pathApi = selectPathApi(filePath, sessionsDir);
-  return isPathInside(filePath, sessionsDir) && pathApi.extname(filePath) === '.jsonl';
-};
+): boolean => isJsonlPathUnderRoots(filePath, [getCodexSessionsDir(options.homeDir)]);

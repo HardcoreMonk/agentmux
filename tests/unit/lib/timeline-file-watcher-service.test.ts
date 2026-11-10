@@ -37,6 +37,7 @@ const makeProvider = (parseIncremental: IAgentProvider['parseIncremental']): IAg
   watchSessions: vi.fn(),
   buildResumeCommand: vi.fn(),
   buildLaunchCommand: vi.fn(),
+  jsonlRoots: () => [],
   resolveJsonlPath: vi.fn(),
   parseJsonlContent: vi.fn(),
   readTailEntries: vi.fn(),
