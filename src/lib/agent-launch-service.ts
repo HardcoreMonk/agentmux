@@ -51,30 +51,35 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
     }
   }
 
-  if (input.panelType && input.panelType !== tab.panelType) {
-    if (resolveTabRuntimeVersion(tab) === 2) {
-      return { ok: false, code: 'runtime-v2-agent-unsupported' };
-    }
-    await patchTab(input.workspaceId, input.paneId, input.tabId, { panelType: input.panelType });
+  if (input.panelType && input.panelType !== tab.panelType && resolveTabRuntimeVersion(tab) === 2) {
+    return { ok: false, code: 'runtime-v2-agent-unsupported' };
   }
 
+  // Build the command before changing the stored tab, so a build failure leaves the tab untouched.
   const commandOptions = {
     workspaceId: input.workspaceId,
     tabId: tab.id,
     sessionName: tab.sessionName,
   };
   let command: string;
+  let bindSessionId: string | null = null;
   if (input.action === 'resume' && input.sessionId) {
     command = await provider.buildResumeCommand(input.sessionId, commandOptions);
-    // Bind the resumed session first so status and timeline follow it (same rule as new-tab and WS resume).
-    await updateTabAgentSession(tab.sessionName, provider, { sessionId: input.sessionId, jsonlPath: null });
+    bindSessionId = input.sessionId;
   } else if (input.action === 'launch' && provider.createLaunchSessionId) {
-    const sessionId = provider.createLaunchSessionId();
-    command = await provider.buildLaunchCommand({ ...commandOptions, sessionId });
-    // Drop the previous session's JSONL so status and timeline do not stay bound to it.
-    await updateTabAgentSession(tab.sessionName, provider, { sessionId, jsonlPath: null });
+    bindSessionId = provider.createLaunchSessionId();
+    command = await provider.buildLaunchCommand({ ...commandOptions, sessionId: bindSessionId });
   } else {
     command = await provider.buildLaunchCommand(commandOptions);
+  }
+
+  if (input.panelType && input.panelType !== tab.panelType) {
+    await patchTab(input.workspaceId, input.paneId, input.tabId, { panelType: input.panelType });
+  }
+  if (bindSessionId) {
+    // Bind the session before sending so status and timeline follow it (resume: same rule as new-tab and
+    // WS resume; launch: drop the previous session's JSONL).
+    await updateTabAgentSession(tab.sessionName, provider, { sessionId: bindSessionId, jsonlPath: null });
   }
 
   if (resolveTabRuntimeVersion(tab) === 2) {

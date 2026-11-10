@@ -711,7 +711,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
       action: 'resume',
       sessionId: session.sessionId,
       panelType: session.providerId,
-    });
+    }).catch(() => false);
     if (!ok) {
       toast.error(tSession('resumeFailed'));
       return false;

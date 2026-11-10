@@ -250,10 +250,22 @@ describe('launchAgentInTab', () => {
         { sessionId: 'session-old', jsonlPath: null },
       );
       expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'claude --resume session-old');
+      const builtAt = mocks.buildResumeCommand.mock.invocationCallOrder[0];
       const patchedAt = mocks.patchTab.mock.invocationCallOrder[0];
       const boundAt = mocks.updateTabAgentSession.mock.invocationCallOrder[0];
+      expect(builtAt).toBeLessThan(patchedAt);
       expect(patchedAt).toBeLessThan(boundAt);
       expect(boundAt).toBeLessThan(mocks.sendKeys.mock.invocationCallOrder[0]);
+    });
+
+    it('leaves the tab untouched when building the resume command fails', async () => {
+      mocks.readLayoutFile.mockResolvedValue(layout(1, 'codex'));
+      mocks.buildResumeCommand.mockRejectedValue(new Error('settings write failed'));
+      await expect(launchAgentInTab({ ...resumeInput, panelType: 'claude' })).rejects.toThrow('settings write failed');
+
+      expect(mocks.patchTab).not.toHaveBeenCalled();
+      expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
+      expect(mocks.sendKeys).not.toHaveBeenCalled();
     });
 
     it('binds the session before sending even when the provider stays the same', async () => {
