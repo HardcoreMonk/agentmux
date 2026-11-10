@@ -240,6 +240,9 @@ skipped), `build` 모두 통과.
 ## Follow-Up Tasks
 
 - 설계 1 단계 1: push, PR, main merge, 사용자 확인 뒤 live 배포.
+- 작업 체계(사용자: "단계 2부터 이전처럼 \"agy 구현, Claude 감시·검증\" 체계"): 단계 2부터 구현은 Herdr pane의
+  agy(`builder`)가 맡고 Claude는 계획, 감시, 검증을 맡는다. 단계 1은 Claude subagent(subagent-driven)로 구현했다.
+  agy의 cwd가 live checkout이므로 agy에게는 `.worktrees/` 아래 worktree에서만 작업하도록 지시한다.
 - 단계 2 계획에 넣을 것(단계 1 최종 검토에서 넘김):
   - `'claude'`를 더하기 전, storage v2 layout 읽기 경로와 IPC reply 검증(`z.enum(PANEL_TYPES)`)이 모르는 panelType
     때문에 layout 전체를 거절하지 않도록 읽는 쪽 정규화 또는 rollback 절차.
