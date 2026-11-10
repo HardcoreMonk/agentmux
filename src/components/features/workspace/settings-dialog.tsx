@@ -49,7 +49,7 @@ import { EDITOR_PRESETS, buildEditorUrl, type TEditorPreset } from '@/lib/editor
 import { EditorIcon } from '@/components/icons/editor-icons';
 import OpenAIIcon from '@/components/icons/openai-icon';
 import ClaudeIcon from '@/components/icons/claude-icon';
-import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { AGENT_PROVIDER_META, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { CLAUDE_PERMISSION_MODES, isValidClaudeModel, type TClaudePermissionMode } from '@/lib/claude-config-values';
 import type { ITerminalThemeColors } from '@/lib/terminal-themes';
 import QuickPromptsSettings from '@/components/features/settings/quick-prompts-settings';
@@ -877,7 +877,7 @@ const NotificationTab = () => {
               {t('enable')}
             </Label>
             <p className="text-sm text-muted-foreground">
-              {t('enableDescription')}
+              {t('enableDescription', { agent: Object.values(AGENT_PROVIDER_META).map((meta) => meta.label).join(' / ') })}
             </p>
           </div>
           <Switch

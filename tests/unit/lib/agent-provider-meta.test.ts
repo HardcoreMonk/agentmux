@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { getAgentLabel, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { AGENT_PANEL_TYPES } from '@/lib/panel-type';
 
 describe('agent-provider-meta', () => {
@@ -11,6 +11,8 @@ describe('agent-provider-meta', () => {
     expect(getAgentProviderMeta('codex')).toEqual({
       panelType: 'codex',
       label: 'Codex',
+      shortLabel: 'CODEX',
+      configDir: '~/.codex',
       newTabCommand: 'codex-new',
       restartCommands: ['/new', '/clear'],
       exitCommand: '/exit',
@@ -23,12 +25,21 @@ describe('agent-provider-meta', () => {
     expect(getAgentProviderMeta('claude')).toEqual({
       panelType: 'claude',
       label: 'Claude Code',
+      shortLabel: 'CLAUDE',
+      configDir: '~/.claude',
       newTabCommand: 'claude-new',
       restartCommands: ['/clear'],
       exitCommand: '/exit',
       interruptSequence: '\x1b',
       keepTimelineOnSessionEnd: true,
     });
+  });
+
+  it('resolves the label with a default-agent fallback', () => {
+    expect(getAgentLabel('codex')).toBe('Codex');
+    expect(getAgentLabel('claude')).toBe('Claude Code');
+    expect(getAgentLabel(undefined)).toBe('Codex');
+    expect(getAgentLabel('terminal')).toBe('Codex');
   });
 
   it('returns null for non-agent panels', () => {

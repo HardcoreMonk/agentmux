@@ -26,7 +26,7 @@
   "syncErrorLocalChanges": "로컬 변경사항이 덮어써질 수 있어요. 먼저 커밋하거나 stash 하세요",
   "syncErrorTimeout": "동기화 시간 초과",
   "syncErrorGeneric": "동기화 실패",
-  "askCodex": "Codex에게 묻기",
+  "askAgent": "{agent}에게 묻기",
   "agentPromptDiverged": "Git sync에 실패했어. {branch}가 {upstream}와 분기됐어. 최신 origin을 받아서 rebase하고 충돌이 있으면 해결해줘.",
   "agentPromptRejected": "Git push가 거부됐어. {upstream}에 새 커밋이 있는 것 같아. pull로 병합 후 다시 push해줘.",
   "agentPromptAuth": "Git 인증에 실패했어. credential helper나 SSH 설정을 확인하고 다시 시도해줘.",

@@ -1,13 +1,16 @@
 import { useTranslations } from 'next-intl';
 import { MessageSquare, Plus, X } from 'lucide-react';
+import { getAgentLabel } from '@/lib/agent-provider-meta';
+import type { TPanelType } from '@/types/terminal';
 import { Button } from '@/components/ui/button';
 
 interface ISessionEmptyViewProps {
   onClose?: () => void;
   onNewSession?: () => void;
+  panelType?: TPanelType;
 }
 
-const SessionEmptyView = ({ onClose, onNewSession }: ISessionEmptyViewProps) => {
+const SessionEmptyView = ({ onClose, onNewSession, panelType }: ISessionEmptyViewProps) => {
   const t = useTranslations('session.empty');
 
   return (
@@ -27,7 +30,7 @@ const SessionEmptyView = ({ onClose, onNewSession }: ISessionEmptyViewProps) => 
       <div className="text-center">
         <p className="text-sm font-medium">{t('noSession')}</p>
         <p className="mt-1 text-xs opacity-70">
-          {t('startNewSession', { br: '\n' }).split('\n').map((line, i) => (
+          {t('startNewSession', { br: '\n', agent: getAgentLabel(panelType) }).split('\n').map((line, i) => (
             <span key={i}>{i > 0 && <br />}{line}</span>
           ))}
         </p>

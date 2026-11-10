@@ -19,7 +19,7 @@ import SessionMetaBar, { SessionMetaBarSkeleton } from '@/components/features/wo
 import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
 import { selectAgentSessionListRenderMode } from '@/lib/session-list-rendering';
 import { decideSessionSelectAction } from '@/lib/session-select-action';
-import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { getAgentLabel, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { isAgentBootActive, resolveAgentBootDisplay } from '@/lib/agent-boot-display';
 import type { ISessionMeta } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
@@ -60,6 +60,7 @@ const AgentPanel = ({
   const t = useTranslations('terminal');
   const tSession = useTranslations('session');
   const tTimeline = useTranslations('timeline');
+  const agentLabel = getAgentLabel(panelType);
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
 
   const agentProcess = useTabStore((s) => selectAgentProcess(s.tabs, tabId));
@@ -257,8 +258,8 @@ const AgentPanel = ({
   if (!agentInstalled) {
     return (
       <div className={cn('flex h-full w-full flex-col items-center justify-center gap-3 text-muted-foreground', className)}>
-        <span className="text-sm font-medium">{tTimeline('installCodex')}</span>
-        <span className="text-xs">{tTimeline('installCodexHint')}</span>
+        <span className="text-sm font-medium">{tTimeline('installAgent', { agent: agentLabel })}</span>
+        <span className="text-xs">{tTimeline('installAgentHint', { agent: agentLabel, path: getAgentProviderMeta(panelType)?.configDir ?? '' })}</span>
       </div>
     );
   }
@@ -295,7 +296,7 @@ const AgentPanel = ({
     if (renderMode === 'empty') {
       return (
         <div className={cn('h-full w-full', className)}>
-          <SessionEmptyView onClose={onClose} onNewSession={onNewSession} />
+          <SessionEmptyView onClose={onClose} onNewSession={onNewSession} panelType={panelType} />
         </div>
       );
     }
@@ -322,7 +323,7 @@ const AgentPanel = ({
           onNewSession={onNewSession}
           providerFilter={providerFilter.filter}
           onProviderFilterChange={providerFilter.setFilter}
-          emptyView={<SessionEmptyView onClose={onClose} onNewSession={onNewSession} />}
+          emptyView={<SessionEmptyView onClose={onClose} onNewSession={onNewSession} panelType={panelType} />}
         />
       </div>
     );
@@ -368,6 +369,7 @@ const AgentPanel = ({
           onLoadMore={loadMoreTimeline}
           hasMore={timelineHasMore}
           scrollToBottomRef={scrollToBottomRef}
+          panelType={panelType}
         />
         )}
       </div>

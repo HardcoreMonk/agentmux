@@ -1,4 +1,6 @@
 import { useTranslations } from 'next-intl';
+import { getAgentLabel } from '@/lib/agent-provider-meta';
+import type { TPanelType } from '@/types/terminal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,9 +16,10 @@ interface IInterruptDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
+  panelType?: TPanelType;
 }
 
-const InterruptDialog = ({ open, onOpenChange, onConfirm }: IInterruptDialogProps) => {
+const InterruptDialog = ({ open, onOpenChange, onConfirm, panelType }: IInterruptDialogProps) => {
   const t = useTranslations('terminal');
   const tc = useTranslations('common');
   const handleConfirm = () => {
@@ -30,7 +33,7 @@ const InterruptDialog = ({ open, onOpenChange, onConfirm }: IInterruptDialogProp
         <AlertDialogHeader>
           <AlertDialogTitle>{t('interruptTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t('interruptDescription')}
+            {t('interruptDescription', { agent: getAgentLabel(panelType) })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

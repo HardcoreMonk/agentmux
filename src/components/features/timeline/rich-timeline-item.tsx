@@ -15,6 +15,8 @@ import {
   type TRichTimelineIcon,
 } from '@/lib/rich-timeline-presentation';
 import { cn } from '@/lib/utils';
+import { getAgentLabel } from '@/lib/agent-provider-meta';
+import type { TPanelType } from '@/types/terminal';
 
 const icons: Record<TRichTimelineIcon, typeof TerminalSquare> = {
   terminal: TerminalSquare,
@@ -56,7 +58,7 @@ const RichDetails = ({ details }: { details: ITimelineRichDetails }) => {
   );
 };
 
-const RichTimelineItem = ({ entry }: { entry: TRichTimelineEntry }) => {
+const RichTimelineItem = ({ entry, panelType }: { entry: TRichTimelineEntry; panelType?: TPanelType }) => {
   const t = useTranslations('timeline');
   const presentation = getRichTimelinePresentation(entry);
   const Icon = icons[presentation.icon];
@@ -68,7 +70,7 @@ const RichTimelineItem = ({ entry }: { entry: TRichTimelineEntry }) => {
         <Icon size={13} className={cn('mt-0.5 shrink-0', statusClass(presentation.status))} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="shrink-0 font-medium text-foreground/80">{t(presentation.label)}</span>
+            <span className="shrink-0 font-medium text-foreground/80">{t(presentation.label, { agent: getAgentLabel(panelType) })}</span>
             <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
               {presentation.summary}
             </span>

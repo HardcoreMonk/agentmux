@@ -25,6 +25,8 @@ import TaskChecklist from '@/components/features/timeline/task-checklist';
 import TaskProgressItem from '@/components/features/timeline/task-progress-item';
 import ScrollToBottomButton from '@/components/features/timeline/scroll-to-bottom-button';
 import PermissionPromptItem from '@/components/features/timeline/permission-prompt-item';
+import { getAgentLabel } from '@/lib/agent-provider-meta';
+import type { TPanelType } from '@/types/terminal';
 import RichTimelineItem from '@/components/features/timeline/rich-timeline-item';
 import { calculateSafeSpacerShrink, calculateTimelineSpacerHeight } from '@/lib/timeline-spacer';
 
@@ -45,6 +47,7 @@ interface ITimelineViewProps {
   onLoadMore: () => Promise<void>;
   hasMore: boolean;
   scrollToBottomRef?: React.MutableRefObject<(() => void) | undefined>;
+  panelType?: TPanelType;
 }
 
 const RESUME_TOKEN_THRESHOLD = 100_000;
@@ -139,7 +142,7 @@ const SessionExitItem = () => {
   );
 };
 
-const TimelineEntryRenderer = memo(({ entry, sessionName }: { entry: ITimelineEntry; sessionName?: string }) => {
+const TimelineEntryRenderer = memo(({ entry, sessionName, panelType }: { entry: ITimelineEntry; sessionName?: string; panelType?: TPanelType }) => {
   switch (entry.type) {
     case 'user-message':
       return <UserMessageItem entry={entry} />;
@@ -165,7 +168,7 @@ const TimelineEntryRenderer = memo(({ entry, sessionName }: { entry: ITimelineEn
     case 'patch-apply':
     case 'error-notice':
     case 'context-compacted':
-      return <RichTimelineItem entry={entry} />;
+      return <RichTimelineItem entry={entry} panelType={panelType} />;
     default:
       return null;
   }
@@ -178,6 +181,7 @@ interface ITimelineGroupedItemProps {
   anchorUserId: string | null;
   anchorElRef: React.MutableRefObject<HTMLDivElement | null>;
   sessionName?: string;
+  panelType?: TPanelType;
 }
 
 const sameItemRefs = <T,>(prev: T[], next: T[]): boolean =>
@@ -198,6 +202,7 @@ const TimelineGroupedItem = memo(({
   anchorUserId,
   anchorElRef,
   sessionName,
+  panelType,
 }: ITimelineGroupedItemProps) => {
   const isAnchor = item.id === anchorUserId;
 
@@ -209,12 +214,13 @@ const TimelineGroupedItem = memo(({
       {item.type === 'tool-group' ? (
         <ToolGroupItem toolCalls={item.toolCalls} toolResults={item.toolResults} />
       ) : (
-        <TimelineEntryRenderer entry={item.entry} sessionName={sessionName} />
+        <TimelineEntryRenderer entry={item.entry} sessionName={sessionName} panelType={panelType} />
       )}
     </div>
   );
 }, (prev, next) => (
   prev.sessionName === next.sessionName
+  && prev.panelType === next.panelType
   && (prev.item.id === prev.anchorUserId) === (next.item.id === next.anchorUserId)
   && sameGroupedItem(prev.item, next.item)
 ));
@@ -307,6 +313,7 @@ const TimelineView = ({
   onLoadMore,
   hasMore,
   scrollToBottomRef,
+  panelType,
 }: ITimelineViewProps) => {
   const t = useTranslations('timeline');
   const needsInput = cliState === 'needs-input';
@@ -613,7 +620,7 @@ const TimelineView = ({
         }}
         tabIndex={0}
         role="log"
-        aria-label={t('timelineAria')}
+        aria-label={t('timelineAria', { agent: getAgentLabel(panelType) })}
       >
         <div ref={contentRef} className="mx-auto max-w-content">
           {hasMore && <div ref={sentinelRef} className="h-px" />}
@@ -645,6 +652,7 @@ const TimelineView = ({
               anchorUserId={anchorUserId}
               anchorElRef={anchorElRef}
               sessionName={sessionName}
+              panelType={panelType}
             />
           ))}
           {(shouldProbeResumeDialog || needsInput) && sessionName && (

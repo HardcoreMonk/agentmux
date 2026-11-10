@@ -84,7 +84,7 @@
   },
   "notification": {
     "enable": "Enable Notifications",
-    "enableDescription": "Show system notifications when Codex tasks complete.",
+    "enableDescription": "Show system notifications when {agent} tasks complete.",
     "permissionDenied": "Browser notification permission denied. Please allow in browser settings.",
     "notSupported": "Web Push is not supported in this browser.",
     "soundEnable": "Task complete sound",

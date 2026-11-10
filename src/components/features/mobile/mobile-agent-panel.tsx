@@ -30,7 +30,7 @@ import {
   selectAgentSessionListRenderMode,
 } from '@/lib/session-list-rendering';
 import { decideSessionSelectAction } from '@/lib/session-select-action';
-import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { getAgentLabel, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { isAgentBootActive, resolveAgentBootDisplay } from '@/lib/agent-boot-display';
 import type { ISessionMeta, TCliState } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
@@ -82,6 +82,7 @@ const MobileAgentPanel = ({
   const t = useTranslations('terminal');
   const tSession = useTranslations('session');
   const tTimeline = useTranslations('timeline');
+  const agentLabel = getAgentLabel(panelType);
   const { prompts: quickPrompts } = useQuickPrompts();
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
   const [metaSheetOpen, setMetaSheetOpen] = useState(false);
@@ -279,8 +280,8 @@ const MobileAgentPanel = ({
   if (!agentInstalled) {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-muted text-muted-foreground">
-        <span className="text-sm font-medium">{tTimeline('installCodex')}</span>
-        <span className="text-xs">{tTimeline('installCodexHint')}</span>
+        <span className="text-sm font-medium">{tTimeline('installAgent', { agent: agentLabel })}</span>
+        <span className="text-xs">{tTimeline('installAgentHint', { agent: agentLabel, path: getAgentProviderMeta(panelType)?.configDir ?? '' })}</span>
       </div>
     );
   }
@@ -312,7 +313,7 @@ const MobileAgentPanel = ({
     if (renderMode === 'empty') {
       return (
         <div className="flex min-h-0 flex-1 flex-col bg-muted">
-          <SessionEmptyView onNewSession={onNewSession} />
+          <SessionEmptyView onNewSession={onNewSession} panelType={panelType} />
         </div>
       );
     }
@@ -339,7 +340,7 @@ const MobileAgentPanel = ({
           onNewSession={onNewSession}
           providerFilter={providerFilter.filter}
           onProviderFilterChange={providerFilter.setFilter}
-          emptyView={<SessionEmptyView onNewSession={onNewSession} />}
+          emptyView={<SessionEmptyView onNewSession={onNewSession} panelType={panelType} />}
         />
       </div>
     );
@@ -396,6 +397,7 @@ const MobileAgentPanel = ({
           onLoadMore={loadMoreTimeline}
           hasMore={timelineHasMore}
           scrollToBottomRef={scrollToBottomRef}
+          panelType={panelType}
         />
         )}
       </div>

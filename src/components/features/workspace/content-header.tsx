@@ -4,6 +4,7 @@ import { FolderCode } from 'lucide-react';
 import Spinner from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { AGENT_PROVIDER_META } from '@/lib/agent-provider-meta';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { TLayoutNode, TPanelType } from '@/types/terminal';
 import { collectPanes } from '@/hooks/use-layout';
@@ -103,8 +104,8 @@ const ContentHeader = ({
   const paneId = focusedPane?.id;
   const panelButtons: Array<{ value: TPanelType; label: string; mac?: string; other?: string }> = [
     { value: 'terminal', label: 'TERMINAL', mac: '⌘⇧T', other: '^⇧T' },
-    { value: 'codex', label: 'CODEX' },
-    { value: 'claude', label: 'CLAUDE' },
+    { value: 'codex', label: AGENT_PROVIDER_META.codex.shortLabel },
+    { value: 'claude', label: AGENT_PROVIDER_META.claude.shortLabel },
     { value: 'diff', label: 'DIFF', mac: '⌘⇧F', other: '^⇧F' },
   ];
 

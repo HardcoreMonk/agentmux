@@ -26,7 +26,7 @@
   "syncErrorLocalChanges": "Local changes would be overwritten. Commit or stash first",
   "syncErrorTimeout": "Sync timed out",
   "syncErrorGeneric": "Sync failed",
-  "askCodex": "Ask Codex",
+  "askAgent": "Ask {agent}",
   "agentPromptDiverged": "Git sync failed. {branch} has diverged from {upstream}. Please rebase onto the latest origin and resolve any conflicts.",
   "agentPromptRejected": "Git push was rejected. There appear to be new commits on {upstream}. Please pull to merge, then push again.",
   "agentPromptAuth": "Git authentication failed. Please check the credential helper or SSH configuration and try again.",

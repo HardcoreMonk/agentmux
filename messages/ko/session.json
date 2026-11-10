@@ -31,7 +31,7 @@
   "empty": {
     "closeLabel": "닫기",
     "noSession": "세션 없음",
-    "startNewSession": "터미널에서 codex를 실행하여{br}새 세션을 시작하세요",
+    "startNewSession": "터미널에서 {agent}를 실행하여{br}새 세션을 시작하세요",
     "newConversation": "새 대화",
     "close": "닫기"
   },

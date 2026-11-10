@@ -31,7 +31,7 @@
   "empty": {
     "closeLabel": "Close",
     "noSession": "No sessions",
-    "startNewSession": "Run codex in the terminal{br}to start a new session",
+    "startNewSession": "Run {agent} in the terminal{br}to start a new session",
     "newConversation": "New conversation",
     "close": "Close"
   },

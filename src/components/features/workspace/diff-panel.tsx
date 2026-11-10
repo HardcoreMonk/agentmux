@@ -3,6 +3,8 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { RefreshCw, GitBranch, Columns2, Rows2, ArrowUp, ArrowDown, ArrowDownUp, Archive } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getAgentLabel } from '@/lib/agent-provider-meta';
+import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
 import Spinner from '@/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import useIsMobile from '@/hooks/use-is-mobile';
@@ -219,7 +221,7 @@ const DiffPanel = ({ sessionName, onSendToAgent }: IDiffPanelProps) => {
         toast.error(t(messageKey), {
           duration: ERROR_TOAST_DURATION,
           action: onSendToAgent ? {
-            label: t('askCodex'),
+            label: t('askAgent', { agent: getAgentLabel(DEFAULT_AGENT_PANEL_TYPE) }),
             onClick: () => {
               const promptKey = AGENT_PROMPT_KEYS[kind];
               const intro = t(promptKey, {
