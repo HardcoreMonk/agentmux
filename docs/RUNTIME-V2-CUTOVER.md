@@ -101,6 +101,9 @@ terminal 요청뿐입니다. `src/pages/api/layout/pane/[paneId]/tabs/index.ts`�
   캡처가 막힙니다.
 - 권한 요청 카드: 화면 캡처와 key 입력도 legacy socket만 씁니다.
 
+기존 Runtime v2 terminal 탭은 agent 보기로 전환할 수 없습니다. 서버 PATCH가 409 `runtime-v2-agent-unsupported`를
+반환하고, 클라이언트는 "새 agent 탭 열기" 동작이 있는 toast를 표시합니다.
+
 이미 만들어진 v2 agent 탭은 그대로 둡니다(2026-11-10 live layout에는 없음). Runtime v2 agent 지원(hook
 인증, 상태 감시, timeline process 찾기, storage `panel_type` 구분, 화면 캡처와 key 입력)은 Claude Code
 provider 설계 범위 밖의 후속 작업입니다. 결정 근거는

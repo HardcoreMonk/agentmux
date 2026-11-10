@@ -66,6 +66,8 @@
   "layoutFetchError": "Failed to load layout",
   "splitFailed": "Failed to split pane",
   "tabCreateFailed": "Failed to create tab",
+  "agentUnavailableInRuntimeV2Tab": "{agent} can't run in this terminal tab. Start it in a new {agent} tab.",
+  "openNewAgentTab": "Open new {agent} tab",
   "tabDeleteError": "Error while deleting tab",
   "sessionRestartFailed": "Failed to restart session",
   "tabRenameFailed": "Failed to rename tab",

@@ -25,4 +25,15 @@ describe('agent hook capability', () => {
       expiresAt: 1_000 + ttl,
     });
   });
+
+  it('matches the golden capability produced by the pre-provider Codex implementation', () => {
+    const golden = 'eyJ2IjoxLCJ0YWJJZCI6InRhYi0xIiwic2Vzc2lvbk5hbWUiOiJwdC13cy1hLXBhbmUtYi10YWItYyIsImV4cGlyZXNBdCI6MjU5MjAwMTAwMH0.hV9VT9o3VK3-KDdPXEjwR30-7psbcWErbV0thQGaebc';
+    expect(createAgentHookCapability('tab-1', session, 1_000)).toBe(golden);
+    expect(verifyAgentHookCapability(golden, session, 2_000)).toEqual({
+      v: 1,
+      tabId: 'tab-1',
+      sessionName: session,
+      expiresAt: 1_000 + ttl,
+    });
+  });
 });

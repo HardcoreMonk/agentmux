@@ -42,6 +42,12 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { name, cwd, command, resumeSessionId, startAgent } = req.body ?? {};
   const panelType = normalizePanelType(req.body?.panelType);
 
+  const rawPanelType = req.body?.panelType;
+  if (resumeSessionId && rawPanelType !== undefined && rawPanelType !== null && rawPanelType !== ''
+    && !isAgentPanelType(panelType)) {
+    return res.status(400).json({ error: 'Unknown panel type for resume' });
+  }
+
   const provider = resumeSessionId ? getProviderByPanelType(panelType ?? DEFAULT_AGENT_PANEL_TYPE) : null;
   if (resumeSessionId) {
     if (!provider) {
@@ -55,7 +61,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   try {
     const shouldUseRuntimeV2 = shouldCreateTerminalTabInRuntimeV2()
       && isPlainTerminalTabRequest({ panelType, command, resumeSessionId });
-    const workspace = shouldUseRuntimeV2 ? await getWorkspaceById(wsId) : null;
+    const isAgentTabRequest = isAgentPanelType(panelType);
+    const workspace = shouldUseRuntimeV2 || isAgentTabRequest ? await getWorkspaceById(wsId) : null;
     const effectiveCwd = typeof cwd === 'string' && cwd.trim()
       ? cwd.trim()
       : workspace?.directories[0] ?? os.homedir();
@@ -88,7 +95,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
           }
           return added;
         })()
-      : await addTabToPane(wsId, paneId, name, cwd, panelType, command);
+      : await addTabToPane(wsId, paneId, name, isAgentTabRequest ? effectiveCwd : cwd, panelType, command);
     if (!tab) {
       return res.status(404).json({ error: 'Pane not found' });
     }

@@ -20,6 +20,7 @@ import {
 } from '@/lib/layout-tree';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
 import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
 
 export { collectPanes, equalizeNode, getFirstPaneId, findAdjacentPaneInDirection } from '@/lib/layout-tree';
 export type { TDirection } from '@/lib/layout-tree';
@@ -600,6 +601,17 @@ const useLayoutStore = create<ILayoutState>((set, get) => ({
     const currentPane = layout ? findPane(layout.root, paneId) : null;
     const currentTab = currentPane?.tabs.find((t) => t.id === tabId);
     const hasStoredAgentSession = !!(currentTab && readAgentSessionId(currentTab));
+
+    if (currentTab?.runtimeVersion === 2 && isAgentPanelType(panelType)) {
+      const agent = getAgentProviderMeta(panelType)?.label ?? panelType;
+      toast.error(t('terminal', 'agentUnavailableInRuntimeV2Tab').replaceAll('{agent}', agent), {
+        action: {
+          label: t('terminal', 'openNewAgentTab').replaceAll('{agent}', agent),
+          onClick: () => { void get().createTabInPane(paneId, panelType, undefined, true); },
+        },
+      });
+      return;
+    }
 
     applyPaneUpdate(set, get, paneId, (pane) => ({
       ...pane,

@@ -245,4 +245,27 @@ describe('layout tab api runtime routing', () => {
     expect(mocks.addTabToPane).toHaveBeenCalledWith('ws-a', 'pane-a', undefined, '/repo', undefined, undefined);
     expect(mocks.launchAgentInTab).not.toHaveBeenCalled();
   });
+
+  it.each(['off', 'new-tabs'])('starts new agent tabs in the workspace directory without cwd (terminal mode %s)', async (mode) => {
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = mode;
+    vi.useFakeTimers();
+    mocks.launchAgentInTab.mockResolvedValue({ ok: true });
+
+    await handler(createRequest({ panelType: 'codex', startAgent: true }), createResponse().res);
+    await vi.advanceTimersByTimeAsync(1_000);
+    vi.useRealTimers();
+
+    expect(mocks.addTabToPane).toHaveBeenCalledWith('ws-a', 'pane-a', undefined, '/repo', 'codex', undefined);
+    expect(mocks.supervisor.createTerminalTab).not.toHaveBeenCalled();
+  });
+
+  it('rejects resume with an unregistered panel type', async () => {
+    const response = createResponse();
+
+    await handler(createRequest({ panelType: 'claude', resumeSessionId: 'abc' }), response.res);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({ error: 'Unknown panel type for resume' });
+    expect(mocks.addTabToPane).not.toHaveBeenCalled();
+  });
 });
