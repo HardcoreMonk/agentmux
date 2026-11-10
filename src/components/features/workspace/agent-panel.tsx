@@ -13,7 +13,7 @@ import SessionEmptyView from '@/components/features/workspace/session-empty-view
 import BypassPromptCard from '@/components/features/workspace/bypass-prompt-card';
 import TimelineView from '@/components/features/timeline/timeline-view';
 import SessionMetaBar, { SessionMetaBarSkeleton } from '@/components/features/workspace/session-meta-bar';
-import { isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
 import { selectAgentSessionListRenderMode } from '@/lib/session-list-rendering';
 import type { ISessionMeta } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
@@ -36,7 +36,7 @@ const AgentPanel = ({
   tabId,
   sessionName,
   agentSessionId,
-  panelType = 'codex',
+  panelType = DEFAULT_AGENT_PANEL_TYPE,
   cwd,
   className,
   onClose,
@@ -46,6 +46,7 @@ const AgentPanel = ({
   removePendingMessageRef,
 }: IAgentPanelProps) => {
   const t = useTranslations('terminal');
+  const tTimeline = useTranslations('timeline');
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
 
   const agentProcess = useTabStore((s) => selectAgentProcess(s.tabs, tabId));
@@ -207,8 +208,8 @@ const AgentPanel = ({
   if (!agentInstalled) {
     return (
       <div className={cn('flex h-full w-full flex-col items-center justify-center gap-3 text-muted-foreground', className)}>
-        <span className="text-sm font-medium">{t('installCodex')}</span>
-        <span className="text-xs">{t('installCodexHint')}</span>
+        <span className="text-sm font-medium">{tTimeline('installCodex')}</span>
+        <span className="text-xs">{tTimeline('installCodexHint')}</span>
       </div>
     );
   }

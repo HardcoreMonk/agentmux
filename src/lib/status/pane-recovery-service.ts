@@ -5,7 +5,7 @@ import {
   type IApprovalPromptMetadata,
   type IPermissionPromptParseResult,
 } from '@/lib/permission-prompt';
-import { getProviderByPanelType } from '@/lib/providers';
+import { getProviderByPanelType, type IAgentProviderStatusBehavior } from '@/lib/providers';
 import type { TCliState } from '@/types/timeline';
 import type { ILastEvent, ITabStatusEntry } from '@/types/status';
 
@@ -26,7 +26,7 @@ interface IStatusPaneRecoveryServiceDependencies {
   capturePaneAtWidth?: (session: string, width: number, height: number) => Promise<string | null>;
   parsePermissionOptions?: (content: string) => IPermissionPromptParseResult;
   hasInterruptedPrompt?: (content: string) => boolean;
-  getProviderId?: (entry: ITabStatusEntry) => string | null;
+  getStatusBehavior?: (entry: ITabStatusEntry) => IAgentProviderStatusBehavior | null;
   now?: () => number;
   warn?: (message: string) => void;
 }
@@ -43,8 +43,8 @@ export const createStatusPaneRecoveryService = (
   const capturePaneAtWidth = dependencies.capturePaneAtWidth ?? defaultCapturePaneAtWidth;
   const parsePermissionOptions = dependencies.parsePermissionOptions ?? defaultParsePermissionOptions;
   const hasInterruptedPrompt = dependencies.hasInterruptedPrompt ?? defaultHasCodexInterruptedPrompt;
-  const getProviderId = dependencies.getProviderId
-    ?? ((entry: ITabStatusEntry) => getProviderByPanelType(entry.panelType)?.id ?? null);
+  const getStatusBehavior = dependencies.getStatusBehavior
+    ?? ((entry: ITabStatusEntry) => getProviderByPanelType(entry.panelType)?.statusBehavior ?? null);
   const now = dependencies.now ?? Date.now;
   const warn = dependencies.warn;
 
@@ -69,8 +69,8 @@ export const createStatusPaneRecoveryService = (
       if (!isPendingInputState(entry.cliState)) {
         return { recovered: false, reason: 'not-pending-state' };
       }
-      if (getProviderId(entry) !== 'codex') {
-        return { recovered: false, reason: 'not-codex' };
+      if (!getStatusBehavior(entry)?.recoverPaneInput) {
+        return { recovered: false, reason: 'not-supported' };
       }
 
       const content = await capture(entry, 'recoverUnknownIfPending');
@@ -102,8 +102,8 @@ export const createStatusPaneRecoveryService = (
       if (!isInterruptedPromptState(entry.cliState)) {
         return { recovered: false, reason: 'not-pending-state' };
       }
-      if (getProviderId(entry) !== 'codex') {
-        return { recovered: false, reason: 'not-codex' };
+      if (!getStatusBehavior(entry)?.recoverPaneInput) {
+        return { recovered: false, reason: 'not-supported' };
       }
 
       const content = await capture(entry, 'recoverInterruptedPromptFromPane');

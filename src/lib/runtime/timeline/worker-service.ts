@@ -9,9 +9,8 @@ import {
   type IRuntimeReply,
 } from '@/lib/runtime/ipc';
 import { validateWorkerCommandEnvelope, type IInvalidWorkerCommand } from '@/lib/runtime/worker-command-validation';
-import { isAllowedJsonlPath } from '@/lib/path-validation';
-import { getProviderByPanelType, type IAgentProvider } from '@/lib/providers';
-import { normalizePanelType } from '@/lib/panel-type';
+import { getProviderByPanelType, isAllowedAgentJsonlPath, type IAgentProvider } from '@/lib/providers';
+import { DEFAULT_AGENT_PANEL_TYPE, normalizePanelType } from '@/lib/panel-type';
 import { listSessionPage } from '@/lib/session-list';
 import { findSessionRelationshipByJsonlPath } from '@/lib/session-index';
 import { countTimelineMessages, emptyMessageCounts, type IMessageCountResult } from '@/lib/timeline-message-counts';
@@ -132,7 +131,7 @@ export const createTimelineWorkerService = (options: ICreateTimelineWorkerServic
     });
 
   const assertAllowedJsonlPath = (command: IRuntimeCommand, jsonlPath: string): IRuntimeReply<null> | null =>
-    isAllowedJsonlPath(jsonlPath)
+    isAllowedAgentJsonlPath(jsonlPath)
       ? null
       : fail(command, 'timeline-jsonl-path-forbidden', 'Path not allowed');
 
@@ -172,7 +171,7 @@ export const createTimelineWorkerService = (options: ICreateTimelineWorkerServic
   };
 
   const listSessions = async (input: IRuntimeTimelineSessionListInput) => {
-    const panelType = normalizePanelType(input.panelType) ?? 'codex';
+    const panelType = normalizePanelType(input.panelType) ?? DEFAULT_AGENT_PANEL_TYPE;
     const page = await listSessionPage(input.tmuxSession, input.cwd, panelType, {
       offset: input.offset,
       limit: input.limit,

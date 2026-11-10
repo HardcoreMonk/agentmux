@@ -66,10 +66,32 @@
 - `pane wait-output`은 event-driven이 아니라 polling이다.
 - 상세와 근거 위치는 `docs/HERDR-ADOPTION-AUDIT.md`의 "보충 감사 (2026-11-10)" 절에 정리했다.
 
+### Purplemux 기능 대조 (같은 날)
+
+- `subicura/purplemux` `52140216`(`v0.4.5`)의 서비스 기능을 다시 정리하고 agentmux와 기능 단위로
+  대조했다. 결과는 `docs/PURPLEMUX-ADOPTION-AUDIT.md`의 "보충 분석 (2026-11-10)" 절에 있다.
+- 사용자 결정: purplemux에 있고 agentmux에 없는 기능을 agentmux에 추가한다. 기존 감사의 "Claude Code
+  provider 비채택" 결정은 뒤집혔다.
+- 빠진 기능 묶음: A. Claude Code provider, B. 공통 agent 기반(세션 통합 목록, Chat/Terminal 전환 등),
+  C. 위임 안내 주입, D. Codex 보조(update prompt, TUI ready), E. 일반 UI(Git side panel, 모바일 Git,
+  reload 복구).
+- Behavior·contract 변경이므로 Full lifecycle로 진행한다. 설계 문서 승인 전에는 구현하지 않는다.
+- 순서 확정(사용자: "이 순서(설계 1 → 2 → 3)로 진행"): 설계 1 = A+B+C, 설계 2 = D+E, 설계 3 = Herdr 방식
+  회신·상호 리뷰 흐름.
+- 위임 확인 방식 결정(사용자: "확인 없이 바로 진행"): agent가 다른 탭을 만들거나 지시를 보낼 때 사용자 확인을
+  거치지 않는다. 화면에 보이면 된다.
+- Claude Code 자체 권한 확인 결정(사용자: "미리 허용"): agentmux가 띄운 Claude Code에서 `agentmux tab` 명령을
+  미리 허용한다. Live Codex가 `danger-full-access` + 승인 없음이라 Claude가 보낸 지시가 확인 없이 실행된다는
+  점을 설명한 뒤 받은 결정이다.
+- 설계 1 초안: `docs/superpowers/specs/2026-11-10-claude-code-provider-design.md`. Builder check(독립 subagent)
+  9개 질문을 반영했다. 조사 결과(서버 약 40곳,
+  화면 약 25개 파일의 Codex 고정 지점, purplemux 구현 방식, Claude Code hook 공식 문서 확인)를 문서의 "현재
+  사실"과 "Hook 계약 확인"에 담았다.
+
 ## 설계에서 정할 것 (미결)
 
-1. 사람이 어느 시점에 개입하는가: 위임마다 승인, 최종 리뷰 결과만 확인, 또는 그 중간. 마지막으로
-   사용자에게 던진 질문이며 답을 기다리는 중이다.
+1. 사람이 어느 시점에 개입하는가: 위임 자체는 확인 없이 진행하기로 결정했다(2026-11-10). 리뷰 결과를
+   언제 사람이 보는지는 설계 3에서 다룬다.
 2. 누가 일을 나누는가: 한 agent가 lead로 위임하는지, 사람이 두 agent에게 각각 주는지.
 3. 리뷰를 누가 언제 시작하는가: 구현 agent가 끝나면 자동으로 리뷰 agent에게 넘기는지.
 4. Claude Code 상태 감지 방식: 화면 감지, hook, OSC 7501 같은 상태 protocol 중 무엇을 쓰는가.
@@ -126,24 +148,115 @@
   test 1774개 통과, lint error 0(경고 6개는 기존 파일), typecheck 통과. `deploy:local`로 live에
   배포했다(07:02 KST, PID `2076015`, health commit `e369598b`). tmux 서버 `43870`과 session은
   유지되었고 service log에 오류가 없다. 폰 로그인 화면에서 `agent`+`mux` 표시를 확인했다.
-- Live service는 이 branch에서 build되어 있다. main에는 아직 merge되지 않았다.
-- 이 변경은 아직 commit하지 않았다.
+- Branch `chore/android-launcher-and-handoff`는 PR #45로 CI 통과 뒤 main에 merge했다(merge commit
+  `1b7408b4`, main CI 성공). Branch는 local과 GitHub에서 지웠다. Live build `e369598b`는 merge된 내용과 같다.
+
+## Claude Code provider 단계 1 구현과 검증 (같은 날)
+
+- Plan: `docs/superpowers/plans/2026-11-10-claude-code-provider-phase1.md`. Plan review:
+  `docs/superpowers/reviews/2026-11-10-claude-code-provider-phase1-eng-review.md`(approve with changes, 반영 완료).
+- Branch `feat/claude-provider-phase1`, commit `16a9a468..0b1b7382`와 이 문서 commit. Main merge와 live 배포는 하지
+  않았다.
+- 바뀐 것: agent 종류 집합(`AGENT_PANEL_TYPES`), provider status 동작 flag(`reconcileStateFromJsonl`,
+  `recoverPaneInput` 추가)와 `readJsonlStatus`, provider별 JSONL 허용 root(`jsonlRoots`), hook capability 공용
+  module(`agent-hooks.ts`), client provider metadata 표(`agent-provider-meta.ts`), agent 패널 설치 안내 문구
+  namespace 수정. 새 탭 메뉴의 agent 탭은 terminal v2 mode와 관계없이 Runtime v1(`pt-`)으로 만든다. 문서:
+  `docs/STATUS.md` "Provider status 동작 flag", `docs/RUNTIME-V2-CUTOVER.md` 2단계.
+
+### 전체 gate (2026-11-10 18:45, worktree `0b1b7382` + 문서 변경)
+
+`check:project-design`, `check:product-name`(736 files), `lint`(error 0, 기존 경고 6개
+`no-location-assign-relative-destination`), `tsc --noEmit`, `test`(286 files 통과·1 skipped, 1809 tests 통과·3
+skipped), `build` 모두 통과.
+
+### 격리 Runtime v2 smoke
+
+임시 `TMUX_TMPDIR`로 실행했고 실행 전후 기본 socket의 `tmux -L codexmux ls`(live session 1개)와
+`tmux -L codexmux-runtime-v2 ls`(server 없음) 결과가 같았다.
+
+- Plan의 명령 그대로는 `smoke:runtime-v2`가 `runtime v2 smoke cli token timed out`으로 실패했다. Script가
+  `$HOME/.codexmux/cli-token`을 읽는데, 이름 변경(`18bd3bab`) 뒤 새 `HOME`의 data dir는 `.agentmux`다. 단계 1과
+  무관한 기존 결함이다. 이 실패 경로에서 script가 띄운 dev server가 남아 직접 종료했다.
+- 임시 `HOME`에 `.codexmux` directory를 미리 만들어(`CODEXMUX_RUNTIME_V2_SMOKE_HOME`) 다시 돌리면 `ok: true`(10개
+  check)다.
+- `smoke:runtime-v2:phase2`는 3번 모두 server 재시작 단계(`GET /api/layout ... fetch failed`)에서 실패했다. Port
+  점유 PID를 0.1초 간격으로 기록해 보니 `stop()`은 `corepack` wrapper가 끝나면 돌아오고, 실제 server는 아직
+  종료 중이라 새 server의 health check가 옛 server에 응답받았다. Script(`8977a247` 이후 변경 없음)의 기존 race다.
+  `stop()` 뒤 port가 풀릴 때까지 기다리는 진단용 사본(commit하지 않음)으로는 `ok: true`(10개 check, 재시작 뒤
+  legacy·v2 재연결과 terminal mode `off`의 legacy 새 탭 포함)다.
+
+### 격리 Codex 회귀 확인 (18:52~19:00 KST)
+
+- 환경: 이 worktree production build(`node bin/agentmux.js`, health commit `0b1b7382`), 임시
+  `AGENTMUX_DATA_DIR`·`TMUX_TMPDIR`, `PORT=18122`, plan의 Runtime v2 mode 5개. 안전장치로
+  `AGENTMUX_TMUX_SCOPE=off`, `INVOCATION_ID` 제거, `NO_UPDATE_NOTIFIER=1`을 더했다. 임시 `config.json`에
+  `codexApprovalPolicy: "on-request"`, `codexSandbox: "read-only"`, onboarding에서 `dangerouslySkipPermissions:
+  false`. Workspace directory `/data/projects/agentcode-zone`(Codex 신뢰 등록됨). Codex `0.167.0`. Prompt 3개.
+- 탭 생성: 새 탭 메뉴 요청(`panelType: "codex"`, `startAgent: true`)은 `pt-ws-…-tab-oLASRf`(`runtimeVersion: 1`)로
+  만들어졌고 Codex가 `--sandbox read-only --ask-for-approval on-request`와 hook override 3개로 시작했다. 같은
+  server에서 plain terminal 요청(`{}`)은 `rtv2-ws-…-tab-zw7gvhxlj7`(`runtimeVersion: 2`)이다.
+- Codex 시작 화면에 "Hooks need review(3 hooks are new or changed)"가 떴다. agentmux가 실행마다 새 capability를
+  넣은 session hook을 붙이기 때문이다. 신뢰하지 않고 Esc(skip)로 넘겼다. 그래서 이 session에서는 hook이 돌지
+  않았고 상태는 JSONL·process polling으로만 판정됐다. 이 화면에 `permission-options`는 `options: []`를 돌려줘 웹
+  카드가 뜨지 않는다.
+- 상태: Codex가 JSONL 없이 실행 중인 동안 `busy`였다(기존 `resolveStatusInitialCliState` 규칙). 짧은 prompt(18:54:45)에
+  Codex가 2초 만에 답했고 status WebSocket에 `ready-for-review`(18:55:05)가 왔다. 같은 시각 `rate-limits:update`도
+  왔다.
+- Timeline·resume: `/api/timeline/sessions`(`panelType=codex`, workspace cwd)의 첫 항목이 새 session
+  `01a1c4e0-…`이다. 탭을 다시 열 때와 같은 timeline WebSocket 연결에 `timeline:init`(user·assistant 2개, 같은
+  session id)이 왔고, 그 뒤 탭에 session id가 묶였다.
+- 권한 요청: shell 쓰기를 요구한 prompt는 승인 없이 실행됐다. Session JSONL의 `turn_context`는 `sandbox_policy:
+  read-only`, `approval_policy: on-request`였는데 임시 data dir 안의 파일이 만들어졌다(agentmux 밖 Codex 동작, 파일은
+  임시 dir와 함께 지움). `apply_patch`를 요구한 prompt는 "Would you like to make the following edits?"를 띄웠다.
+  Status WebSocket이 `needs-input`(18:57:38)을 보냈고, `permission-options`가 선택지 3개(`Yes, proceed`,
+  `Yes, and don't ask again for these files`, `No, and tell Codex what to do differently`)와 `promptType: file`을
+  돌려줬다. 웹 카드와 같은 요청 `POST /api/tmux/send-input`(`input: "3"`)이 `{"ok":true}`를 받았고 Codex는
+  "Conversation interrupted"로 돌아갔다. JSONL에 `turn_aborted`(`interrupted`)가 남았고 파일은 만들어지지 않았다.
+- 거절 뒤 상태는 웹 카드가 보내는 `status:ack-notification`을 보낼 때까지 `needs-input`에 머물렀다. Ack 뒤
+  `busy` → `idle`(4초)로 바뀌었다. `needs-input`에서 완료 문구 없이 중단된 turn을 그대로 두는 것은
+  `reduceCodexState`의 기존 규칙이다.
+- 정리: 임시 server(SIGINT), 두 임시 tmux server(`kill-server`), 임시 directory를 지웠다. 시작한 process가 모두
+  끝났고 port 18122는 비었다. 기본 socket의 tmux session 목록과 `~/.codex/config.toml` checksum은 전후 같다.
+  Codex session JSONL 1개는 사용자 `~/.codex/sessions`에 남는다(Codex 기본 동작).
 
 ## Current Lifecycle Stage
 
-- Multi-agent: `superpowers:brainstorming` (설계 문서 전).
-- Android와 웹 logo: release 서명 설치와 live 배포 완료, branch commit 뒤 PR 전 (rename 설계의 "보이는 모든 surface" 범위에서 빠진 부분 보완).
+- Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
+  grill-me Passed(`docs/superpowers/grill-me/2026-11-10-claude-code-provider.md`), design review Approved
+  조건부(`docs/superpowers/reviews/2026-11-10-claude-code-provider-design-review.md`), 단계 1 plan-eng-review 반영,
+  단계 1 implement 완료(branch `feat/claude-provider-phase1`). 전체 gate와 격리 Codex 회귀 확인을 마쳤다. 최종
+  code-review는 "수정 후 merge"였고, 수정(`de0087ee`: 기존 Runtime v2 terminal 탭의 agent 보기 전환 차단, 새 agent
+  탭 cwd 기본값 복구, hook capability 고정 값 test, 등록되지 않은 종류의 resume 400)과 범위 재검토를 마쳤다. 최종
+  확인: test 1819 통과(3 skip), tsc, lint error 0, 문서 gate 통과. Push·PR·main merge와 live 배포 전.
+- Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-사용자에게 사람의 개입 시점을 묻는 질문의 답을 받고 brainstorming을 이어 간다. 설계가 모이면
-`docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`를 쓰고 독립 builder check를 거쳐 사용자 승인을
-받는다. 승인 전에는 구현하지 않는다.
+사용자 요청 시 단계 1 branch를 push하고 PR을 만들어 main CI 통과 뒤 merge한다. Live 배포는 사용자 확인 뒤에
+한다. 이어서 단계 2(Claude provider core) 계획을 단계 1 interface 기준으로 쓴다. 단계 3~4 계획도 앞 단계가 merge된
+뒤 쓴다.
 
 ## Follow-Up Tasks
 
-- Multi-agent 설계 문서 작성과 승인, 이어서 `superpowers:writing-plans`.
-- 3번 프로젝트(위임 자동화와 agent split)를 2번에 합칠지 결정.
-- Branch `chore/android-launcher-and-handoff` push, PR, CI 뒤 main merge.
+- 설계 1 단계 1: push, PR, main merge, 사용자 확인 뒤 live 배포.
+- 작업 체계(사용자: "단계 2부터 이전처럼 \"agy 구현, Claude 감시·검증\" 체계"): 단계 2부터 구현은 Herdr pane의
+  agy(`builder`)가 맡고 Claude는 계획, 감시, 검증을 맡는다. 단계 1은 Claude subagent(subagent-driven)로 구현했다.
+  agy의 cwd가 live checkout이므로 agy에게는 `.worktrees/` 아래 worktree에서만 작업하도록 지시한다.
+- 단계 2 계획에 넣을 것(단계 1 최종 검토에서 넘김):
+  - `'claude'`를 더하기 전, storage v2 layout 읽기 경로와 IPC reply 검증(`z.enum(PANEL_TYPES)`)이 모르는 panelType
+    때문에 layout 전체를 거절하지 않도록 읽는 쪽 정규화 또는 rollback 절차.
+  - Status side-effect IPC로 보내는 지점에 2-key `statusBehavior`만 고르는 helper(4-key 객체가 strict schema에서
+    runtime 실패하는 함정 방지).
+  - Diff 탭의 send-to-agent 대상: 지금은 항상 기본 agent(Codex)다. 탭의 마지막 agent 종류를 정할 출처가 필요하다.
+  - 정리: `JSONL_EXTENDED_TAIL_SIZE` 중복(`status/jsonl-check.ts`, `status-manager.ts`), `exitCommand` fallback
+    중복(`resolveAgentProviderMeta` helper).
+- Smoke script 결함: `smoke-runtime-v2-isolated.mjs`의 `.codexmux/cli-token` 경로(이름 변경 뒤 `.agentmux`), 실패
+  시 남는 dev server, `smoke-runtime-v2-phase2-gate.mjs`의 재시작 race(`stop()`이 wrapper 종료만 기다림), 두
+  script 모두 `TMUX_TMPDIR`를 격리하지 않는 점.
+- Codex `0.167.0` "Hooks need review" 화면: agentmux session hook이 실행마다 바뀌어 sandbox 모드에서 매번 뜰 수 있고
+  웹 카드가 이 화면을 읽지 못한다. 설계 2(Codex 보조) 범위에서 확인.
+- 이번 격리 실행에서 `--sandbox read-only`인 Codex의 shell 쓰기가 막히지 않았다. Codex 쪽 동작 확인 필요.
+- Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
+- 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.

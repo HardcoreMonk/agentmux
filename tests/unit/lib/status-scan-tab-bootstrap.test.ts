@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildStatusScanTabBootstrap } from '@/lib/status/scan-tab-bootstrap';
+import type { IAgentProviderStatusBehavior } from '@/lib/providers';
 import type { ITab } from '@/types/terminal';
 
 const makeTab = (overrides: Partial<ITab> = {}): ITab => ({
@@ -16,6 +17,20 @@ const makeTab = (overrides: Partial<ITab> = {}): ITab => ({
   ...overrides,
 });
 
+const codexStatusBehavior: IAgentProviderStatusBehavior = {
+  watchJsonlWhenBound: true,
+  deferStopHookUntilJsonlIdle: true,
+  reconcileStateFromJsonl: true,
+  recoverPaneInput: true,
+};
+
+const passiveStatusBehavior: IAgentProviderStatusBehavior = {
+  watchJsonlWhenBound: false,
+  deferStopHookUntilJsonlIdle: false,
+  reconcileStateFromJsonl: false,
+  recoverPaneInput: false,
+};
+
 const baseDetected = {
   running: true,
   jsonlPath: '/tmp/11111111-2222-3333-4444-555555555555.jsonl',
@@ -30,7 +45,7 @@ describe('status scan tab bootstrap', () => {
     const result = buildStatusScanTabBootstrap({
       workspaceId: 'ws-a',
       tab: makeTab(),
-      providerId: 'codex',
+      statusBehavior: codexStatusBehavior,
       paneInfo: {
         command: 'codex',
         path: '/repo',
@@ -69,7 +84,7 @@ describe('status scan tab bootstrap', () => {
     const result = buildStatusScanTabBootstrap({
       workspaceId: 'ws-a',
       tab: makeTab({ panelType: 'terminal', cliState: 'needs-input' }),
-      providerId: null,
+      statusBehavior: null,
       paneInfo: undefined,
       detected: {
         ...baseDetected,
@@ -93,7 +108,7 @@ describe('status scan tab bootstrap', () => {
     const result = buildStatusScanTabBootstrap({
       workspaceId: 'ws-a',
       tab: makeTab({ panelType: 'terminal', cliState: 'busy' }),
-      providerId: null,
+      statusBehavior: null,
       paneInfo: undefined,
       detected: {
         ...baseDetected,
@@ -110,6 +125,26 @@ describe('status scan tab bootstrap', () => {
       shouldStartJsonlWatch: false,
       shouldRecoverPaneInput: false,
       shouldResolveUnknown: true,
+    });
+  });
+
+  it('does not watch or recover a running agent whose provider opts out of bound JSONL work', () => {
+    const result = buildStatusScanTabBootstrap({
+      workspaceId: 'ws-a',
+      tab: makeTab({ cliState: 'idle' }),
+      statusBehavior: passiveStatusBehavior,
+      paneInfo: undefined,
+      detected: baseDetected,
+      terminalStatus: 'idle',
+      listeningPorts: [],
+      now: 1_000,
+    });
+
+    expect(result.entry.cliState).toBe('idle');
+    expect(result.actions).toEqual({
+      shouldStartJsonlWatch: false,
+      shouldRecoverPaneInput: false,
+      shouldResolveUnknown: false,
     });
   });
 });

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { hasSession } from '@/lib/tmux';
 import { listSessionPage } from '@/lib/session-list';
-import { isAgentPanelType, normalizePanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType, normalizePanelType } from '@/lib/panel-type';
 import { sendRuntimeApiError } from '@/lib/runtime/api-handler';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { shouldUseRuntimeTimelineV2Reads } from '@/lib/runtime/timeline-mode';
@@ -10,7 +10,7 @@ import type { TPanelType } from '@/types/terminal';
 const DEFAULT_LIMIT = 50;
 const parsePanelType = (value: string | string[] | undefined): TPanelType => {
   const candidate = Array.isArray(value) ? value[0] : value;
-  return normalizePanelType(candidate) ?? 'codex';
+  return normalizePanelType(candidate) ?? DEFAULT_AGENT_PANEL_TYPE;
 };
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {

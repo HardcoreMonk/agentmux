@@ -10,10 +10,6 @@ interface ICheckTerminalProcessResult {
   processName?: string;
 }
 
-interface ICheckJsonlStateResult {
-  interrupted?: boolean;
-}
-
 interface ITimelineResumeConnection {
   sessionName: string;
   provider: IAgentProvider;
@@ -35,7 +31,6 @@ interface ICreateTimelineResumeSessionServiceOptions {
   isAllowedJsonlPath: (jsonlPath: string) => boolean;
   existsPath: (jsonlPath: string) => boolean;
   statFileMtimeMs: (filePath: string) => Promise<number | null>;
-  checkJsonlState: (jsonlPath: string) => Promise<ICheckJsonlStateResult>;
   extractSessionIdFromJsonlPath: (jsonlPath: string) => string | null;
 }
 
@@ -93,9 +88,9 @@ export const createTimelineResumeSessionService = (options: ICreateTimelineResum
     provider: IAgentProvider,
     currentJsonlPath: string,
   ): Promise<boolean> => {
-    if (provider.id !== 'codex') return false;
+    if (!provider.statusBehavior.reconcileStateFromJsonl) return false;
     try {
-      const state = await options.checkJsonlState(currentJsonlPath);
+      const state = await provider.readJsonlStatus(currentJsonlPath);
       return !!state.interrupted;
     } catch {
       return false;

@@ -19,7 +19,8 @@ import {
   updatePaneInTree,
 } from '@/lib/layout-tree';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
-import { isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
 
 export { collectPanes, equalizeNode, getFirstPaneId, findAdjacentPaneInDirection } from '@/lib/layout-tree';
 export type { TDirection } from '@/lib/layout-tree';
@@ -601,6 +602,17 @@ const useLayoutStore = create<ILayoutState>((set, get) => ({
     const currentTab = currentPane?.tabs.find((t) => t.id === tabId);
     const hasStoredAgentSession = !!(currentTab && readAgentSessionId(currentTab));
 
+    if (currentTab?.runtimeVersion === 2 && isAgentPanelType(panelType)) {
+      const agent = getAgentProviderMeta(panelType)?.label ?? panelType;
+      toast.error(t('terminal', 'agentUnavailableInRuntimeV2Tab').replaceAll('{agent}', agent), {
+        action: {
+          label: t('terminal', 'openNewAgentTab').replaceAll('{agent}', agent),
+          onClick: () => { void get().createTabInPane(paneId, panelType, undefined, true); },
+        },
+      });
+      return;
+    }
+
     applyPaneUpdate(set, get, paneId, (pane) => ({
       ...pane,
       tabs: pane.tabs.map((t) => {
@@ -772,7 +784,7 @@ export const navigateToTabOrCreate = async (
     if (!firstTab) return;
 
     if (agentSessionId) {
-      useTabStore.getState().initTab(firstTab.id, { panelType: 'codex', sessionView: 'check' });
+      useTabStore.getState().initTab(firstTab.id, { panelType: DEFAULT_AGENT_PANEL_TYPE, sessionView: 'check' });
     }
 
     navigateToTab(targetWsId, firstTab.id);
@@ -800,7 +812,7 @@ export const navigateToTabOrCreate = async (
 
   const paneId = layout.activePaneId ?? getFirstPaneId(layout.root);
   const cwd = ws.directories[0];
-  const body: Record<string, string | undefined> = { panelType: 'codex', cwd };
+  const body: Record<string, string | undefined> = { panelType: DEFAULT_AGENT_PANEL_TYPE, cwd };
   if (agentSessionId) body.resumeSessionId = agentSessionId;
 
   const tabRes = await fetch(wsQuery(`/api/layout/pane/${paneId}/tabs`, targetWsId), {
@@ -812,7 +824,7 @@ export const navigateToTabOrCreate = async (
   const newTab: ITab = await tabRes.json();
 
   if (agentSessionId) {
-    useTabStore.getState().initTab(newTab.id, { panelType: 'codex', sessionView: 'check' });
+    useTabStore.getState().initTab(newTab.id, { panelType: DEFAULT_AGENT_PANEL_TYPE, sessionView: 'check' });
   }
 
   if (targetWsId === useLayoutStore.getState().workspaceId) {

@@ -39,7 +39,8 @@ import useTabStore, { selectAgentProcess, selectAgentProcessCheckedAt, selectSes
 import { dismissTab as dismissStatusTab } from '@/hooks/use-agent-status';
 import { requestAgentLaunch } from '@/lib/agent-launch-client';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
-import { isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
+import { AGENT_PROVIDER_META, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { resolveTerminalWebSocketEndpoint } from '@/lib/terminal-websocket-url';
 import {
   shouldShowPaneSessionRecoveryOverlay,
@@ -636,11 +637,11 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
 
   const handleSendToAgent = useCallback((text: string) => {
     pendingAgentInputRef.current = text;
-    handleSwitchPanelType('codex');
-  }, [handleSwitchPanelType]);
+    handleSwitchPanelType(isAgentPanelType(activePanelType) ? activePanelType : DEFAULT_AGENT_PANEL_TYPE);
+  }, [handleSwitchPanelType, activePanelType]);
 
   useEffect(() => {
-    if (activePanelType !== 'codex' || !pendingAgentInputRef.current) return;
+    if (!isAgentPanelType(activePanelType) || !pendingAgentInputRef.current) return;
     const text = pendingAgentInputRef.current;
     pendingAgentInputRef.current = null;
     const timer = window.setTimeout(() => {
@@ -683,8 +684,8 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     if (status !== 'connected' || !activeTabId) return;
     pendingRestartRef.current = true;
     useTabStore.getState().setSessionView(activeTabId, 'check');
-    sendStdin('/exit\r');
-  }, [status, sendStdin, activeTabId]);
+    sendStdin(`${(getAgentProviderMeta(activePanelType) ?? AGENT_PROVIDER_META[DEFAULT_AGENT_PANEL_TYPE]).exitCommand}\r`);
+  }, [status, sendStdin, activeTabId, activePanelType]);
 
   useEffect(() => {
     if (!pendingRestartRef.current || agentProcess === true) return;
@@ -911,6 +912,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                 <WebInputBar
                   key={activeTabId}
                   tabId={activeTabId ?? undefined}
+                  panelType={activePanelType}
                   wsId={layoutWsId ?? undefined}
                   sessionName={activeTab?.sessionName}
                   agentSessionId={activeTab ? readAgentSessionId(activeTab) : null}

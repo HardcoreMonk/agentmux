@@ -1,4 +1,5 @@
 import { readAgentSessionId, readAgentSummary } from '@/lib/agent-tab-fields';
+import type { IAgentProviderStatusBehavior } from '@/lib/providers';
 import { resolveAgentSessionId } from '@/lib/status-session-mapping';
 import {
   createSyntheticStatusLastEvent,
@@ -21,7 +22,7 @@ interface IStatusScanDetectedMetadata {
 interface IBuildStatusScanTabBootstrapInput {
   workspaceId: string;
   tab: ITab;
-  providerId?: string | null;
+  statusBehavior: IAgentProviderStatusBehavior | null;
   paneInfo?: IPaneInfo;
   detected: IStatusScanDetectedMetadata;
   terminalStatus: TTerminalStatus;
@@ -43,7 +44,7 @@ interface IStatusScanTabBootstrap {
 export const buildStatusScanTabBootstrap = ({
   workspaceId,
   tab,
-  providerId,
+  statusBehavior,
   paneInfo,
   detected,
   terminalStatus,
@@ -52,7 +53,7 @@ export const buildStatusScanTabBootstrap = ({
 }: IBuildStatusScanTabBootstrapInput): IStatusScanTabBootstrap => {
   const cliState = resolveStatusInitialCliState({
     persistedState: tab.cliState,
-    providerId,
+    reconcileStateFromJsonl: !!statusBehavior?.reconcileStateFromJsonl,
     detected,
   });
   const lastEvent = createSyntheticStatusLastEvent(cliState, now);
@@ -82,8 +83,8 @@ export const buildStatusScanTabBootstrap = ({
     entry,
     actions: {
       shouldStartJsonlWatch: !!detected.jsonlPath
-        && (providerId === 'codex' || cliState === 'needs-input' || cliState === 'unknown'),
-      shouldRecoverPaneInput: providerId === 'codex' && detected.running,
+        && (!!statusBehavior?.watchJsonlWhenBound || cliState === 'needs-input' || cliState === 'unknown'),
+      shouldRecoverPaneInput: !!statusBehavior?.recoverPaneInput && detected.running,
       shouldResolveUnknown: cliState === 'unknown',
     },
   };

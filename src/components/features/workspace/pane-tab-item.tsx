@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Globe, GitCompareArrows } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import OpenAIIcon from '@/components/icons/openai-icon';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
 import ProcessIcon from '@/components/icons/process-icon';
 import { cn } from '@/lib/utils';
 import { isAgentPanelType } from '@/lib/panel-type';
@@ -112,7 +112,7 @@ const PaneTabItem = ({
         <>
           <TabStatusIndicator tabId={tab.id} panelType={tab.panelType} />
           {isAgentPanelType(tab.panelType) ? (
-            <OpenAIIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            <AgentProviderIcon panelType={tab.panelType} className="h-3.5 w-3.5 text-muted-foreground" />
           ) : tab.panelType === 'web-browser' ? (
             <Globe className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           ) : tab.panelType === 'diff' ? (

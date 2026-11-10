@@ -66,6 +66,8 @@
   "layoutFetchError": "레이아웃을 불러올 수 없습니다",
   "splitFailed": "분할할 수 없습니다",
   "tabCreateFailed": "탭을 생성할 수 없습니다",
+  "agentUnavailableInRuntimeV2Tab": "이 terminal 탭에서는 {agent}를 쓸 수 없습니다. 새 {agent} 탭에서 시작하세요.",
+  "openNewAgentTab": "새 {agent} 탭 열기",
   "tabDeleteError": "탭 삭제 중 오류가 발생했습니다",
   "sessionRestartFailed": "세션을 재시작할 수 없습니다",
   "tabRenameFailed": "탭 이름 변경에 실패했습니다",

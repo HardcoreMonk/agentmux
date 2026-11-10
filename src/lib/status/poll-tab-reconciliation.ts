@@ -11,7 +11,7 @@ interface IStatusInitialDetection {
 
 interface IResolveStatusInitialCliStateInput {
   persistedState?: TCliState;
-  providerId?: string | null;
+  reconcileStateFromJsonl: boolean;
   detected: IStatusInitialDetection;
 }
 
@@ -54,11 +54,11 @@ export interface IReconcileStatusPollTabChangesResult extends IReconcileStatusPr
 
 export const resolveStatusInitialCliState = ({
   persistedState,
-  providerId,
+  reconcileStateFromJsonl,
   detected,
 }: IResolveStatusInitialCliStateInput): TCliState => {
   let cliState: TCliState = (persistedState ?? 'idle') === 'busy' ? 'unknown' : (persistedState ?? 'idle');
-  if (providerId !== 'codex') return cliState;
+  if (!reconcileStateFromJsonl) return cliState;
 
   if (!detected.running && (cliState === 'unknown' || cliState === 'inactive')) {
     cliState = 'idle';

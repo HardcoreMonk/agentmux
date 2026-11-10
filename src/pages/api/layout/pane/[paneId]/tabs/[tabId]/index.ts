@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { removeTabFromPane, restartTabSession, patchTab } from '@/lib/layout-store';
+import { removeTabFromPane, restartTabSession, patchTab, getLayout } from '@/lib/layout-store';
+import { findPane } from '@/lib/layout-tree';
+import { isAgentPanelType, normalizePanelType } from '@/lib/panel-type';
+import { resolveTabRuntimeVersion } from '@/lib/runtime/terminal-mode';
 import { getActiveWorkspaceId } from '@/lib/workspace-store';
 import { getStatusManager } from '@/lib/status-manager';
 import { createLogger } from '@/lib/logger';
@@ -70,7 +73,23 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         }
         patch.name = name.trim();
       }
-      if (panelType !== undefined) patch.panelType = panelType;
+      if (panelType !== undefined) {
+        const normalizedPanelType = normalizePanelType(panelType);
+        if (!normalizedPanelType) {
+          return res.status(400).json({ error: 'Unknown panel type' });
+        }
+        if (isAgentPanelType(normalizedPanelType)) {
+          const layout = await getLayout(wsId);
+          const storedTab = findPane(layout.root, paneId)?.tabs.find((tab) => tab.id === tabId);
+          if (storedTab && resolveTabRuntimeVersion(storedTab) === 2) {
+            return res.status(409).json({
+              error: 'Agent panels are not supported on runtime v2 terminal tabs',
+              code: 'runtime-v2-agent-unsupported',
+            });
+          }
+        }
+        patch.panelType = normalizedPanelType;
+      }
       if (title !== undefined) patch.title = title;
       if (cwd !== undefined) patch.cwd = cwd;
       if (lastCommand !== undefined) patch.lastCommand = lastCommand;

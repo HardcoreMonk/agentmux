@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => {
     statusManager,
     getProviderByPanelType: vi.fn(),
     sendKeys: vi.fn(),
+    launchAgentInTab: vi.fn(),
     getRuntimeSupervisor: vi.fn(() => supervisor),
     supervisor,
   };
@@ -44,6 +45,7 @@ vi.mock('@/lib/providers', () => ({
   getProviderByPanelType: mocks.getProviderByPanelType,
 }));
 
+vi.mock('@/lib/agent-launch-service', () => ({ launchAgentInTab: mocks.launchAgentInTab }));
 vi.mock('@/lib/tmux', () => ({
   sendKeys: mocks.sendKeys,
 }));
@@ -202,5 +204,68 @@ describe('layout tab api runtime routing', () => {
     expect(response.statusCode).toBe(404);
     expect(response.body).toMatchObject({ error: 'Pane not found' });
     expect(mocks.supervisor.deleteTerminalTab).toHaveBeenCalledWith('tab-runtime');
+  });
+
+  it('creates agent tabs on the legacy runtime even when new-tabs mode is enabled', async () => {
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
+    vi.useFakeTimers();
+    mocks.launchAgentInTab.mockResolvedValue({ ok: true });
+    const response = createResponse();
+
+    await handler(createRequest({ cwd: '/repo', panelType: 'codex', startAgent: true }), response.res);
+    await vi.advanceTimersByTimeAsync(1_000);
+    vi.useRealTimers();
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.addTabToPane).toHaveBeenCalledWith('ws-a', 'pane-a', undefined, '/repo', 'codex', undefined);
+    expect(mocks.supervisor.createTerminalTab).not.toHaveBeenCalled();
+    expect(mocks.launchAgentInTab).toHaveBeenCalledWith(expect.objectContaining({ action: 'launch', paneId: 'pane-a' }));
+  });
+
+  it('still creates plain terminal tabs through runtime v2 in new-tabs mode', async () => {
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
+    const response = createResponse();
+
+    await handler(createRequest({}), response.res);
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.supervisor.createTerminalTab).toHaveBeenCalled();
+    expect(mocks.addTabToPane).not.toHaveBeenCalled();
+  });
+
+  it('stores unregistered panel types as terminal tabs without launching an agent', async () => {
+    vi.useFakeTimers();
+    const response = createResponse();
+
+    await handler(createRequest({ cwd: '/repo', panelType: 'claude', startAgent: true }), response.res);
+    await vi.advanceTimersByTimeAsync(1_000);
+    vi.useRealTimers();
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.addTabToPane).toHaveBeenCalledWith('ws-a', 'pane-a', undefined, '/repo', undefined, undefined);
+    expect(mocks.launchAgentInTab).not.toHaveBeenCalled();
+  });
+
+  it.each(['off', 'new-tabs'])('starts new agent tabs in the workspace directory without cwd (terminal mode %s)', async (mode) => {
+    process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = mode;
+    vi.useFakeTimers();
+    mocks.launchAgentInTab.mockResolvedValue({ ok: true });
+
+    await handler(createRequest({ panelType: 'codex', startAgent: true }), createResponse().res);
+    await vi.advanceTimersByTimeAsync(1_000);
+    vi.useRealTimers();
+
+    expect(mocks.addTabToPane).toHaveBeenCalledWith('ws-a', 'pane-a', undefined, '/repo', 'codex', undefined);
+    expect(mocks.supervisor.createTerminalTab).not.toHaveBeenCalled();
+  });
+
+  it('rejects resume with an unregistered panel type', async () => {
+    const response = createResponse();
+
+    await handler(createRequest({ panelType: 'claude', resumeSessionId: 'abc' }), response.res);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toEqual({ error: 'Unknown panel type for resume' });
+    expect(mocks.addTabToPane).not.toHaveBeenCalled();
   });
 });

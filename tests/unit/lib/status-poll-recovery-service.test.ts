@@ -79,12 +79,12 @@ describe('status poll recovery service', () => {
     expect(forceIdle).not.toHaveBeenCalled();
   });
 
-  it('runs Codex pane recovery in pending-then-interrupted order', async () => {
+  it('runs pane recovery in pending-then-interrupted order', async () => {
     const recoverPending = vi.fn(async () => ({ recovered: false }));
     const recoverInterrupted = vi.fn(async () => ({ recovered: true }));
 
     await expect(recoverStatusPollPaneInput({
-      providerId: 'codex',
+      recoverPaneInput: true,
       running: true,
       recoverPending,
       recoverInterrupted,
@@ -93,12 +93,12 @@ describe('status poll recovery service', () => {
     expect(recoverInterrupted).toHaveBeenCalledTimes(1);
   });
 
-  it('skips interrupted recovery when pending recovery succeeds or provider is not Codex', async () => {
+  it('skips interrupted recovery when pending recovery succeeds or the provider does not recover pane input', async () => {
     const recoverPending = vi.fn(async () => ({ recovered: true }));
     const recoverInterrupted = vi.fn(async () => ({ recovered: true }));
 
     await expect(recoverStatusPollPaneInput({
-      providerId: 'codex',
+      recoverPaneInput: true,
       running: true,
       recoverPending,
       recoverInterrupted,
@@ -106,11 +106,25 @@ describe('status poll recovery service', () => {
     expect(recoverInterrupted).not.toHaveBeenCalled();
 
     await expect(recoverStatusPollPaneInput({
-      providerId: 'terminal',
+      recoverPaneInput: false,
       running: true,
       recoverPending,
       recoverInterrupted,
     })).resolves.toEqual({ recovered: false });
+  });
+
+  it('does not touch the pane when the provider does not recover pane input', async () => {
+    const recoverPending = vi.fn();
+    const recoverInterrupted = vi.fn();
+
+    await expect(recoverStatusPollPaneInput({
+      recoverPaneInput: false,
+      running: true,
+      recoverPending,
+      recoverInterrupted,
+    })).resolves.toEqual({ recovered: false });
+    expect(recoverPending).not.toHaveBeenCalled();
+    expect(recoverInterrupted).not.toHaveBeenCalled();
   });
 
   it('resolves post-recovery broadcast action', () => {

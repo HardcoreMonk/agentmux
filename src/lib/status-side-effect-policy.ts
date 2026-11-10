@@ -1,5 +1,5 @@
 import type { TCliState } from '@/types/timeline';
-import type { IAgentProviderStatusBehavior } from '@/lib/providers/types';
+import type { TAgentHookStatusBehavior } from '@/lib/providers/types';
 import { shouldSendNeedsInputNotification, shouldSendReviewNotification } from '@/lib/status-notification-policy';
 
 export interface IStatusSideEffectPolicyInput {
@@ -9,7 +9,7 @@ export interface IStatusSideEffectPolicyInput {
   skipHistory?: boolean;
   hasJsonlPath: boolean;
   providerId?: string | null;
-  statusBehavior?: IAgentProviderStatusBehavior | null;
+  statusBehavior?: TAgentHookStatusBehavior | null;
   hasJsonlWatcher: boolean;
   sessionHistoryDedupeAccepted: boolean;
   reviewNotificationDedupeAccepted: boolean;

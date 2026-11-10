@@ -6,6 +6,7 @@ import {
   isValidCodexThreadId,
 } from '@/lib/codex-command';
 import { getConfig } from '@/lib/config-store';
+import { getCodexSessionsDir } from '@/lib/path-validation';
 import {
   detectActiveCodexSession,
   findCodexSessionJsonlByPromptClaim,
@@ -27,6 +28,7 @@ import {
   writeAgentSessionId,
   writeAgentSummary,
 } from '@/lib/agent-tab-fields';
+import { checkCodexJsonlState } from '@/lib/codex-jsonl-state';
 import { buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
 
 const readCodexCommandOptions = async (): Promise<ICodexCommandOptions> => {
@@ -52,12 +54,15 @@ const readLaunchOptions = async (options: { tabId?: string; sessionName?: string
 };
 
 export const codexProvider: IAgentProvider = {
+  jsonlRoots: (homeDir) => [getCodexSessionsDir(homeDir)],
   id: 'codex',
   displayName: 'Codex',
   panelType: 'codex',
   statusBehavior: {
     watchJsonlWhenBound: true,
     deferStopHookUntilJsonlIdle: true,
+    reconcileStateFromJsonl: true,
+    recoverPaneInput: true,
   },
 
   matchesProcess: (commandName) => commandName === 'codex',
@@ -99,6 +104,21 @@ export const codexProvider: IAgentProvider = {
   readTailEntries: readCodexTailEntries,
   readEntriesBefore: readCodexEntriesBefore,
   parseIncremental: parseCodexIncremental,
+  readJsonlStatus: async (jsonlPath) => {
+    const result = await checkCodexJsonlState(jsonlPath);
+    return {
+      idle: result.idle,
+      stale: result.stale,
+      lastAssistantSnippet: result.lastAssistantSnippet,
+      currentAction: result.currentAction,
+      reset: result.reset,
+      lastEntryTs: result.lastEntryTs,
+      staleMs: 0,
+      interrupted: result.interrupted,
+      completionTurnId: result.completionTurnId,
+      rateLimits: result.rateLimits,
+    };
+  },
 
   readSessionId: readAgentSessionId,
   writeSessionId: writeAgentSessionId,

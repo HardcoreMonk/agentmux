@@ -11,9 +11,10 @@ vi.mock('next/router', () => ({
   },
 }));
 
+const toastError = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({
   toast: {
-    error: vi.fn(),
+    error: toastError,
     info: vi.fn(),
   },
 }));
@@ -44,7 +45,7 @@ vi.mock('@/hooks/use-tab-metadata-store', () => ({
   },
 }));
 
-const createLayout = (panelType: 'terminal' | 'codex'): ILayoutData => ({
+const createLayout = (panelType: 'terminal' | 'codex', runtimeVersion?: 1 | 2): ILayoutData => ({
   root: {
     type: 'pane',
     id: 'pane-test',
@@ -55,6 +56,7 @@ const createLayout = (panelType: 'terminal' | 'codex'): ILayoutData => ({
       name: '',
       order: 0,
       panelType,
+      ...(runtimeVersion ? { runtimeVersion } : {}),
       agentSessionId: 'agent-session',
       agentJsonlPath: '/home/test/.codex/sessions/agent-session.jsonl',
     }],
@@ -163,6 +165,38 @@ describe('useLayoutStore panel type switching', () => {
       panelType: 'codex',
       sessionView: 'timeline',
     });
+  });
+
+  it('refuses to switch a runtime v2 tab to an agent panel and offers a new agent tab', () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    toastError.mockClear();
+    useLayoutStore.setState({ layout: createLayout('terminal', 2) });
+    const createTab = vi.fn();
+    useLayoutStore.setState({ createTabInPane: createTab });
+
+    useLayoutStore.getState().updateTabPanelType('pane-test', 'tab-agent', 'codex');
+
+    const pane = useLayoutStore.getState().layout?.root;
+    if (pane?.type !== 'pane') throw new Error('pane fixture missing');
+    expect(pane.tabs[0].panelType).toBe('terminal');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledTimes(1);
+    const options = toastError.mock.calls[0][1] as { action: { onClick: () => void } };
+    options.action.onClick();
+    expect(createTab).toHaveBeenCalledWith('pane-test', 'codex', undefined, true);
+  });
+
+  it('still switches a runtime v1 tab to an agent panel', () => {
+    toastError.mockClear();
+    useLayoutStore.setState({ layout: createLayout('terminal', 1) });
+
+    useLayoutStore.getState().updateTabPanelType('pane-test', 'tab-agent', 'codex');
+
+    const pane = useLayoutStore.getState().layout?.root;
+    if (pane?.type !== 'pane') throw new Error('pane fixture missing');
+    expect(pane.tabs[0].panelType).toBe('codex');
+    expect(toastError).not.toHaveBeenCalled();
   });
 
   it('preserves the surviving local pane and tab focus after closing another pane', async () => {

@@ -29,7 +29,8 @@ import useTabStore, { selectAgentProcess, selectAgentProcessCheckedAt, selectSes
 import { useLayoutStore } from '@/hooks/use-layout';
 import { requestAgentLaunch } from '@/lib/agent-launch-client';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
-import { isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
+import { AGENT_PROVIDER_META, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { resolveTerminalWebSocketEndpoint } from '@/lib/terminal-websocket-url';
 import {
   shouldShowMobileDisconnectedOverlay,
@@ -409,8 +410,8 @@ const MobileSurfaceView = ({
     if (status !== 'connected' || !activeTabId) return;
     pendingRestartRef.current = true;
     useTabStore.getState().setSessionView(activeTabId, 'check');
-    sendStdin('/exit\r');
-  }, [status, sendStdin, activeTabId]);
+    sendStdin(`${(getAgentProviderMeta(panelType) ?? AGENT_PROVIDER_META[DEFAULT_AGENT_PANEL_TYPE]).exitCommand}\r`);
+  }, [status, sendStdin, activeTabId, panelType]);
 
   useEffect(() => {
     if (!pendingRestartRef.current || agentProcess === true) return;
@@ -425,8 +426,8 @@ const MobileSurfaceView = ({
   const handleSendToAgent = useCallback((text: string) => {
     if (!activeTabId) return;
     pendingAgentInputRef.current = text;
-    onUpdateTabPanelType(paneId, activeTabId, 'codex');
-  }, [activeTabId, paneId, onUpdateTabPanelType]);
+    onUpdateTabPanelType(paneId, activeTabId, isAgentPanelType(panelType) ? panelType : DEFAULT_AGENT_PANEL_TYPE);
+  }, [activeTabId, paneId, onUpdateTabPanelType, panelType]);
 
   useEffect(() => {
     if (!isAgentPanel || !pendingAgentInputRef.current) return;

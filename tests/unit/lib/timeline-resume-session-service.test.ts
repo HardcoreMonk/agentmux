@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createTimelineResumeSessionService } from '@/lib/timeline/resume-session-service';
 import type { IAgentProvider } from '@/lib/providers';
+import { emptyJsonlCheckResult, type IAgentJsonlStatus } from '@/lib/status/jsonl-check';
 import type { TTimelineServerMessage } from '@/types/timeline';
 
 interface IFakeSocket {
@@ -21,6 +22,11 @@ const makeSocket = (): WebSocket & IFakeSocket => {
   return socket;
 };
 
+const jsonlStatus = (overrides: Partial<IAgentJsonlStatus> = {}): IAgentJsonlStatus => ({
+  ...emptyJsonlCheckResult(),
+  ...overrides,
+});
+
 const makeProvider = (overrides: Partial<IAgentProvider> = {}): IAgentProvider => ({
   id: 'codex',
   displayName: 'Codex',
@@ -28,6 +34,8 @@ const makeProvider = (overrides: Partial<IAgentProvider> = {}): IAgentProvider =
   statusBehavior: {
     watchJsonlWhenBound: true,
     deferStopHookUntilJsonlIdle: true,
+    reconcileStateFromJsonl: true,
+    recoverPaneInput: true,
   },
   matchesProcess: vi.fn(),
   isValidSessionId: (id: unknown): id is string => typeof id === 'string',
@@ -36,12 +44,14 @@ const makeProvider = (overrides: Partial<IAgentProvider> = {}): IAgentProvider =
   watchSessions: vi.fn(),
   buildResumeCommand: vi.fn(async (sessionId: string) => `codex resume ${sessionId}`),
   buildLaunchCommand: vi.fn(),
+  jsonlRoots: () => [],
   resolveJsonlPath: vi.fn(async (sessionId: string) => `/tmp/${sessionId}.jsonl`),
   resolveLatestJsonlPath: vi.fn(),
   parseJsonlContent: vi.fn(),
   readTailEntries: vi.fn(),
   readEntriesBefore: vi.fn(),
   parseIncremental: vi.fn(),
+  readJsonlStatus: vi.fn(async () => jsonlStatus()),
   readSessionId: vi.fn(),
   writeSessionId: vi.fn(),
   readJsonlPath: vi.fn(),
@@ -68,7 +78,6 @@ const createService = (overrides: Partial<Parameters<typeof createTimelineResume
       isAllowedJsonlPath: vi.fn(() => true),
       existsPath: vi.fn(() => true),
       statFileMtimeMs: vi.fn(async (filePath: string) => filePath.includes('latest') ? 200 : 100),
-      checkJsonlState: vi.fn(async () => ({ interrupted: false })),
       extractSessionIdFromJsonlPath: vi.fn((filePath: string) => filePath.includes('latest') ? 'latest' : 'active'),
       ...overrides,
     }),
@@ -77,19 +86,16 @@ const createService = (overrides: Partial<Parameters<typeof createTimelineResume
 
 describe('timeline resume session service', () => {
   it('prefers the latest cwd JSONL when the active Codex JSONL is interrupted', async () => {
-    const provider = makeProvider({
-      resolveLatestJsonlPath: vi.fn(async () => ({
-        jsonlPath: '/tmp/latest.jsonl',
-        sessionId: 'latest',
-        mtimeMs: 200,
-      })),
-    });
-    const { service } = createService({
-      checkJsonlState: vi.fn(async () => ({ interrupted: true })),
-    });
+    const resolveLatestJsonlPath = vi.fn(async () => ({
+      jsonlPath: '/tmp/latest.jsonl',
+      sessionId: 'latest',
+      mtimeMs: 200,
+    }));
+    const interruptedStatus = vi.fn(async () => jsonlStatus({ interrupted: true }));
+    const { service } = createService();
 
     await expect(service.resolveActiveOrLatestJsonl(
-      provider,
+      makeProvider({ resolveLatestJsonlPath, readJsonlStatus: interruptedStatus }),
       'codexmux:tab',
       '/tmp/active.jsonl',
       'active',
@@ -97,11 +103,66 @@ describe('timeline resume session service', () => {
       jsonlPath: '/tmp/latest.jsonl',
       sessionId: 'latest',
     });
+    expect(interruptedStatus).toHaveBeenCalledWith('/tmp/active.jsonl');
 
-    const notInterrupted = createService({
-      checkJsonlState: vi.fn(async () => ({ interrupted: false })),
-    }).service;
-    await expect(notInterrupted.resolveActiveOrLatestJsonl(
+    await expect(service.resolveActiveOrLatestJsonl(
+      makeProvider({
+        resolveLatestJsonlPath,
+        readJsonlStatus: vi.fn(async () => jsonlStatus({ interrupted: false })),
+      }),
+      'codexmux:tab',
+      '/tmp/active.jsonl',
+      'active',
+    )).resolves.toMatchObject({
+      jsonlPath: '/tmp/active.jsonl',
+      sessionId: 'active',
+    });
+  });
+
+  it('keeps the active JSONL without reading status when the provider does not reconcile state from JSONL', async () => {
+    const readJsonlStatus = vi.fn(async () => jsonlStatus({ interrupted: true }));
+    const provider = makeProvider({
+      statusBehavior: {
+        watchJsonlWhenBound: false,
+        deferStopHookUntilJsonlIdle: false,
+        reconcileStateFromJsonl: false,
+        recoverPaneInput: false,
+      },
+      resolveLatestJsonlPath: vi.fn(async () => ({
+        jsonlPath: '/tmp/latest.jsonl',
+        sessionId: 'latest',
+        mtimeMs: 200,
+      })),
+      readJsonlStatus,
+    });
+    const { service } = createService();
+
+    await expect(service.resolveActiveOrLatestJsonl(
+      provider,
+      'codexmux:tab',
+      '/tmp/active.jsonl',
+      'active',
+    )).resolves.toMatchObject({
+      jsonlPath: '/tmp/active.jsonl',
+      sessionId: 'active',
+    });
+    expect(readJsonlStatus).not.toHaveBeenCalled();
+  });
+
+  it('keeps the active JSONL when reading its status fails', async () => {
+    const provider = makeProvider({
+      resolveLatestJsonlPath: vi.fn(async () => ({
+        jsonlPath: '/tmp/latest.jsonl',
+        sessionId: 'latest',
+        mtimeMs: 200,
+      })),
+      readJsonlStatus: vi.fn(async () => {
+        throw new Error('read failed');
+      }),
+    });
+    const { service } = createService();
+
+    await expect(service.resolveActiveOrLatestJsonl(
       provider,
       'codexmux:tab',
       '/tmp/active.jsonl',
@@ -119,10 +180,9 @@ describe('timeline resume session service', () => {
         sessionId: 'latest',
         mtimeMs: 200,
       })),
+      readJsonlStatus: vi.fn(async () => jsonlStatus({ idle: true, interrupted: false })),
     });
-    const { service } = createService({
-      checkJsonlState: vi.fn(async () => ({ idle: true, interrupted: false })),
-    });
+    const { service } = createService();
 
     await expect(service.resolveActiveOrLatestJsonl(
       provider,
@@ -148,9 +208,9 @@ describe('timeline resume session service', () => {
         mtimeMs: 200,
       })),
       resolveJsonlPathForClaim,
+      readJsonlStatus: vi.fn(async () => jsonlStatus({ idle: true, interrupted: false })),
     } as Partial<IAgentProvider>);
     const { service } = createService({
-      checkJsonlState: vi.fn(async () => ({ idle: true, interrupted: false })),
       readTabUserMessageClaim: vi.fn(async () => ({
         message: 'implement the approved fix',
         sentAt: 1_000,
@@ -181,10 +241,10 @@ describe('timeline resume session service', () => {
         mtimeMs: 200,
       })),
       resolveJsonlPath: vi.fn(async () => '/tmp/stored.jsonl'),
+      readJsonlStatus: vi.fn(async () => jsonlStatus({ interrupted: false })),
     });
     const { service } = createService({
       statFileMtimeMs: vi.fn(async (filePath: string) => filePath.includes('latest') ? 200 : 100),
-      checkJsonlState: vi.fn(async () => ({ interrupted: false })),
       extractSessionIdFromJsonlPath: vi.fn((filePath: string) => filePath.includes('stored') ? 'stored' : 'latest'),
     });
 

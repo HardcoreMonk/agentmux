@@ -1,6 +1,6 @@
 import type { TCliState } from '@/types/timeline';
 import type { TEventName } from '@/types/status';
-import type { IAgentProviderStatusBehavior } from '@/lib/providers/types';
+import type { TAgentHookStatusBehavior } from '@/lib/providers/types';
 
 export interface IStateDecision {
   nextState: TCliState;
@@ -17,7 +17,7 @@ export interface IHookStateInput {
   currentState: TCliState;
   eventName: TEventName;
   providerId?: string | null;
-  statusBehavior?: IAgentProviderStatusBehavior | null;
+  statusBehavior?: TAgentHookStatusBehavior | null;
 }
 
 export interface ICodexStateInput {

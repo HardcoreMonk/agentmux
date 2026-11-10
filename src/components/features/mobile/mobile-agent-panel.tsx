@@ -21,7 +21,7 @@ import QuickPromptBar from '@/components/features/workspace/quick-prompt-bar';
 import { MetaCompact } from '@/components/features/workspace/session-meta-content';
 import MobileMetaSheet from './mobile-meta-sheet';
 import useQuickPrompts from '@/hooks/use-quick-prompts';
-import { isAgentPanelType } from '@/lib/panel-type';
+import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
 import {
   selectAgentPanelContentMode,
   selectAgentSessionListRenderMode,
@@ -52,7 +52,7 @@ const MobileAgentPanel = ({
   wsId,
   sessionName,
   agentSessionId,
-  panelType = 'codex',
+  panelType = DEFAULT_AGENT_PANEL_TYPE,
   cwd,
   sendStdin,
   terminalWsConnected,
@@ -65,6 +65,7 @@ const MobileAgentPanel = ({
   onNewSession,
 }: IMobileAgentPanelProps) => {
   const t = useTranslations('terminal');
+  const tTimeline = useTranslations('timeline');
   const { prompts: quickPrompts } = useQuickPrompts();
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
   const [metaSheetOpen, setMetaSheetOpen] = useState(false);
@@ -227,8 +228,8 @@ const MobileAgentPanel = ({
   if (!agentInstalled) {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 bg-muted text-muted-foreground">
-        <span className="text-sm font-medium">{t('installCodex')}</span>
-        <span className="text-xs">{t('installCodexHint')}</span>
+        <span className="text-sm font-medium">{tTimeline('installCodex')}</span>
+        <span className="text-xs">{tTimeline('installCodexHint')}</span>
       </div>
     );
   }
@@ -348,6 +349,7 @@ const MobileAgentPanel = ({
       <div className="shrink-0 pb-3">
         <WebInputBar
           tabId={tabId}
+          panelType={panelType}
           wsId={wsId}
           sessionName={sessionName}
           agentSessionId={agentSessionId}

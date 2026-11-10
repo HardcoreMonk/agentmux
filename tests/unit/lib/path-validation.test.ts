@@ -62,3 +62,20 @@ describe('isAllowedJsonlPath', () => {
     )).toBe(false);
   });
 });
+
+describe('isJsonlPathUnderRoots', () => {
+  it('allows a JSONL file under any of the roots', async () => {
+    const { isJsonlPathUnderRoots } = await import('@/lib/path-validation');
+    const roots = ['/home/test/.codex/sessions', '/home/test/.claude/projects'];
+
+    expect(isJsonlPathUnderRoots('/home/test/.codex/sessions/a.jsonl', roots)).toBe(true);
+    expect(isJsonlPathUnderRoots('/home/test/.claude/projects/x/b.jsonl', roots)).toBe(true);
+  });
+
+  it('rejects paths outside every root and with an empty root list', async () => {
+    const { isJsonlPathUnderRoots } = await import('@/lib/path-validation');
+
+    expect(isJsonlPathUnderRoots('/home/test/other/a.jsonl', ['/home/test/.codex/sessions'])).toBe(false);
+    expect(isJsonlPathUnderRoots('/home/test/.codex/sessions/a.jsonl', [])).toBe(false);
+  });
+});

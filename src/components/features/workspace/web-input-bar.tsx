@@ -15,6 +15,7 @@ import { uploadFile } from '@/lib/upload-file-client';
 import { countImageRefs, waitForImageAttachments } from '@/lib/image-attach-detector';
 import { isTerminalEofShortcut, TERMINAL_EOF_INPUT } from '@/lib/keyboard-shortcuts';
 import type { TCliState } from '@/types/timeline';
+import type { TPanelType } from '@/types/terminal';
 
 const DEFAULT_MAX_ROWS = 5;
 const LINE_HEIGHT = 20;
@@ -36,6 +37,7 @@ const ATTACHMENT_POLL_INTERVAL_MS = 100;
 
 interface IWebInputBarProps {
   tabId?: string;
+  panelType?: TPanelType;
   wsId?: string;
   sessionName?: string;
   agentSessionId?: string | null;
@@ -57,6 +59,7 @@ interface IWebInputBarProps {
 
 const WebInputBar = ({
   tabId,
+  panelType,
   wsId,
   sessionName,
   agentSessionId,
@@ -99,7 +102,7 @@ const WebInputBar = ({
     cliState,
     sendStdin,
     terminalWsConnected,
-    { tabId, onRestartSession, onMessageSent: handleMessageSent },
+    { tabId, panelType, onRestartSession, onMessageSent: handleMessageSent },
   );
   const isMobileDevice = useIsMobileDevice();
 

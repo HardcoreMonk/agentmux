@@ -4,7 +4,7 @@ import { getStatusManager } from '@/lib/status-manager';
 import { createLogger } from '@/lib/logger';
 import { getRuntimeStatusV2Mode } from '@/lib/runtime/status-mode';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
-import { verifyCodexHookCapability } from '@/lib/providers/codex/session-hooks';
+import { verifyAgentHookCapability } from '@/lib/agent-hooks';
 import { parseSessionName, readLayoutFile, resolveLayoutFile } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { recordPerfCounter } from '@/lib/perf-metrics';
@@ -16,7 +16,7 @@ const shouldUseRuntimeStatusLive = (): boolean =>
 
 const verifyHookTarget = async (sessionName: string, capability: string): Promise<boolean> => {
   const parsed = parseSessionName(sessionName);
-  const verified = verifyCodexHookCapability(capability, sessionName);
+  const verified = verifyAgentHookCapability(capability, sessionName);
   if (!parsed || !verified || verified.tabId !== parsed.tabId) return false;
   const layout = await readLayoutFile(resolveLayoutFile(parsed.wsId));
   const pane = layout ? findPane(layout.root, parsed.paneId) : null;

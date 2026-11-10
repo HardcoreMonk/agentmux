@@ -3,13 +3,13 @@ import path from 'path';
 import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
 import { STATUSLINE_SCRIPT_PATH, buildStatuslineScriptContent } from '@/lib/statusline-script';
-import { CODEXMUX_STATUS_HOOK_BRIDGE_PATH } from '@/lib/providers/codex/session-hooks';
+import { STATUS_HOOK_BRIDGE_PATH } from '@/lib/agent-hooks';
 
 const log = createLogger('hooks');
 
 const BASE_DIR = getDataDir();
 const HOOKS_FILE = path.join(BASE_DIR, 'hooks.json');
-const HOOK_BRIDGE = CODEXMUX_STATUS_HOOK_BRIDGE_PATH;
+const HOOK_BRIDGE = STATUS_HOOK_BRIDGE_PATH;
 
 export const HOOK_SETTINGS_PATH = HOOKS_FILE;
 
