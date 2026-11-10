@@ -115,13 +115,13 @@ installer/package gate로 확인합니다.
 
 | 항목 | 상태 |
 | --- | --- |
-| Live build | `19a44ca8`, version `0.5.0` (2026-11-10 Claude Code provider 단계 1 main merge 배포. 이전 live는 logo 수정 `e369598b`, agentmux 전환 build는 `5b0cf14f`) |
+| Live build | `47ea57e7`, version `0.5.0` (2026-11-10 Claude Code provider 단계 2 Task 1 main merge 배포: 모르는 panelType 읽기 정규화. main CI `42813980564` 성공. 이전 live는 단계 1 `19a44ca8`, logo 수정 `e369598b`, agentmux 전환 build는 `5b0cf14f`) |
 | user service | `agentmux.service` enabled, `active/running`, authenticated, port `8122`. Rollback unit `codexmux.service`(legacy)는 disable 보존 |
 | Runtime v2 | terminal `new-tabs`, storage/timeline/status `default` |
 | Session Catalog/Governance | Session Catalog `ready`, Governance `state=ready`, `writeState=disabled`, DB/WAL/SHM `0600` |
 | governance gate | `agentmux.service.d/governance-writes.conf` 미설치 → governed write 비활성. 활성화는 별도 승인 뒤 |
 | latest backup | `runtime-v2-storage-20260823T135639Z`, service 정지 중 durable/workspace state 5개, `0700/0600` |
-| latest restart | 2026-11-10 20:27 KST `deploy:local` 재시작(사용자가 직접 실행), PID `2553990`. tmux 서버 `43870`과 session은 재시작 전후 유지, service log error 0. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
+| latest restart | 2026-11-10 21:18 KST `deploy:local` 재시작(사용자가 직접 실행), PID `2865470`, health commit `47ea57e7`. tmux 서버 `43870`과 session 1개는 재시작 전후 유지, service log error 0. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
 | issue (이전 이름 저장소 기록) | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
 | 운영 handoff | `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
 
@@ -250,9 +250,31 @@ Plan Grilling, plan review와 별도 release gate를 거쳐야 합니다.
 | Full-output search | bounded message search/snippet만 제공 | secret/terminal output policy, quota, encryption/retention과 explicit opt-in |
 | npm 첫 배포(보류) | `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux`(legacy package) deprecate, trusted publisher 연결 미실행. `v0.5.0` tag push는 Windows release workflow도 실행하므로 별도 결정 | 첫 배포 절차, tag 정책과 Windows release 분리 여부, deprecate 문구 |
 | Data 실제 이전 | `~/.codexmux`가 실제 경로이고 `~/.agentmux`는 별칭 | rollback 창 종료 뒤 `~/.agentmux` 실제 이전, `codexmux.service`와 옛 checkout 정리 |
-| Purplemux 기능 추가 | 사용자 결정(2026-11-10)으로 purplemux에 있고 agentmux에 없는 기능(Claude Code provider, 공통 agent 기반, 위임 안내 주입, Codex 보조, Git side panel 등)을 추가. 목록은 `PURPLEMUX-ADOPTION-AUDIT.md` 보충 분석. 순서 확정: 설계 1(A+B+C) → 설계 2(D+E) → 설계 3(회신·상호 리뷰). 설계 1: `superpowers/specs/2026-11-10-claude-code-provider-design.md`(승인, 위임은 확인 없이 진행). 설계 1 단계 1(agent 경계 정리) 구현 완료: branch `feat/claude-provider-phase1`, plan `superpowers/plans/2026-11-10-claude-code-provider-phase1.md`. Codex 전용 분기를 provider 계약(status 동작 flag, `readJsonlStatus`, `jsonlRoots`)과 client provider metadata 표 뒤로 옮겼고, agent 탭은 terminal v2 mode와 관계없이 Runtime v1(`pt-` session)으로 만든다(`RUNTIME-V2-CUTOVER.md` 2단계). 전체 gate와 격리 Codex 회귀 확인 결과는 `operations/2026-11-10-multi-agent-brainstorming-handoff.md`. Main merge와 live 배포 전 | 단계 1 최종 리뷰, PR과 main CI 통과 뒤 merge. Live 배포는 사용자 확인 뒤. 이어서 단계 2(Claude provider core: 실행, hook, 상태, timeline, statusLine, rate limit, 권한 요청·trust, preflight) plan을 단계 1 interface 기준으로 작성. Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력)은 설계 1 범위 밖 후속 |
+| Purplemux 기능 추가 | 사용자 결정(2026-11-10)으로 purplemux에 있고 agentmux에 없는 기능(Claude Code provider, 공통 agent 기반, 위임 안내 주입, Codex 보조, Git side panel 등)을 추가. 목록은 `PURPLEMUX-ADOPTION-AUDIT.md` 보충 분석. 순서 확정: 설계 1(A+B+C) → 설계 2(D+E) → 설계 3(회신·상호 리뷰). 설계 1: `superpowers/specs/2026-11-10-claude-code-provider-design.md`(승인, 위임은 확인 없이 진행). 단계 1(agent 경계 정리)은 main `19a44ca8`로 merge·live 배포. 단계 2(Claude provider core, plan `superpowers/plans/2026-11-10-claude-code-provider-phase2.md`): Task 1은 main `47ea57e7`로 먼저 merge·live 배포, Task 2~10은 branch `feat/claude-provider-phase2`(`e0b03c25..` 이후)에서 구현·검토·전체 gate·격리 live smoke 완료. 결과는 `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | 단계 2 branch 최종 code-review, PR과 main CI 통과 뒤 merge. Live 배포는 사용자 확인 뒤(rollback 시 Claude 탭을 먼저 닫음). 이어서 단계 3(통합 세션 목록, Session Explorer, 통계, 설정, onboarding, 전환 잠금 등) plan. Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력)은 설계 1 범위 밖 후속 |
 | Multi-agent (Claude Code + Codex) | brainstorming 중. 한 화면 동시 실행, 일 나누기, 상호 리뷰가 목표이고 Herdr `hc`/desktop app이 참고 모델. 위임 자동화(옛 3번 프로젝트) 통합 여부 미정. `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | 사람 개입 시점, 위임 주체, Claude Code 상태 감지 방식, agent 간 회신 계약을 정한 설계 문서 승인 |
 | Android 앱 `0.5.0` | Linux 서버 client 유지로 결정. Launcher 표시 문구 정리, product name gate 범위 확장, debug/release APK와 release AAB 빌드(label agentmux, `versionCode=500`, app ID와 release 서명 인증서 유지) 완료. 실제 폰에서 debug `0.5`로 `smoke:android:foreground` 통과 뒤 사용자 결정으로 signed release `0.5`로 재설치(저장 주소·로그인 초기화) | 웹 UI logo(`app-logo.tsx`)의 옛 이름은 `e369598b`로 고쳐 live 배포했고 폰에서 `agent`+`mux` 표시 확인. Branch push와 PR. Release 앱은 WebView devtools가 꺼져 CDP smoke 대상이 아님 |
+
+## Claude Code provider 단계 2 후속
+
+단계 2 task별 검토에서 merge를 막지 않는다고 판단해 넘긴 항목과 격리 live smoke에서 찾은 항목입니다.
+
+| 항목 | 내용 |
+| --- | --- |
+| 권한 요청 "No" 뒤 `busy` 고정 | Live smoke에서 확인. Claude Code는 거절 뒤 `Stop` hook을 보내지 않고 JSONL 끝이 `[Request interrupted by user for tool use]` 다음 `system/turn_duration`이라 `jsonl-idle-scan`이 `idle: true, interrupted: false`를 돌려준다. `decideNeedsInputJsonlExit`가 `idle`을 보지 않아 `busy`를 고르고, `reconcileStateFromJsonl`이 꺼진 Claude 탭은 다음 hook 전까지 `busy`에 남는다. 웹 카드의 `ack-notification`도 `busy`로만 바꾼다. Merge 전 수정 후보 |
+| 줄바꿈된 권한 선택지 | `permission-prompt.ts`의 soft-wrap 이어 붙이기가 공백 없이 붙여 Claude 선택지가 "filecommands"처럼 보인다(기존 코드, Claude 화면에서 드러남) |
+| Timeline `turn-end` 2개 | Claude Code가 한 turn에 `stop_hook_summary`와 `turn_duration`을 둘 다 쓰고 `session-parser.ts`가 둘 다 `turn-end`로 바꾼다. 화면 영향 미확인 |
+| Server 종료 때 worker `EPIPE` | 격리 server를 SIGINT로 끌 때 timeline worker가 부모 IPC에 `process.send`하다 처리되지 않은 `EPIPE`로 끝났다. 단계 2가 바꾸지 않은 종료 경로 |
+| 모바일 탭 이름 폭 | 360px 폭 terminal 탭에서 복사 버튼과 44px 보기 전환 버튼 4개 때문에 탭 이름이 거의 보이지 않음(`mobile-tab-header.tsx`). Merge 전 수정 후보 |
+| Hook option type 중복 | hook option shape(`notificationType`, `agentSessionId`, `transcriptPath`, `source`)가 `status-manager.ts`, `runtime/status/worker-service.ts`, `api/status/hook.ts` 세 곳에 따로 정의됨. 한 type으로 export |
+| Status 다시 묶기 test | StatusManager 수준의 rebind 배선 test가 없음. `status-hook-api.test.ts`의 provider mock이 `panelType`을 보지 않고, 유효·무효 필드가 섞인 경우가 없음 |
+| Relaunch 직후 상태 | 다시 실행한 탭의 in-memory status entry `jsonlPath`가 첫 `SessionStart` hook 전까지 이전 session을 가리킬 수 있고, `agentSummary`는 relaunch 때 지우지 않음 |
+| Claude process 감지 | process 인자 regex가 `/claude`로 끝나는 인자 경로(`cat /x/claude`)도 맞춤. Command basename만 비교. Pidfile fallback이 pane tree의 모든 PID를 시도함. `~/.claude/sessions` watcher error handler가 no-op(liveness poll이 보완) |
+| Test 이름 | `providers.test.ts`의 "keeps every Codex status behavior enabled"가 새 두 flag(`false`)와 맞지 않음(문서는 이번에 고침) |
+| Client 정리 | `sidebar-rate-limits.tsx`가 `getAgentProviderMeta` 대신 `AGENT_PROVIDER_META`를 직접 읽음. `createTrustPromptTracker()`가 render마다 `useRef` 초기값으로 평가됨(lazy init). Trust hook 동작은 tracker test로만 확인했고 모바일 trust 카드 배치는 browser로 보지 않음. 모바일 보기 전환 aria-label "Terminal"/"Diff"가 영어 고정 |
+| Claude 권한 요청 분류 | 기존 분류 규칙에 맞지 않는 Claude 화면(header 없는 "Do you want to proceed?" 등)은 `promptType: unknown`으로 남아 approval queue의 위험·종류 표시가 덜 구체적. "Bash command" header는 `command`, Write "Create file"은 `file`로 분류됨 |
+| 단계 3으로 넘김 | agent가 하나도 없는 호스트의 `/tools-required` 화면·표가 아직 Codex만 보여 줌. `findClaudeBinary`가 `findCodexBinary`와 중복 |
+| Codex session test 불안정 | 전체 suite 부하에서 `codex-session-detection`("does not attach a session by cwd alone")과 `session-list`("lists Linux Codex sessions across workspace cwd values")가 가끔 실패하고 단독 실행은 통과. 단계 2 변경 전부터 있던 불안정으로 판단 |
+| Test data dir 격리 | `tests/unit/lib/layout-store.test.ts`가 실제 data dir(legacy 실제 경로 `~/.codexmux/workspaces`) 아래 `ws-layout-store-*` directory를 만들고 지움. 이전 실행이 남긴 4개가 있고 live data dir라 지우지 않음. Test data dir를 임시 directory로 격리하고 남은 directory 정리는 사용자가 결정 |
 
 ## Codex lifecycle 기준
 

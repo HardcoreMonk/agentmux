@@ -61,7 +61,10 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
           preimage/
   hooks.json
   status-hook.cjs
-  statusline.sh
+  statusline.cjs
+  rate-limits.json
+  claude-tabs/
+    <tab-id>.json
   session-index.json
   quick-prompts.json
   keybindings.json
@@ -94,7 +97,10 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
 | `hooks.json` | 빈 `hooks`와 statusline 호환 설정을 담는 생성 파일. Codex tab 실행 config source는 아님 |
 | `status-hook.cjs` | session-scoped Codex hook override가 호출하는 standalone Node bridge |
 | `status-hook.sh` | 이전 설치에 남을 수 있는 legacy bridge. 현재 생성하거나 호출하지 않음 |
-| `statusline.sh` | Codex status line bridge |
+| `statusline.cjs` | Claude Code statusLine bridge(Node script). 탭 설정 파일의 statusLine이 호출하며 stdin을 server로 보내고 사용자 원래 statusLine 명령을 대신 실행 |
+| `statusline.sh` | 이전 shell statusline bridge. 현재 생성하거나 호출하지 않지만 기존 설치에는 남을 수 있음 |
+| `rate-limits.json` | Claude Code statusLine이 보낸 최신 5시간/7일 rate limit. `claude` provider rate limit의 source |
+| `claude-tabs/<tab-id>.json` | Claude Code 탭별 `--settings` 파일(hook 7개와 statusLine). 파일 `0600`, directory `0700`. 실행·재개마다 새 capability로 다시 쓰고 탭을 닫으면 삭제 |
 | `session-index.json` | Codex JSONL session list metadata cache. Cold refresh 중에도 UI는 현재 snapshot을 먼저 표시 |
 | `quick-prompts.json` | 사용자 quick prompt와 내장 prompt 표시 상태 |
 | `keybindings.json` | 앱 단축키 override |
@@ -185,6 +191,17 @@ Codex launch/resume command는 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hook
 
 `state_*.sqlite` probe는 SQLite를 `readonly`, `fileMustExist`, `query_only`로 열고 table/column/count summary만 반환합니다. Row content, prompt, terminal output, cwd payload, JSONL path는 읽거나 저장하지 않습니다.
 
+## Claude Code 원본 데이터
+
+`~/.claude/`와 `~/.claude.json`은 Claude Code 소유 영역입니다. agentmux는 이 경로에 쓰거나 지우지 않고, hook과
+statusLine은 탭별 `claude-tabs/<tab-id>.json`을 `--settings`로 넘겨서만 붙입니다.
+
+| 경로 | agentmux 처리 |
+| --- | --- |
+| `~/.claude/projects/<project>/<session-id>.jsonl` | transcript 원본. timeline과 status 보조 판정이 읽기 전용으로 참조. `<project>`는 cwd의 영숫자 외 문자를 `-`로 바꾼 이름(200자 초과는 잘라 hash를 붙임) |
+| `~/.claude/sessions/<pid>.json` | 실행 중인 Claude Code의 현재 `sessionId`를 읽는 보조 단서. 형식이 문서화되지 않아 읽기 실패를 정상으로 다룸 |
+| `~/.claude/settings.json`, project `.claude/settings.json`, `.claude/settings.local.json` | statusLine script가 사용자 원래 `statusLine.command`만 읽음 |
+
 ## `config.json` 주요 설정
 
 | 필드 | 의미 |
@@ -197,6 +214,8 @@ Codex launch/resume command는 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hook
 | `notificationsEnabled` | notification 사용 여부 |
 | `soundOnCompleteEnabled` | 완료 사운드와 silent notification 정책 |
 | `server` | Electron local/remote server mode |
+| `claudeModel` | Claude Code 탭 실행 시 `--model` 값. 없으면 사용자 Claude 설정을 따름 |
+| `claudePermissionMode` | Claude Code 탭 실행 시 `--permission-mode` 값. 없으면 사용자 Claude 설정을 따름 |
 
 `config.json` missing은 최초 startup에서만 새 empty config를 만들고 setup을 시작합니다.
 Malformed JSON, 읽기 오류, valid scrypt hash만 있고 `authSecret`이 없는 상태는 자동

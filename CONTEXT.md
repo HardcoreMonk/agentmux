@@ -35,13 +35,14 @@ Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록된 project filesyst
 | --- | --- | --- |
 | 코딩 에이전트 웹 세션 매니저 | 코딩 에이전트 CLI 세션을 관리하는 제품 정체성 (현재 Codex 지원, Claude Code 지원 예정) | UI, 문서, README |
 | Workspace | 여러 tab과 layout을 묶는 작업 단위 | workspace API, layout store |
-| Tab | terminal, Codex, diff, browser 등 panel 실행 단위 | `ITabState`, runtime adapter |
+| Tab | terminal, Codex, Claude Code, diff, browser 등 panel 실행 단위 | `ITabState`, runtime adapter |
 | 로컬 Codex 세션 | local Codex process와 JSONL을 연결한 투영 | 감지, timeline, status |
-| Timeline | Codex JSONL과 live event를 사용자 검토용 event stream으로 보여주는 surface | timeline server/worker |
-| Status | Codex 작업 상태, approval, notification 판단 투영 | status manager/worker |
+| 로컬 Claude Code 세션 | local Claude Code process와 `~/.claude/projects` transcript JSONL을 연결한 투영. agentmux가 띄운 탭은 탭별 `--settings` hook이 session id를 알려 준다 | 감지, hook, timeline, status |
+| Timeline | agent JSONL(Codex, Claude Code)과 live event를 사용자 검토용 event stream으로 보여주는 surface | timeline server/worker |
+| Status | agent(Codex, Claude Code) 작업 상태, approval, notification 판단 투영 | status manager/worker |
 | 런타임 어댑터 | OS별 terminal/process/service 구현 경계 | runtime v2, tmux legacy, Windows runtime |
 | Linux 단일 엔진 호스트 | server, worker, tmux, Codex 데이터와 project read를 한 Linux host가 소유하는 실행 토폴로지 | Runtime v2, systemd user service |
-| Session Catalog | Codex JSONL에서 계산한 session metadata와 검색 projection | Timeline Worker, app-owned index DB |
+| Session Catalog | agent JSONL에서 계산한 session metadata와 검색 projection. 현재 index는 Codex JSONL만 다루고 Claude Code session은 단계 3 통합 목록에서 더한다 | Timeline Worker, app-owned index DB |
 | Managed Project | 승인된 root 아래에서 guidance, knowledge와 lifecycle 상태를 관리하는 project aggregate | Storage/Governance Worker |
 | Project Governance | Managed Project의 guidance, knowledge, check, audit를 제공하는 bounded context | Governance Worker |
 | Knowledge Index | project-local 문서의 navigation/search를 위한 재생성 가능한 projection | Governance Worker, app-owned index DB |
@@ -71,6 +72,7 @@ Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록된 project filesyst
 - 범용 `terminal dashboard`: agentmux 제품 정체성을 설명하는 기준 용어가 아닙니다.
 - 단독 `lifecycle`: Project Lifecycle, Runtime Operations, ADR Lifecycle 중 하나로 한정합니다.
 - `workspace project`: Workspace와 Managed Project를 하나의 entity로 합치는 이름으로 쓰지 않습니다.
+- `claude-code` panel type: Claude Code 탭의 panel type과 provider id는 `claude`입니다.
 - `ProjectWrite`, `FileSync`: create-only scaffold보다 넓은 arbitrary write/sync를 암시하는 public
   domain 이름으로 쓰지 않습니다.
 - `auto adoption`, `document takeover`, `full-file ownership`, `smart merge`, `section inference`:

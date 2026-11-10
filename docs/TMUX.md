@@ -13,7 +13,7 @@ custom server / Terminal Worker
   v
   Linux tmux adapter
   v
-shell / codex
+shell / codex / claude
 ```
 
 ## tmux 설정과 systemd scope 분리
@@ -101,6 +101,38 @@ Server Codex provider는 다음 session override를 각각 `-c`로 전달합니�
 
 User/project/managed/plugin hook은 Codex native layer discovery를 그대로 사용합니다. agentmux는 사용자 config를 읽거나 병합하지 않으며 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)에는 빈 `hooks`와 statusline 호환 설정만 생성합니다.
 
+## Claude Code 실행과 hook 설정
+
+Claude Code 탭(panel type `claude`)도 Codex 탭과 같이 Runtime v1(legacy tmux adapter, `pt-…` session)으로 만들고,
+browser는 intent만 보내며 server의 `agent-launch-service`가 layout ownership, panel type, safe shell, provider별
+preflight(`agent-unavailable`)를 확인합니다.
+
+실행 흐름:
+
+1. 새 탭(`POST /api/layout/pane/<paneId>/tabs`, `{ panelType: 'claude', startAgent: true }`) 또는 launch 요청이 오면
+   provider가 UUID를 만들고 탭의 `agentSessionId`에 먼저 기록합니다. 이전 session의 JSONL 경로는 비웁니다.
+2. 탭 설정 파일 `<data dir>/claude-tabs/<tabId>.json`(`0600`)을 새 HMAC capability로 씁니다. 내용은 hook 7개와
+   statusLine 하나입니다(`STATUS.md` "Claude Code hook 상태 경로").
+3. `claude --settings '<탭 설정 파일>' --session-id <uuid>`를 보냅니다. 설정의 `claudeModel`,
+   `claudePermissionMode`가 있으면 `--model`, `--permission-mode`를 더하고, 없으면 사용자 Claude 설정을 따릅니다.
+4. 재개는 transcript가 있으면 `--resume <uuid>`, 없으면 같은 id로 `--session-id`입니다. 시작 시 자동 재개
+   (`autoResumeOnStartup`)도 탭 provider의 `buildResumeCommand`를 씁니다.
+5. 탭을 닫으면 provider `cleanupTab`이 탭 설정 파일을 지웁니다.
+
+Claude Code는 `--settings`를 사용자·project 설정 위에 합칩니다. Hook은 모든 단계가 합쳐져 사용자 hook도 함께 돌고,
+statusLine은 단일 값이라 agentmux script가 사용자 statusLine 명령을 대신 실행해 그 출력을 보여 줍니다.
+
+권한 요청과 folder trust:
+
+- 권한 요청 화면은 Codex와 같이 `GET /api/tmux/permission-options`가 pane 캡처에서 선택지를 읽고, 웹 카드가
+  `POST /api/tmux/send-input`으로 번호를 보냅니다. Claude 문구("No, and tell Claude what to do differently")는 Codex
+  문구로 바꾸지 않습니다. `promptType`은 기존 분류 규칙을 따릅니다. "Bash command" header가 있는 Claude 화면은
+  `command`, Write의 "Create file" 화면은 `file`(live smoke 확인), 맞는 규칙이 없는 화면(header 없는 "Do you want to
+  proceed?")은 `unknown`입니다.
+- Folder trust 화면("Quick safety check", "Accessing workspace:" 다음 줄의 경로, 번호 없는 "No, exit"와 "Yes, I trust
+  this folder")은 client가 xterm 화면에서 `matchTrustPrompt`로 감지해 탭별 카드를 띄웁니다. "신뢰"는 화살표와
+  Enter, "종료"는 Esc를 보냅니다. 응답 직후 1초 동안은 같은 탭에서 카드를 다시 띄우지 않습니다.
+
 ## 런타임 v2 터미널
 
 Runtime v2 Terminal Worker는 `ITerminalRuntimeAdapter`를 통해 구현을 선택합니다.
@@ -159,6 +191,10 @@ Codex 감지는 terminal runtime metadata, process tree, Codex JSONL을 함께 �
 | `detectActiveCodexSession(panePid)` | 실행 중인 Codex session metadata 감지 |
 | `watchCodexSessions(panePid, cb)` | Codex session start/stop watch |
 
+Claude Code 감지는 `src/lib/providers/claude/session-detection.ts`의 `isClaudeRunning`, `detectActiveClaudeSession`,
+`watchClaudeSessions`가 맡습니다. Session id는 `~/.claude/sessions/<pid>.json`, process 인자, cwd transcript
+directory의 최신 JSONL 순으로 찾습니다(`STATUS.md` "Session 다시 묶기").
+
 Windows path에서는 Windows process inspector와 local `.codex/sessions` JSONL mapping smoke를 기준으로 삼습니다.
 
 ## 타임라인 WebSocket
@@ -174,7 +210,7 @@ DIFF 패널은 workspace/tab cwd를 기준으로 Git snapshot을 읽습니다. �
 1. Strict config/auth bootstrap과 startup loopback restriction을 확정합니다.
 2. Legacy tmux fallback 또는 runtime v2 adapter를 준비하고, `scanSessions()` 직후(`initWorkspaceStore()`가 누락된 session을 재생성하기 전) `listSessions()`로 시작 시점에 이미 존재하던 tmux session 집합(`preexistingSessions`)을 기록합니다.
 3. Generic terminal route와 typed install route를 분리해 등록합니다.
-4. Workspace/layout state를 읽고, `autoResumeOnStartup({ preexistingSessions })`는 시작 시점에 없던 tmux session에 대해서만 Codex resume 명령을 보냅니다(이미 살아 있던 session은 재개 명령을 보내지 않으며, `/api/tmux/reset` 경로는 빈 집합을 전달해 전체 재개합니다).
+4. Workspace/layout state를 읽고, `autoResumeOnStartup({ preexistingSessions })`는 시작 시점에 없던 tmux session에 대해서만 탭 provider(Codex, Claude Code)의 resume 명령을 보냅니다(이미 살아 있던 session은 재개 명령을 보내지 않으며, `/api/tmux/reset` 경로는 빈 집합을 전달해 전체 재개합니다).
 5. Runtime v2가 켜져 있으면 stale/ready terminal tab을 reconcile합니다.
 
 ## 관련 파일

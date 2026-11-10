@@ -30,7 +30,8 @@ user의 Node.js `os.homedir()`입니다. Codex CLI의 원본 session JSONL은
 ├── backups/
 ├── hooks.json
 ├── status-hook.cjs
-├── statusline.sh
+├── statusline.cjs
+├── claude-tabs/{tabId}.json
 ├── rate-limits.json
 ├── session-history.json
 ├── session-index.json
