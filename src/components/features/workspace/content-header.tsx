@@ -104,6 +104,7 @@ const ContentHeader = ({
   const panelButtons: Array<{ value: TPanelType; label: string; mac?: string; other?: string }> = [
     { value: 'terminal', label: 'TERMINAL', mac: '⌘⇧T', other: '^⇧T' },
     { value: 'codex', label: 'CODEX' },
+    { value: 'claude', label: 'CLAUDE' },
     { value: 'diff', label: 'DIFF', mac: '⌘⇧F', other: '^⇧F' },
   ];
 
@@ -126,12 +127,13 @@ const ContentHeader = ({
               <div key={item.value} className="relative">
                 <button
                   className={cn(
-                    'rounded px-1.5 py-0.5 text-[10px] font-medium tracking-wide transition-colors',
+                    'w-[3.75rem] rounded px-1.5 py-0.5 text-center text-[10px] font-medium tracking-wide transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                     activePanelType === item.value
                       ? 'bg-accent text-foreground'
                       : 'text-muted-foreground/60 hover:text-muted-foreground',
                   )}
                   onClick={() => handlePanelSwitch(item.value)}
+                  aria-pressed={activePanelType === item.value}
                 >
                   {item.label}
                 </button>

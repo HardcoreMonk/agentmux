@@ -18,7 +18,7 @@ export const KNOWN_PROCESSES: ReadonlySet<string> = new Set([
   'mysql', 'psql', 'mongo', 'redis', 'sqlite',
   'tmux', 'screen', 'sudo', 'bat', 'gpg', 'openssl',
   'zip', 'unzip', 'jest',
-  'codex',
+  'codex', 'claude',
 ]);
 
 export const hasProcessIcon = (processName: string | null | undefined): boolean => {

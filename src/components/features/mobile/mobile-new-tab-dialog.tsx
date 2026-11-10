@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Terminal, GitCompareArrows } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Spinner from '@/components/ui/spinner';
-import OpenAIIcon from '@/components/icons/openai-icon';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
+import { AGENT_NEW_TAB_ITEMS } from '@/lib/agent-new-tab-items';
 import {
   Dialog,
   DialogContent,
@@ -21,16 +22,22 @@ const MobileNewTabDialog = ({ open, onOpenChange, onCreateTab }: IMobileNewTabDi
   const tm = useTranslations('mobile');
   const [creatingKey, setCreatingKey] = useState<string | null>(null);
 
-  const MENU_ITEMS = [
-    { key: 'codex-new', type: 'codex' as const, icon: <OpenAIIcon className="h-5 w-5 text-muted-foreground" />, label: 'Codex', startCodex: true },
-    { key: 'terminal', type: 'terminal' as const, icon: <Terminal className="h-5 w-5 text-muted-foreground" />, label: 'Terminal' },
-    { key: 'diff', type: 'diff' as const, icon: <GitCompareArrows className="h-5 w-5 text-muted-foreground" />, label: 'Diff' },
-  ] as const;
+  const MENU_ITEMS: Array<{ key: string; type: TPanelType; icon: React.ReactNode; label: string; startAgent?: boolean }> = [
+    ...AGENT_NEW_TAB_ITEMS.map((item) => ({
+      key: item.key,
+      type: item.type as TPanelType,
+      icon: <AgentProviderIcon panelType={item.type} className="h-5 w-5 text-muted-foreground" />,
+      label: item.label,
+      startAgent: true,
+    })),
+    { key: 'terminal', type: 'terminal', icon: <Terminal className="h-5 w-5 text-muted-foreground" />, label: 'Terminal' },
+    { key: 'diff', type: 'diff', icon: <GitCompareArrows className="h-5 w-5 text-muted-foreground" />, label: 'Diff' },
+  ];
 
   const handleSelect = async (item: (typeof MENU_ITEMS)[number]) => {
     setCreatingKey(item.key);
-    if ('startCodex' in item && item.startCodex) {
-      await onCreateTab(item.type, { command: 'codex-new' });
+    if (item.startAgent) {
+      await onCreateTab(item.type, { command: item.key });
     } else {
       await onCreateTab(item.type);
     }

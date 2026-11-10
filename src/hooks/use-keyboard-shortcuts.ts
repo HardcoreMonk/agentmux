@@ -151,6 +151,7 @@ const useKeyboardShortcuts = ({
 
   useBoundHotkey('view.mode_terminal', () => switchMode('terminal'), enabled);
   useBoundHotkey('view.mode_codex', () => switchMode('codex'), enabled);
+  useBoundHotkey('view.mode_claude', () => switchMode('claude'), enabled);
   useBoundHotkey('view.mode_diff', () => switchMode('diff'), enabled);
 };
 

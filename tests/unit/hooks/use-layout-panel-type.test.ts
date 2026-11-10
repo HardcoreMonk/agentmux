@@ -19,9 +19,10 @@ vi.mock('sonner', () => ({
   },
 }));
 
-vi.mock('@/lib/i18n', () => ({
-  t: (_namespace: string, key: string) => key,
-}));
+vi.mock('@/lib/i18n', async () => {
+  const messages = (await import('../../../messages/en/terminal.json')).default as Record<string, string>;
+  return { t: (_namespace: string, key: string) => messages[key] ?? key };
+});
 
 vi.mock('@/hooks/use-web-input', () => ({
   clearInputDraft: vi.fn(),
@@ -185,6 +186,26 @@ describe('useLayoutStore panel type switching', () => {
     const options = toastError.mock.calls[0][1] as { action: { onClick: () => void } };
     options.action.onClick();
     expect(createTab).toHaveBeenCalledWith('pane-test', 'codex', undefined, true);
+  });
+
+  it('names Claude Code in the refusal toast when a runtime v2 tab switches to CLAUDE', () => {
+    toastError.mockClear();
+    useLayoutStore.setState({ layout: createLayout('terminal', 2) });
+    const createTab = vi.fn();
+    useLayoutStore.setState({ createTabInPane: createTab });
+
+    useLayoutStore.getState().updateTabPanelType('pane-test', 'tab-agent', 'claude');
+
+    const pane = useLayoutStore.getState().layout?.root;
+    if (pane?.type !== 'pane') throw new Error('pane fixture missing');
+    expect(pane.tabs[0].panelType).toBe('terminal');
+    expect(toastError).toHaveBeenCalledTimes(1);
+    expect(toastError.mock.calls[0][0]).toContain('Claude Code');
+    expect(toastError.mock.calls[0][0]).not.toContain('{agent}');
+    const options = toastError.mock.calls[0][1] as { action: { label: string; onClick: () => void } };
+    expect(options.action.label).toContain('Claude Code');
+    options.action.onClick();
+    expect(createTab).toHaveBeenCalledWith('pane-test', 'claude', undefined, true);
   });
 
   it('still switches a runtime v1 tab to an agent panel', () => {
