@@ -98,6 +98,13 @@ export const createTimelineWorkerService = (options: ICreateTimelineWorkerServic
   const sessionWatchers = new Map<string, ISessionWatch>();
   const getProvider = options.getProvider ?? getProviderByPanelType;
 
+  // Catalog indexing is best-effort background work. The catalog rejects paths
+  // outside its root (e.g. Claude transcripts), so an unobserved rejection here
+  // would crash the timeline worker process.
+  const observeCatalogFile = (jsonlPath: string): void => {
+    options.catalog?.observeFile(jsonlPath).catch(() => undefined);
+  };
+
   const ok = <TPayload>(command: IRuntimeCommand, payload: TPayload): IRuntimeReply<TPayload> =>
     createRuntimeReply({
       commandId: command.id,
@@ -177,7 +184,7 @@ export const createTimelineWorkerService = (options: ICreateTimelineWorkerServic
       limit: input.limit,
     });
     for (const session of page.sessions) {
-      if (session.jsonlPath) void options.catalog?.observeFile(session.jsonlPath);
+      if (session.jsonlPath) observeCatalogFile(session.jsonlPath);
     }
     return page;
   };
@@ -292,7 +299,7 @@ export const createTimelineWorkerService = (options: ICreateTimelineWorkerServic
           });
         }
       }
-      void options.catalog?.observeFile(watcher.jsonlPath);
+      observeCatalogFile(watcher.jsonlPath);
     } catch (err) {
       emitLiveError(watcher, 'timeline-live-parse-failed', err instanceof Error ? err.message : String(err));
     } finally {
