@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { ISessionMeta } from '@/types/timeline';
-import type { TPanelType } from '@/types/terminal';
+import type { TAgentPanelType, TPanelType } from '@/types/terminal';
 import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
+import { buildSessionListQuery } from '@/lib/session-select-action';
 
 const DEFAULT_LIMIT = 50;
 const REFRESH_RETRY_MS = 1000;
@@ -18,6 +19,7 @@ interface IUseSessionListOptions {
   enabled: boolean;
   cwd?: string;
   panelType?: TPanelType;
+  providers?: TAgentPanelType[];
 }
 
 interface IUseSessionListReturn {
@@ -36,6 +38,7 @@ const useSessionList = ({
   enabled,
   cwd,
   panelType = DEFAULT_AGENT_PANEL_TYPE,
+  providers,
 }: IUseSessionListOptions): IUseSessionListReturn => {
   const [sessions, setSessions] = useState<ISessionMeta[]>([]);
   const [total, setTotal] = useState(0);
@@ -48,7 +51,8 @@ const useSessionList = ({
 
   const isLoadingMoreRef = useRef(false);
 
-  const sessionKey = `${panelType}:${tmuxSession}:${cwd ?? ''}`;
+  const providersKey = providers?.join(',') ?? '';
+  const sessionKey = `${panelType}:${tmuxSession}:${cwd ?? ''}:${providersKey}`;
   const [prevSessionKey, setPrevSessionKey] = useState(sessionKey);
   if (sessionKey !== prevSessionKey) {
     setPrevSessionKey(sessionKey);
@@ -65,15 +69,18 @@ const useSessionList = ({
   cwdRef.current = cwd;
   const panelTypeRef = useRef(panelType);
   panelTypeRef.current = panelType;
+  const providersRef = useRef(providers);
+  providersRef.current = providers;
 
   const buildUrl = useCallback((offset: number) => {
-    const params = new URLSearchParams({
+    const params = buildSessionListQuery({
       tmuxSession,
-      limit: String(DEFAULT_LIMIT),
-      offset: String(offset),
+      limit: DEFAULT_LIMIT,
+      offset,
       panelType: panelTypeRef.current,
+      cwd: cwdRef.current,
+      providers: providersRef.current,
     });
-    if (cwdRef.current) params.set('cwd', cwdRef.current);
     return `/api/timeline/sessions?${params.toString()}`;
   }, [tmuxSession]);
 

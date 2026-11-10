@@ -3,6 +3,8 @@ import { useTranslations } from 'next-intl';
 import dayjs from 'dayjs';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { SessionRelationshipBadge } from '@/components/features/workspace/session-relationship-indicator';
 
 import type { ISessionMeta } from '@/types/timeline';
@@ -60,12 +62,13 @@ const SessionListItem = ({
   const absoluteTime = dayjs(session.lastActivityAt).format('MM/DD HH:mm');
   const relativeTime = formatRelativeTime(session.lastActivityAt, t);
   const displayMessage = session.firstMessage || t('noMessage');
+  const providerLabel = getAgentProviderMeta(session.providerId)?.label;
 
   return (
     <button
       type="button"
       className={cn(
-        'w-full cursor-pointer border-b border-border/50 py-3 pl-1 pr-4 text-left transition-colors hover:bg-agent-active/5',
+        'min-h-11 w-full cursor-pointer border-b border-border/50 py-3 pl-1 pr-4 text-left transition-colors hover:bg-agent-active/5 focus-visible:bg-agent-active/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
         isDisabled && !isResuming && 'pointer-events-none opacity-50',
         isResuming && 'bg-agent-active/5',
       )}
@@ -97,6 +100,16 @@ const SessionListItem = ({
           {displayMessage}
         </span>
         <div className="flex shrink-0 items-center gap-1.5">
+          {session.providerId && providerLabel && (
+            <span
+              data-provider={session.providerId}
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+              title={t('providerBadge', { agent: providerLabel })}
+            >
+              <AgentProviderIcon panelType={session.providerId} className="h-3 w-3 shrink-0" />
+              {providerLabel}
+            </span>
+          )}
           <SessionRelationshipBadge relationship={session.relationship} />
           <span className="text-xs text-muted-foreground">
             {t('turnCount', { count: session.turnCount })}

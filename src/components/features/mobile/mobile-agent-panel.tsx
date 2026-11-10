@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import useTimeline from '@/hooks/use-timeline';
 import useStartingPrompt from '@/hooks/use-starting-prompt';
 import useSessionList from '@/hooks/use-session-list';
+import useSessionProviderFilter from '@/hooks/use-session-provider-filter';
 import useTabStore, { selectAgentInstalled, selectAgentProcess, selectSessionView } from '@/hooks/use-tab-store';
 import useSessionMeta from '@/hooks/use-session-meta';
 import useGitBranch from '@/hooks/use-git-branch';
@@ -26,6 +27,8 @@ import {
   selectAgentPanelContentMode,
   selectAgentSessionListRenderMode,
 } from '@/lib/session-list-rendering';
+import { decideSessionSelectAction } from '@/lib/session-select-action';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import type { ISessionMeta, TCliState } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
 
@@ -45,6 +48,8 @@ interface IMobileAgentPanelProps {
   onInputVisibleChange: (visible: boolean) => void;
   onRestartSession?: () => void;
   onNewSession?: () => void;
+  // Resumes a session of another provider in this tab; resolves true when the server accepted it.
+  onResumeOtherProvider?: (session: ISessionMeta) => Promise<boolean>;
 }
 
 const MobileAgentPanel = ({
@@ -63,8 +68,10 @@ const MobileAgentPanel = ({
   onInputVisibleChange,
   onRestartSession,
   onNewSession,
+  onResumeOtherProvider,
 }: IMobileAgentPanelProps) => {
   const t = useTranslations('terminal');
+  const tSession = useTranslations('session');
   const tTimeline = useTranslations('timeline');
   const { prompts: quickPrompts } = useQuickPrompts();
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
@@ -144,6 +151,8 @@ const MobileAgentPanel = ({
 
   const view = useTabStore((s) => tabId ? selectSessionView(s.tabs, tabId) : 'session-list' as const);
 
+  const providerFilter = useSessionProviderFilter(tabId);
+
   const {
     sessions,
     total: sessionListTotal,
@@ -158,6 +167,7 @@ const MobileAgentPanel = ({
     enabled: isAgentPanel && !!sessionName && view === 'session-list',
     cwd,
     panelType,
+    providers: providerFilter.providers,
   });
 
   const prevAgentProcessRef = useRef(agentProcess);
@@ -204,6 +214,25 @@ const MobileAgentPanel = ({
   const handleSelectSession = useCallback(
     (session: ISessionMeta) => {
       if (resumingSessionId) return;
+      const action = session.providerId
+        ? decideSessionSelectAction({
+          tabPanelType: panelType,
+          itemProviderId: session.providerId,
+          agentProcess: agentProcess === true,
+        })
+        : 'open';
+      if (action === 'blocked-running') {
+        toast.warning(tSession('switchWhileRunning', {
+          agent: getAgentProviderMeta(panelType)?.label ?? panelType,
+        }));
+        return;
+      }
+      if (action === 'resume-other-provider') {
+        if (!onResumeOtherProvider) return;
+        setResumingSessionId(session.sessionId);
+        void onResumeOtherProvider(session).finally(() => setResumingSessionId(null));
+        return;
+      }
       setResumingSessionId(session.sessionId);
       if (session.jsonlPath) {
         if (openJsonlSession(session.jsonlPath, session.sessionId)) {
@@ -218,7 +247,7 @@ const MobileAgentPanel = ({
       }
       sendResume(session.sessionId, sessionName);
     },
-    [openJsonlSession, resumingSessionId, retrySession, sendResume, sessionName, tabId],
+    [agentProcess, onResumeOtherProvider, openJsonlSession, panelType, resumingSessionId, retrySession, sendResume, sessionName, tSession, tabId],
   );
 
   const handleRefreshSessions = useCallback(async () => {
@@ -291,6 +320,8 @@ const MobileAgentPanel = ({
           onRefresh={handleRefreshSessions}
           onLoadMore={loadMoreSessions}
           onNewSession={onNewSession}
+          providerFilter={providerFilter.filter}
+          onProviderFilterChange={providerFilter.setFilter}
           emptyView={<SessionEmptyView onNewSession={onNewSession} />}
         />
       </div>

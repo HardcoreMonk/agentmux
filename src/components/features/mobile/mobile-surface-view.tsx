@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, WifiOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import type { ISessionMeta } from '@/types/timeline';
 import Spinner from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -95,6 +97,7 @@ const MobileSurfaceView = ({
 }: IMobileSurfaceViewProps) => {
   const t = useTranslations('mobile');
   const tt = useTranslations('terminal');
+  const tSession = useTranslations('session');
   const activeTab = tabs.find((tab) => tab.id === activeTabId);
   const terminalEndpoint = resolveTerminalWebSocketEndpoint(activeTab);
   const isAgentPanel = isAgentPanelType(panelType);
@@ -426,6 +429,25 @@ const MobileSurfaceView = ({
     void requestAgentLaunch({ workspaceId: layoutWsId, paneId, tabId: activeTabId });
   }, [status, activeTabId, layoutWsId, paneId]);
 
+  const handleResumeOtherProvider = useCallback(async (session: ISessionMeta) => {
+    if (!layoutWsId || !activeTabId || !session.providerId) return false;
+    const ok = await requestAgentLaunch({
+      workspaceId: layoutWsId,
+      paneId,
+      tabId: activeTabId,
+      action: 'resume',
+      sessionId: session.sessionId,
+      panelType: session.providerId,
+    });
+    if (!ok) {
+      toast.error(tSession('resumeFailed'));
+      return false;
+    }
+    useLayoutStore.getState().applyTabPanelTypeLocal(paneId, activeTabId, session.providerId);
+    useTabStore.getState().setSessionView(activeTabId, 'check');
+    return true;
+  }, [layoutWsId, activeTabId, paneId, tSession]);
+
   const handleRestartAgentSession = useCallback(() => {
     if (status !== 'connected' || !activeTabId) return;
     pendingRestartRef.current = true;
@@ -547,6 +569,7 @@ const MobileSurfaceView = ({
           onInputVisibleChange={handleInputVisibleChange}
           onRestartSession={handleRestartAgentSession}
           onNewSession={handleNewAgentSession}
+          onResumeOtherProvider={handleResumeOtherProvider}
         />
       )}
 

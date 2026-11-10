@@ -1,5 +1,5 @@
 import { checkTerminalProcess, sendKeys } from '@/lib/tmux';
-import { readLayoutFile, resolveLayoutFile, updateTabAgentSession } from '@/lib/layout-store';
+import { patchTab, readLayoutFile, resolveLayoutFile, updateTabAgentSession } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { getProviderByPanelType } from '@/lib/providers';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
@@ -15,11 +15,14 @@ export interface IAgentLaunchInput {
   tabId: string;
   action: TAgentLaunchAction;
   sessionId?: string;
+  // Target agent kind. When it differs from the stored tab kind the server switches the tab.
+  panelType?: TAgentPanelType;
 }
 
 export interface IAgentLaunchResult {
   ok: boolean;
-  code?: 'tab-not-found' | 'invalid-panel' | 'unsafe-process' | 'invalid-session' | 'agent-unavailable';
+  code?: 'tab-not-found' | 'invalid-panel' | 'unsafe-process' | 'invalid-session' | 'agent-unavailable'
+    | 'runtime-v2-agent-unsupported';
   processName?: string;
 }
 
@@ -29,7 +32,7 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
   const tab = pane?.tabs.find((candidate) => candidate.id === input.tabId);
   if (!tab) return { ok: false, code: 'tab-not-found' };
 
-  const provider = getProviderByPanelType(tab.panelType);
+  const provider = getProviderByPanelType(input.panelType ?? tab.panelType);
   if (!provider) return { ok: false, code: 'invalid-panel' };
   if (input.action === 'resume' && !provider.isValidSessionId(input.sessionId)) {
     return { ok: false, code: 'invalid-session' };
@@ -48,6 +51,13 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
     }
   }
 
+  if (input.panelType && input.panelType !== tab.panelType) {
+    if (resolveTabRuntimeVersion(tab) === 2) {
+      return { ok: false, code: 'runtime-v2-agent-unsupported' };
+    }
+    await patchTab(input.workspaceId, input.paneId, input.tabId, { panelType: input.panelType });
+  }
+
   const commandOptions = {
     workspaceId: input.workspaceId,
     tabId: tab.id,
@@ -56,6 +66,8 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
   let command: string;
   if (input.action === 'resume' && input.sessionId) {
     command = await provider.buildResumeCommand(input.sessionId, commandOptions);
+    // Bind the resumed session first so status and timeline follow it (same rule as new-tab and WS resume).
+    await updateTabAgentSession(tab.sessionName, provider, { sessionId: input.sessionId, jsonlPath: null });
   } else if (input.action === 'launch' && provider.createLaunchSessionId) {
     const sessionId = provider.createLaunchSessionId();
     command = await provider.buildLaunchCommand({ ...commandOptions, sessionId });

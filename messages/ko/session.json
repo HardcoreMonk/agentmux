@@ -52,5 +52,14 @@
     "session": "세션",
     "contextHintAmber": "컨텍스트가 절반을 넘었습니다",
     "contextHintRed": "한도에 가까워졌습니다 — 압축하거나 새 세션을 시작하세요"
-  }
+  },
+  "providerFilter": {
+    "label": "에이전트별 보기",
+    "all": "전체",
+    "codex": "Codex",
+    "claude": "Claude Code"
+  },
+  "providerBadge": "에이전트: {agent}",
+  "switchWhileRunning": "{agent}가 실행 중입니다. 다른 에이전트의 세션을 재개하려면 먼저 종료하세요.",
+  "resumeFailed": "세션을 재개할 수 없습니다"
 }

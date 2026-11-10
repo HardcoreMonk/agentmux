@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import type { ISessionMeta } from '@/types/timeline';
 import { Group, Panel, Separator, type GroupImperativeHandle } from 'react-resizable-panels';
 import { ChevronDown, ChevronUp, Plus, TerminalSquare } from 'lucide-react';
 import Spinner from '@/components/ui/spinner';
@@ -89,6 +91,7 @@ const EMPTY_TABS: ITab[] = [];
 
 const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   const t = useTranslations('terminal');
+  const tSession = useTranslations('session');
 
   const pane = useLayoutStore((s) => (s.layout ? findPane(s.layout.root, paneId) : null));
   const tabs = pane?.tabs ?? EMPTY_TABS;
@@ -699,6 +702,25 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     void requestAgentLaunch({ workspaceId: layoutWsId, paneId, tabId: activeTabId });
   }, [status, activeTabId, layoutWsId, paneId]);
 
+  const handleResumeOtherProvider = useCallback(async (session: ISessionMeta) => {
+    if (!layoutWsId || !activeTabId || !session.providerId) return false;
+    const ok = await requestAgentLaunch({
+      workspaceId: layoutWsId,
+      paneId,
+      tabId: activeTabId,
+      action: 'resume',
+      sessionId: session.sessionId,
+      panelType: session.providerId,
+    });
+    if (!ok) {
+      toast.error(tSession('resumeFailed'));
+      return false;
+    }
+    useLayoutStore.getState().applyTabPanelTypeLocal(paneId, activeTabId, session.providerId);
+    useTabStore.getState().setSessionView(activeTabId, 'check');
+    return true;
+  }, [layoutWsId, activeTabId, paneId, tSession]);
+
   const handleRestartAgentSession = useCallback(() => {
     if (status !== 'connected' || !activeTabId) return;
     pendingRestartRef.current = true;
@@ -922,6 +944,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   cwd={activeTabCwd || activeTab.cwd}
                   onClose={() => handleSwitchPanelType('terminal')}
                   onNewSession={handleNewAgentSession}
+                  onResumeOtherProvider={handleResumeOtherProvider}
                   scrollToBottomRef={scrollToBottomRef}
                   addPendingMessageRef={addPendingMessageRef}
                   removePendingMessageRef={removePendingMessageRef}

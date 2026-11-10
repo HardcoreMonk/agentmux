@@ -11,12 +11,14 @@ const mocks = vi.hoisted(() => ({
   updateTabAgentSession: vi.fn(),
   buildClaudeLaunchCommand: vi.fn(),
   createLaunchSessionId: vi.fn(),
+  patchTab: vi.fn(),
 }));
 
 vi.mock('@/lib/layout-store', () => ({
   readLayoutFile: mocks.readLayoutFile,
   resolveLayoutFile: (workspaceId: string) => `/layout/${workspaceId}.json`,
   updateTabAgentSession: mocks.updateTabAgentSession,
+  patchTab: mocks.patchTab,
 }));
 vi.mock('@/lib/tmux', () => ({
   checkTerminalProcess: mocks.checkTerminalProcess,
@@ -84,6 +86,7 @@ describe('launchAgentInTab', () => {
     mocks.checkTerminalProcess.mockResolvedValue({ isSafe: true, processName: 'bash' });
     mocks.buildLaunchCommand.mockResolvedValue('codex -c hooks');
     mocks.updateTabAgentSession.mockResolvedValue(undefined);
+    mocks.patchTab.mockResolvedValue({});
     mocks.createLaunchSessionId.mockReturnValue('session-claude-1');
     mocks.buildClaudeLaunchCommand.mockImplementation(async (options: { sessionId?: string }) =>
       `claude --session-id ${options.sessionId}`);
@@ -159,7 +162,13 @@ describe('launchAgentInTab', () => {
     })).resolves.toEqual({ ok: true });
 
     expect(mocks.createLaunchSessionId).not.toHaveBeenCalled();
-    expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
+    // Resume binds the session first, like the new-tab and WS resume paths.
+    expect(mocks.updateTabAgentSession).toHaveBeenCalledWith(
+      'pt-ws-a-pane-a-tab-a',
+      claudeTestProvider,
+      { sessionId: 'session-old', jsonlPath: null },
+    );
+    expect(mocks.patchTab).not.toHaveBeenCalled();
     expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'claude --resume session-old');
   });
 
@@ -218,5 +227,69 @@ describe('launchAgentInTab', () => {
     await expect(launchAgentInTab({
       workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch',
     })).resolves.toEqual({ ok: true });
+  });
+
+  describe('switching provider on resume', () => {
+    const resumeInput = {
+      workspaceId: 'ws-a',
+      paneId: 'pane-a',
+      tabId: 'tab-a',
+      action: 'resume' as const,
+      sessionId: 'session-old',
+    };
+
+    it('patches the tab, binds the session, then sends the target provider resume command', async () => {
+      mocks.readLayoutFile.mockResolvedValue(layout(1, 'codex'));
+      mocks.buildResumeCommand.mockResolvedValue('claude --resume session-old');
+      await expect(launchAgentInTab({ ...resumeInput, panelType: 'claude' })).resolves.toEqual({ ok: true });
+
+      expect(mocks.patchTab).toHaveBeenCalledWith('ws-a', 'pane-a', 'tab-a', { panelType: 'claude' });
+      expect(mocks.updateTabAgentSession).toHaveBeenCalledWith(
+        'pt-ws-a-pane-a-tab-a',
+        claudeTestProvider,
+        { sessionId: 'session-old', jsonlPath: null },
+      );
+      expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'claude --resume session-old');
+      const patchedAt = mocks.patchTab.mock.invocationCallOrder[0];
+      const boundAt = mocks.updateTabAgentSession.mock.invocationCallOrder[0];
+      expect(patchedAt).toBeLessThan(boundAt);
+      expect(boundAt).toBeLessThan(mocks.sendKeys.mock.invocationCallOrder[0]);
+    });
+
+    it('binds the session before sending even when the provider stays the same', async () => {
+      mocks.readLayoutFile.mockResolvedValue(layout(1, 'codex'));
+      mocks.buildResumeCommand.mockResolvedValue('codex resume session-old');
+      await expect(launchAgentInTab({ ...resumeInput, panelType: 'codex' })).resolves.toEqual({ ok: true });
+      expect(mocks.patchTab).not.toHaveBeenCalled();
+      expect(mocks.updateTabAgentSession.mock.invocationCallOrder[0])
+        .toBeLessThan(mocks.sendKeys.mock.invocationCallOrder[0]);
+    });
+
+    it('rejects a provider switch on a Runtime v2 tab without side effects', async () => {
+      mocks.readLayoutFile.mockResolvedValue(layout(2, 'codex'));
+      await expect(launchAgentInTab({ ...resumeInput, panelType: 'claude' }))
+        .resolves.toMatchObject({ ok: false, code: 'runtime-v2-agent-unsupported' });
+      expect(mocks.patchTab).not.toHaveBeenCalled();
+      expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
+      expect(mocks.sendKeys).not.toHaveBeenCalled();
+      expect(mocks.writeTerminalSession).not.toHaveBeenCalled();
+    });
+
+    it('does not change the tab when an unsafe process is running', async () => {
+      mocks.readLayoutFile.mockResolvedValue(layout(1, 'codex'));
+      mocks.checkTerminalProcess.mockResolvedValue({ isSafe: false, processName: 'codex' });
+      await expect(launchAgentInTab({ ...resumeInput, panelType: 'claude' }))
+        .resolves.toMatchObject({ ok: false, code: 'unsafe-process' });
+      expect(mocks.patchTab).not.toHaveBeenCalled();
+      expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
+    });
+
+    it('validates the session id against the target provider before patching', async () => {
+      mocks.readLayoutFile.mockResolvedValue(layout(1, 'codex'));
+      await expect(launchAgentInTab({ ...resumeInput, sessionId: 'bad-id', panelType: 'claude' }))
+        .resolves.toMatchObject({ ok: false, code: 'invalid-session' });
+      expect(mocks.patchTab).not.toHaveBeenCalled();
+      expect(mocks.sendKeys).not.toHaveBeenCalled();
+    });
   });
 });

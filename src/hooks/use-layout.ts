@@ -114,6 +114,8 @@ interface ILayoutState {
   removeTabLocally: (paneId: string, tabId: string) => void;
   equalizeRatios: () => void;
   updateTabPanelType: (paneId: string, tabId: string, panelType: TPanelType) => void;
+  // Local-only sync after the server already stored the new panelType (no PATCH).
+  applyTabPanelTypeLocal: (paneId: string, tabId: string, panelType: TPanelType) => void;
   updateTabTerminalLayout: (paneId: string, tabId: string, patch: { terminalRatio?: number; terminalCollapsed?: boolean }) => void;
   clearLayout: () => void;
   focusTab: (tabId: string) => boolean;
@@ -633,6 +635,14 @@ const useLayoutStore = create<ILayoutState>((set, get) => ({
     });
   },
 
+  applyTabPanelTypeLocal: (paneId, tabId, panelType) => {
+    applyPaneUpdate(set, get, paneId, (pane) => ({
+      ...pane,
+      tabs: pane.tabs.map((t) => (t.id === tabId ? { ...t, panelType } : t)),
+    }));
+    useTabStore.getState().setPanelType(tabId, panelType);
+  },
+
   updateTabTerminalLayout: (paneId, tabId, patch) => {
     applyPaneUpdate(set, get, paneId, (pane) => ({
       ...pane,
@@ -878,6 +888,7 @@ const useLayout = ({ workspaceId, onFetchError }: { workspaceId: string | null; 
     removeTabLocally: s.removeTabLocally,
     equalizeRatios: s.equalizeRatios,
     updateTabPanelType: s.updateTabPanelType,
+    applyTabPanelTypeLocal: s.applyTabPanelTypeLocal,
     clearLayout: s.clearLayout,
     fetchLayout: s.fetchLayout,
     focusTab: s.focusTab,

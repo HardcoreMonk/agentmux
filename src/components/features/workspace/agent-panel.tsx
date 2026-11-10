@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import useTimeline from '@/hooks/use-timeline';
 import useSessionList from '@/hooks/use-session-list';
+import useSessionProviderFilter from '@/hooks/use-session-provider-filter';
 import useStartingPrompt from '@/hooks/use-starting-prompt';
 import useTabStore, { selectAgentInstalled, selectAgentProcess, selectSessionView } from '@/hooks/use-tab-store';
 import { useSessionMetaCompute } from '@/hooks/use-session-meta';
@@ -15,6 +16,8 @@ import TimelineView from '@/components/features/timeline/timeline-view';
 import SessionMetaBar, { SessionMetaBarSkeleton } from '@/components/features/workspace/session-meta-bar';
 import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
 import { selectAgentSessionListRenderMode } from '@/lib/session-list-rendering';
+import { decideSessionSelectAction } from '@/lib/session-select-action';
+import { getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import type { ISessionMeta } from '@/types/timeline';
 import type { TPanelType } from '@/types/terminal';
 
@@ -27,6 +30,8 @@ interface IAgentPanelProps {
   className?: string;
   onClose?: () => void;
   onNewSession?: () => void;
+  // Resumes a session of another provider in this tab; resolves true when the server accepted it.
+  onResumeOtherProvider?: (session: ISessionMeta) => Promise<boolean>;
   scrollToBottomRef?: React.MutableRefObject<(() => void) | undefined>;
   addPendingMessageRef?: React.MutableRefObject<((text: string, options?: { autoHide?: boolean; attachmentPlaceholder?: boolean }) => string) | undefined>;
   removePendingMessageRef?: React.MutableRefObject<((id: string) => void) | undefined>;
@@ -41,11 +46,13 @@ const AgentPanel = ({
   className,
   onClose,
   onNewSession,
+  onResumeOtherProvider,
   scrollToBottomRef,
   addPendingMessageRef,
   removePendingMessageRef,
 }: IAgentPanelProps) => {
   const t = useTranslations('terminal');
+  const tSession = useTranslations('session');
   const tTimeline = useTranslations('timeline');
   const [resumingSessionId, setResumingSessionId] = useState<string | null>(null);
 
@@ -126,6 +133,8 @@ const AgentPanel = ({
     getCliState: () => useTabStore.getState().tabs[tabId]?.cliState,
   });
 
+  const providerFilter = useSessionProviderFilter(tabId);
+
   const {
     sessions,
     total: sessionListTotal,
@@ -140,6 +149,7 @@ const AgentPanel = ({
     enabled: isAgentPanel && !!sessionName && view === 'session-list',
     cwd,
     panelType,
+    providers: providerFilter.providers,
   });
 
   useEffect(() => {
@@ -186,6 +196,25 @@ const AgentPanel = ({
   const handleSelectSession = useCallback(
     (session: ISessionMeta) => {
       if (resumingSessionId) return;
+      const action = session.providerId
+        ? decideSessionSelectAction({
+          tabPanelType: panelType,
+          itemProviderId: session.providerId,
+          agentProcess: agentProcess === true,
+        })
+        : 'open';
+      if (action === 'blocked-running') {
+        toast.warning(tSession('switchWhileRunning', {
+          agent: getAgentProviderMeta(panelType)?.label ?? panelType,
+        }));
+        return;
+      }
+      if (action === 'resume-other-provider') {
+        if (!onResumeOtherProvider) return;
+        setResumingSessionId(session.sessionId);
+        void onResumeOtherProvider(session).finally(() => setResumingSessionId(null));
+        return;
+      }
       setResumingSessionId(session.sessionId);
       if (session.jsonlPath) {
         if (openJsonlSession(session.jsonlPath, session.sessionId)) {
@@ -198,7 +227,7 @@ const AgentPanel = ({
       }
       sendResume(session.sessionId, sessionName);
     },
-    [openJsonlSession, resumingSessionId, retrySession, sendResume, sessionName, tabId],
+    [agentProcess, onResumeOtherProvider, openJsonlSession, panelType, resumingSessionId, retrySession, sendResume, sessionName, tSession, tabId],
   );
 
   const handleRefreshSessions = useCallback(async () => {
@@ -281,6 +310,8 @@ const AgentPanel = ({
           onRefresh={handleRefreshSessions}
           onLoadMore={loadMoreSessions}
           onNewSession={onNewSession}
+          providerFilter={providerFilter.filter}
+          onProviderFilterChange={providerFilter.setFilter}
           emptyView={<SessionEmptyView onClose={onClose} onNewSession={onNewSession} />}
         />
       </div>
