@@ -2,13 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Codex만 전제하던 server·runtime·client 분기를 provider 계약과 agent 종류 집합 뒤로 옮기고, Runtime v2 탭의 화면 캡처·key 입력 결함을 고친다. Codex 동작은 바뀌지 않는다.
+**Goal:** Codex만 전제하던 server·runtime·client 분기를 provider 계약과 agent 종류 집합 뒤로 옮기고, agent 탭을 terminal v2 mode와 관계없이 Runtime v1(legacy tmux adapter) 탭으로 만든다. 그 밖의 Codex 동작은 바뀌지 않는다.
 
-**Architecture:** Agent 종류는 `src/types/terminal.ts`의 `TAgentPanelType`과 `src/lib/panel-type.ts`의 `AGENT_PANEL_TYPES`가 정한다. Provider별 차이는 `IAgentProvider`의 새 status 동작 flag, `readJsonlStatus`, `jsonlRoots`가 맡고, 화면 쪽 차이는 server module을 import하지 않는 `src/lib/agent-provider-meta.ts` 표가 맡는다. Runtime v2 탭의 화면 캡처와 key 입력은 terminal worker IPC(`terminal.capture-pane`, `terminal.send-keys`)를 거치고, main process는 `src/lib/session-terminal-ops.ts`가 session 이름(`rtv2-` prefix)으로 v1/v2 경로를 고른다.
+**Architecture:** Agent 종류는 `src/types/terminal.ts`의 `TAgentPanelType`과 `src/lib/panel-type.ts`의 `AGENT_PANEL_TYPES`가 정한다. Provider별 차이는 `IAgentProvider`의 새 status 동작 flag, `readJsonlStatus`, `jsonlRoots`가 맡고, 화면 쪽 차이는 server module을 import하지 않는 `src/lib/agent-provider-meta.ts` 표가 맡는다. 탭 생성 API는 plain terminal 탭만 Runtime v2로 만들고 agent 탭은 v1으로 만든다(v2 agent 탭은 hook·상태 감시·timeline·storage가 동작하지 않아서다. spec 1절).
 
 **Tech Stack:** TypeScript, Next.js Pages Router custom server, zod IPC schema, vitest, tmux.
 
-**Spec:** `docs/superpowers/specs/2026-11-10-claude-code-provider-design.md` (1절 "Provider 계약 확장", "탭 단위 terminal 작업의 runtime 구분", "단계와 배포" 1번)
+**Spec:** `docs/superpowers/specs/2026-11-10-claude-code-provider-design.md` (1절 "Provider 계약 확장"과 "Agent 탭은 옛 terminal 경로로 만든다", "단계와 배포" 1번)
+
+**Plan review:** `docs/superpowers/reviews/2026-11-10-claude-code-provider-phase1-eng-review.md`
 
 ## 단계 1 범위
 
@@ -20,18 +22,19 @@ Spec 1절의 provider 책임 중 이 단계에서 경계를 만드는 것과 뒤
 | Agent 종류 집합, IPC panelType schema | 1 (Task 1) |
 | 상태 판정 전략(flag), JSONL 상태 읽기 | 1 (Task 2) |
 | JSONL 경로 허용 root, 기본 agent 종류 | 1 (Task 3) |
-| 실행 서비스·탭 생성 API의 agent 일반화, hook capability 공용화 | 1 (Task 4) |
-| Runtime v2 화면 캡처·key 입력 | 1 (Task 5, 6) |
-| Client provider metadata 표, 기존 문구 버그 | 1 (Task 7) |
+| 실행 서비스·탭 생성 API의 agent 일반화, agent 탭 v1 생성, hook capability 공용화 | 1 (Task 4) |
+| Client provider metadata 표, 기존 문구 버그 | 1 (Task 5) |
 | Preflight provider별 상태, rate limit provider별 store, hook bridge stdin 전달 | 2 |
 | Session Catalog provider column과 projector, 세션 목록, stats 수집, catalog annotation(`supervisor.ts:945`), storage legacy import(`storage-import.ts:90`), `api/sessions/[sessionId]/entries.ts:23` | 3 |
-| 위임 안내 주입, CLI의 v2 탭 지원 | 4 |
+| 위임 안내 주입, CLI의 v2 terminal 탭 지원(Runtime v2 terminal worker 화면 캡처 명령 포함) | 4 |
+| Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력) | 이 설계 범위 밖 후속 |
 
 ## Global Constraints
 
-- Codex 탭의 상태 판정, timeline, resume, rate limit은 바뀌지 않는다. 예외는 Runtime v2 탭의 화면 캡처·원시 key 입력 수정뿐이다.
+- Codex 탭의 상태 판정, timeline, resume, rate limit은 바뀌지 않는다. 예외는 `new-tabs` mode에서 새 Codex 탭이 v2 대신 v1으로 만들어지는 것뿐이다.
 - 사용자 `~/.claude/`, `~/.codex/` 파일을 읽거나 고치지 않는다(이 단계에는 해당 코드가 없다).
-- Runtime v2 tmux socket `codexmux-runtime-v2`는 Terminal Worker 전용이다(`docs/TMUX.md`). Main process는 v2 session을 supervisor IPC로만 다룬다.
+- Runtime v2 tmux socket `codexmux-runtime-v2`는 Terminal Worker 전용이다(`docs/TMUX.md`). 이 단계는 그 socket을 직접 다루는 코드를 더하지 않는다.
+- Runtime v2 status IPC의 `statusBehavior` wire schema(`runtime/ipc.ts:483-486`, strict 2-key)는 바꾸지 않는다.
 - Hook capability 형식(`v: 1`, `{ v, tabId, sessionName, expiresAt }`, HMAC-SHA256 base64url, CLI token 서명)은 바꾸지 않는다. 배포 전에 띄운 Codex session의 capability가 계속 검증되어야 한다.
 - `AGENTS.md` 규칙: Pages Router, `"use client"` 금지, `@/` import, 소문자-dash 파일명, arrow function, interface `I`·type `T` 접두사, `pgrep`/`ps`/`lsof` 직접 호출 금지, 공유 singleton은 `globalThis` guard.
 - DOM-safe frontend: `innerHTML`, `dangerouslySetInnerHTML`, `document.write` 금지.
@@ -41,11 +44,11 @@ Spec 1절의 provider 책임 중 이 단계에서 경계를 만드는 것과 뒤
 
 ## Review Focus
 
-1. Runtime v2 탭(`rtv2-…`)에 권한 요청이 떠 있을 때 웹 카드가 선택지를 읽고, 선택하면 그 v2 session에 key가 들어간다 → Task 6 `permission-options-api.test.ts`, `send-input-api.test.ts`의 v2 case.
-2. 옛 탭(`pt-ws-…`)은 계속 옛 socket 경로를 쓰고 supervisor를 부르지 않는다 → Task 6 `session-terminal-ops.test.ts`의 routing case.
-3. Windows terminal runtime처럼 캡처를 지원하지 않는 runtime에서 API가 500으로 죽지 않고 빈 선택지(`captureEmpty: true`)를 돌려준다 → Task 5 worker `runtime-v2-terminal-unsupported`, Task 6 null 처리 case.
+1. `AGENTMUX_RUNTIME_TERMINAL_V2_MODE=new-tabs`에서 새 탭 메뉴로 Codex 탭을 만들면 v1 탭(`pt-…` session)이 만들어지고 Codex가 시작된다. Plain terminal 탭은 여전히 v2로 만들어진다 → Task 4 `layout-tabs-api.test.ts`.
+2. 배포 전에 띄운 Codex session이 들고 있는 hook capability가 배포 뒤에도 검증된다(형식·서명 불변) → Task 4 `agent-hooks.test.ts`의 고정 payload case.
+3. Runtime v2 status worker가 받는 2-key `statusBehavior` payload가 그대로 parse되고 hook reducer와 side-effect policy에 쓰인다 → Task 2 `status-worker-service.test.ts`, `runtime/ipc.test.ts` 기존 case 유지 확인.
 4. 허용 root 밖 JSONL 경로(`~/.codex/sessions/../x.jsonl`, 다른 확장자, root 자체)는 root 계산 방식이 바뀐 뒤에도 거절된다 → Task 3 `providers-jsonl-paths.test.ts`.
-5. 옛 layout이나 API 입력에 등록되지 않은 agent 종류(예: `claude`)가 오면 throw하지 않고 `terminal`로 정규화된다 → Task 1 `panel-type.test.ts`, Task 4 `layout-tabs-api.test.ts`.
+5. 옛 layout이나 API 입력에 등록되지 않은 agent 종류(예: `claude`)가 오면 throw하지 않고 `terminal`로 정규화되어 저장된다 → Task 1 `panel-type.test.ts`, Task 4 `layout-tabs-api.test.ts`.
 
 ---
 
@@ -114,21 +117,26 @@ Expected: PASS, tsc 0 errors
 - Modify: `src/lib/providers/types.ts`, `src/lib/providers/codex/index.ts`
 - Modify: `src/lib/status-manager.ts:210-230, 528-536, 679-681, 1335-1345, 1363-1390`
 - Modify: `src/lib/status/jsonl-reconciliation-service.ts:4-30`, `src/lib/status/poll-tab-reconciliation.ts:55-61`, `src/lib/status/poll-recovery-service.ts:55-63`, `src/lib/status/scan-tab-bootstrap.ts:84-86`, `src/lib/status/poll-created-tab-bootstrap.ts:82`, `src/lib/status/pane-recovery-service.ts:29, 46, 72, 105`
-- Test: 아래 각 service의 기존 test 파일, `tests/unit/lib/providers.test.ts`
+- Modify: `src/lib/status-state-machine.ts:20`, `src/lib/status-side-effect-policy.ts:12` (입력 type만)
+- Modify: `src/lib/timeline/resume-session-service.ts:35-100`, `src/lib/timeline-server.ts:130` (`checkJsonlState: checkCodexJsonlState` 주입 제거)
+- Test: 아래 각 service의 기존 test 파일, resume session service의 기존 test 파일, `tests/unit/lib/providers.test.ts`
 
 **Interfaces:**
 - Consumes: Task 1 없음(독립)
 - Produces:
   - `IAgentProviderStatusBehavior`에 `readonly reconcileStateFromJsonl: boolean;`, `readonly recoverPaneInput: boolean;` 추가. Codex 값은 둘 다 `true`(기존 `watchJsonlWhenBound: true`, `deferStopHookUntilJsonlIdle: true` 유지).
-  - `src/lib/status/jsonl-check.ts`: `export interface IJsonlCheckResult` (기존 필드 그대로), `export interface IAgentJsonlStatus extends IJsonlCheckResult { rateLimits?: IRateLimitsData | null }`, `export const checkJsonlIdle = (jsonlPath: string): Promise<IJsonlCheckResult>`, `export const emptyJsonlCheckResult = (): IJsonlCheckResult`
+  - Runtime v2 status IPC의 `statusBehavior` schema(`runtime/ipc.ts:483-486`, strict 2-key)는 그대로 둔다. Hook reducer와 side-effect policy는 그 두 key만 쓰므로 입력 type을 `export type TAgentHookStatusBehavior = Pick<IAgentProviderStatusBehavior, 'watchJsonlWhenBound' | 'deferStopHookUntilJsonlIdle'>`(`providers/types.ts`)로 바꾼다. 2-key literal을 쓰는 기존 test는 그대로 compile되어야 한다.
+  - `src/lib/status/jsonl-check.ts`: `export interface IJsonlCheckResult` (기존 필드 그대로), `export interface IAgentJsonlStatus extends IJsonlCheckResult { rateLimits?: IRateLimitsData | null }`, `export const checkJsonlIdle = (jsonlPath: string): Promise<IJsonlCheckResult>`, `export const emptyJsonlCheckResult = (): IJsonlCheckResult`, `export const clearJsonlCheckCache = (jsonlPath: string): void` (`status-manager.ts:356,1147`의 `jsonlIdleCache.delete` 대체)
   - `IAgentProvider.readJsonlStatus(jsonlPath: string): Promise<IAgentJsonlStatus>`. Codex 구현은 지금 `checkProviderJsonlIdle`의 Codex 분기(`checkCodexJsonlState` → 필드 대응, `staleMs: 0`, `rateLimits`)다.
   - Service 입력 변경(`providerId` 대신 flag):
     - `shouldKeepStatusJsonlWatch({ cliState, watchJsonlWhenBound }: { cliState: TCliState; watchJsonlWhenBound: boolean })`
     - `resolveStatusInitialCliState({ persistedState, reconcileStateFromJsonl, detected })`
     - `recoverStatusPollPaneInput({ recoverPaneInput, running, recoverPending, recoverInterrupted })`
-    - scan/poll-created bootstrap 입력의 `providerId`를 `statusBehavior: IAgentProviderStatusBehavior | null`로 바꾸고, `shouldStartJsonlWatch`는 `watchJsonlWhenBound`, `shouldRecoverPaneInput`은 `recoverPaneInput`으로 판정
+    - scan/poll-created bootstrap 입력의 `providerId`를 `statusBehavior: IAgentProviderStatusBehavior | null`로 바꾸고, `shouldStartJsonlWatch`는 `watchJsonlWhenBound`, scan bootstrap의 `shouldRecoverPaneInput`은 `recoverPaneInput`으로 판정
+    - poll-created bootstrap에는 `shouldRecoverPaneInput`이 없으므로 `shouldStartJsonlWatch`만 바뀐다
     - `pane-recovery-service` dependency `getProviderId`를 `getStatusBehavior?: (entry: ITabStatusEntry) => IAgentProviderStatusBehavior | null`로 바꾸고, 지원하지 않으면 `{ recovered: false, reason: 'not-supported' }`(기존 `'not-codex'` 대체)
   - `status-manager.ts` 대응: `checkProviderJsonlIdle`은 `provider.readJsonlStatus` 호출 + `rateLimits`가 있으면 `onRateLimits`. `reconcileCodexState`의 Codex 판정은 `statusBehavior.reconcileStateFromJsonl`. 679행 watch 시작은 `watchJsonlWhenBound`. 1335행 block은 watch 시작을 `watchJsonlWhenBound`, 상태 확인·merge·reconcile·broadcast를 `reconcileStateFromJsonl`로 나눈다. 1363행 `isCodex`는 reconcile 부분을 `reconcileStateFromJsonl`, pane 복구 호출을 `recoverPaneInput`으로 나눈다.
+  - `resume-session-service`의 `shouldPreferLatestCwdJsonl(provider, path)`는 `provider.statusBehavior.reconcileStateFromJsonl`이 false면 false, 아니면 `provider.readJsonlStatus(path)`의 `interrupted`를 쓴다. Service option `checkJsonlState`는 없앤다.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -144,9 +152,13 @@ expect(resolveStatusInitialCliState({ persistedState: 'busy', reconcileStateFrom
 const recoverPending = vi.fn();
 await expect(recoverStatusPollPaneInput({ recoverPaneInput: false, running: true, recoverPending, recoverInterrupted: vi.fn() })).resolves.toEqual({ recovered: false });
 expect(recoverPending).not.toHaveBeenCalled();
-// status-scan-tab-bootstrap.test.ts / status-poll-created-tab-bootstrap.test.ts
+// status-scan-tab-bootstrap.test.ts
 // statusBehavior { watchJsonlWhenBound: false, recoverPaneInput: false, … } + detected.running + jsonlPath + cliState 'idle'
 //   → shouldStartJsonlWatch false, shouldRecoverPaneInput false
+// status-poll-created-tab-bootstrap.test.ts
+// 같은 입력 → shouldStartJsonlWatch false
+// resume session service test
+// statusBehavior.reconcileStateFromJsonl false인 provider → 최신 cwd JSONL을 선호하지 않고 readJsonlStatus 호출 0회
 // status-pane-recovery-service.test.ts
 // getStatusBehavior → { recoverPaneInput: false, … } → { recovered: false, reason: 'not-supported' }, capture 호출 0회
 ```
@@ -163,7 +175,7 @@ Expected: FAIL (새 입력 이름과 flag 없음)
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `corepack pnpm vitest run tests/unit/lib/status-*.test.ts tests/unit/lib/providers.test.ts tests/unit/lib/runtime/status-worker-service.test.ts && corepack pnpm exec tsc --noEmit`
+Run: `corepack pnpm vitest run tests/unit/lib/status-*.test.ts tests/unit/lib/providers.test.ts tests/unit/lib/timeline-*.test.ts tests/unit/lib/runtime/status-worker-service.test.ts tests/unit/lib/runtime/ipc.test.ts tests/unit/lib/runtime/supervisor.test.ts && corepack pnpm exec tsc --noEmit`
 Expected: PASS
 
 - [ ] **Step 5: Commit** — `refactor(status): gate Codex-only status paths on provider status behavior`
@@ -176,8 +188,8 @@ Expected: PASS
 - Modify: `src/lib/path-validation.ts:23-36`
 - Modify: `src/lib/providers/types.ts`, `src/lib/providers/codex/index.ts`, `src/lib/providers/index.ts`
 - Modify (허용 검사 호출처): `src/lib/timeline-server.ts:22,121,495`, `src/lib/runtime/timeline/worker-service.ts:12,135`, `src/pages/api/timeline/entries.ts:22`, `src/pages/api/timeline/message-counts.ts:55`, `src/pages/api/v2/timeline/entries.ts:38`, `src/pages/api/v2/timeline/message-counts.ts:29`
-- Modify (`'codex'` 기본값): `src/pages/api/timeline/sessions.ts:13`, `src/pages/api/timeline/entries.ts:32`, `src/pages/api/v2/timeline/sessions.ts:21`, `src/pages/api/v2/timeline/entries.ts:53`, `src/lib/runtime/timeline/worker-service.ts:175`, `src/lib/session-list.ts:23,35`
-- Test: `tests/unit/lib/providers-jsonl-paths.test.ts` (create), `tests/unit/lib/path-validation.test.ts`
+- Modify (`'codex'` 기본값): `src/lib/timeline-server.ts:376`, `src/pages/api/timeline/sessions.ts:13`, `src/pages/api/timeline/entries.ts:32`, `src/pages/api/v2/timeline/sessions.ts:21`, `src/pages/api/v2/timeline/entries.ts:53`, `src/lib/runtime/timeline/worker-service.ts:175`, `src/lib/session-list.ts:23,35`
+- Test: `tests/unit/lib/providers-jsonl-paths.test.ts` (create), `tests/unit/lib/path-validation.test.ts`, `tests/unit/pages/timeline-read-default.test.ts` (`@/lib/providers` mock에 `isAllowedAgentJsonlPath` 추가)
 
 **Interfaces:**
 - Consumes: Task 1 `DEFAULT_AGENT_PANEL_TYPE`
@@ -207,25 +219,25 @@ Expected: FAIL
 
 - [ ] **Step 3: Implement the exports and switch the listed call sites**
 
-`grep -rn "?? 'codex'\|: 'codex'" src/pages/api/timeline src/pages/api/v2/timeline src/lib/runtime/timeline/worker-service.ts src/lib/session-list.ts` 결과가 0이어야 한다.
+`grep -rn "?? 'codex'\|: 'codex'" src/lib/timeline-server.ts src/pages/api/timeline src/pages/api/v2/timeline src/lib/runtime/timeline/worker-service.ts src/lib/session-list.ts` 결과가 0이어야 한다.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `corepack pnpm vitest run tests/unit/lib/providers-jsonl-paths.test.ts tests/unit/lib/path-validation.test.ts tests/unit/lib/timeline-*.test.ts tests/unit/lib/runtime/*timeline*.test.ts && corepack pnpm exec tsc --noEmit`
+Run: `corepack pnpm vitest run tests/unit/lib/providers-jsonl-paths.test.ts tests/unit/lib/path-validation.test.ts tests/unit/lib/timeline-*.test.ts tests/unit/lib/runtime/*timeline*.test.ts tests/unit/pages/timeline-read-default.test.ts && corepack pnpm exec tsc --noEmit`
 Expected: PASS
 
 - [ ] **Step 5: Commit** — `refactor(timeline): allow JSONL paths from every registered agent provider`
 
 ---
 
-### Task 4: 실행 서비스, 탭 생성 API, hook capability 공용화
+### Task 4: 실행 서비스, 탭 생성 API(agent 탭 v1), hook capability 공용화
 
 **Files:**
 - Create: `src/lib/agent-hooks.ts`
 - Modify: `src/lib/providers/codex/session-hooks.ts` (capability 함수와 `BRIDGE_PATH`를 `agent-hooks.ts`로 옮기고 import)
 - Modify: `src/lib/hook-settings.ts:6,14`, `src/pages/api/status/hook.ts:7,19`
 - Modify: `src/lib/agent-launch-service.ts:32`
-- Modify: `src/pages/api/layout/pane/[paneId]/tabs/index.ts:43,56,81,131`, `src/pages/api/workspace/index.ts:27`
+- Modify: `src/pages/api/layout/pane/[paneId]/tabs/index.ts:41-135`, `src/pages/api/workspace/index.ts:27`
 - Test: `tests/unit/lib/agent-hooks.test.ts` (create), `tests/unit/lib/providers/codex-session-hooks.test.ts`, `tests/unit/pages/layout-tabs-api.test.ts`, agent launch service test(있으면 그 파일, 없으면 `tests/unit/lib/agent-launch-service.test.ts` 생성)
 
 **Interfaces:**
@@ -239,7 +251,11 @@ Expected: PASS
     - 형식·TTL(30일)·서명은 기존 `createCodexHookCapability`와 같다.
   - `codex/session-hooks.ts`의 `createCodexHookCapability`, `verifyCodexHookCapability`, `CODEXMUX_STATUS_HOOK_BRIDGE_PATH` export는 삭제하고 호출처를 새 이름으로 바꾼다.
   - `launchAgentInTab`: provider가 없으면 `invalid-panel`, 있으면 id와 관계없이 진행. Preflight 검사(`preflight.agent`, 실패 code `codex-update-required`)는 단계 2에서 provider별로 바꾸므로 그대로 둔다.
-  - Tab 생성 API: resume provider 조회 기본값은 `DEFAULT_AGENT_PANEL_TYPE`. Runtime v2 생성 조건의 `panelType === 'codex'`, v2 tab의 `panelType` 기록(`isAgentPanelType(panelType) ? panelType : 'terminal'`), agent 시작 조건을 `isAgentPanelType`으로 바꾼다.
+  - Tab 생성 API(`api/layout/pane/[paneId]/tabs/index.ts`):
+    - 요청 body의 `panelType`을 먼저 `normalizePanelType`으로 정규화하고, 이후 분기와 `addTabToPane` 인자에 정규화한 값을 쓴다. 등록되지 않은 종류(`'claude'` 등)는 `undefined`가 되어 terminal 탭으로 저장된다.
+    - Runtime v2 생성 조건은 `shouldCreateTerminalTabInRuntimeV2() && isPlainTerminalTabRequest(...)`만 남긴다. `(startAgent === true && panelType === 'codex')` 절을 지워 agent 탭은 항상 v1(`addTabToPane`)로 만든다. v2 tab 기록의 `panelType`은 항상 `'terminal'`이다.
+    - Agent 시작 조건은 `startAgent === true && isAgentPanelType(normalizedPanelType) && !resumeSessionId && !command`다.
+    - Resume provider 조회 기본값은 `DEFAULT_AGENT_PANEL_TYPE`이다.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -252,8 +268,12 @@ expect(verifyAgentHookCapability(capability, 'pt-ws-a-pane-b-tab-c', 1_000 + 30 
 expect(verifyAgentHookCapability(`${capability}.extra`, 'pt-ws-a-pane-b-tab-c', 2_000)).toBeNull();
 expect(JSON.parse(Buffer.from(capability.split('.')[0], 'base64url').toString())).toEqual({ v: 1, tabId: 'tab-1', sessionName: 'pt-ws-a-pane-b-tab-c', expiresAt: 1_000 + 30 * 24 * 60 * 60 * 1000 });
 ```
-`tests/unit/pages/layout-tabs-api.test.ts`: `{ panelType: 'claude', startAgent: true }` 요청은 throw 없이 `terminal` 탭으로 만들어지고 `launchAgentInTab`이 불리지 않는다. 기존 Codex `startAgent` case는 그대로 통과한다.
-Launch service test: registry에 panelType `'codex'`이고 id가 `'codex-test'`인 fake provider만 있을 때 `launchAgentInTab`이 `invalid-panel`을 돌려주지 않는다(registry를 `clearProviders`/`registerProvider`로 구성하고 test 끝에 Codex로 복원).
+`tests/unit/pages/layout-tabs-api.test.ts` (terminal v2 mode `new-tabs`, Runtime v2 on):
+- `{ panelType: 'codex', startAgent: true }` → `addTabToPane`이 `panelType: 'codex'`로 불리고 supervisor `createTerminalTab`은 불리지 않으며, `launchAgentInTab`이 `action: 'launch'`로 예약된다.
+- `{}`(plain terminal) → 지금처럼 supervisor `createTerminalTab`으로 v2 탭이 만들어진다.
+- `{ panelType: 'claude', startAgent: true }` → throw 없이 `addTabToPane`의 `panelType` 인자가 `undefined`이고 `launchAgentInTab`이 불리지 않는다.
+
+Launch service test(`tests/unit/lib/agent-launch-service.test.ts`의 기존 `@/lib/providers` mock): `getProviderByPanelType`이 id `'codex-test'`, panelType `'codex'`인 provider를 돌려줄 때 `launchAgentInTab`이 `invalid-panel`을 돌려주지 않는다.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -267,127 +287,11 @@ Expected: FAIL
 Run: `corepack pnpm vitest run tests/unit/lib/agent-hooks.test.ts tests/unit/lib/providers/ tests/unit/lib/status-hook-*.test.ts tests/unit/pages/layout-tabs-api.test.ts tests/unit/lib/agent-launch-service.test.ts && corepack pnpm exec tsc --noEmit`
 Expected: PASS
 
-- [ ] **Step 5: Commit** — `refactor(agent): share hook capabilities and launch any registered agent provider`
+- [ ] **Step 5: Commit** — `fix(agent): create agent tabs on the legacy runtime and share hook capabilities`
 
 ---
 
-### Task 5: Runtime v2 terminal 화면 캡처와 key 입력
-
-**Files:**
-- Modify: `src/lib/runtime/terminal/terminal-runtime-contract.ts`
-- Modify: `src/lib/runtime/terminal/terminal-worker-runtime.ts`
-- Modify: `src/lib/runtime/terminal/terminal-worker-service.ts:188-210`
-- Modify: `src/lib/runtime/ipc.ts:808-816` (command map)
-- Modify: `src/lib/runtime/supervisor.ts` (public interface `:180-202`, 구현 `:1560-1575` 근처)
-- Test: `tests/unit/lib/runtime/terminal-worker-runtime.test.ts`, `tests/unit/lib/runtime/terminal-worker-service.test.ts`, `tests/unit/lib/runtime/ipc.test.ts`, `tests/unit/lib/runtime/supervisor.test.ts`
-
-**Interfaces:**
-- Produces:
-  - Contract (선택 method, Windows runtime은 구현하지 않음):
-    - `capturePane?(sessionName: string, historyLines: number): Promise<{ sessionName: string; content: string }>`
-    - `sendKeys?(sessionName: string, keys: string, literal: boolean): Promise<{ sessionName: string; sent: boolean }>`
-  - tmux runtime: `parseRuntimeSessionName` 검사 뒤
-    - capture: `tmux -L codexmux-runtime-v2 capture-pane -p -t <name>`, `historyLines > 0`이면 `-S -<historyLines>`를 `-t` 앞에 더함
-    - send-keys: copy mode면 먼저 빠져나온 뒤(legacy `exitCopyMode`와 같은 동작) `tmux -L codexmux-runtime-v2 send-keys -t <name> [-l] <keys>`
-  - IPC command:
-    - `'terminal.capture-pane'`: payload `{ sessionName: runtimeSessionNameSchema, historyLines: z.number().int().min(0).max(2000) }` (strict), reply `{ sessionName: string, content: string }`
-    - `'terminal.send-keys'`: payload `{ sessionName: runtimeSessionNameSchema, keys: z.string().min(1).max(65536), literal: z.boolean() }` (strict), reply `{ sessionName: string, sent: boolean }`
-  - Worker service: runtime에 method가 없으면 `fail(command, 'runtime-v2-terminal-unsupported', …)`, `retryable: false`
-  - Supervisor public API:
-    - `hasTerminalSession(sessionName: string): Promise<boolean>` — `terminal.has-session` 사용, `runtime-v2-terminal-session-not-found`는 false
-    - `captureTerminalSession(input: { sessionName: string; historyLines: number }): Promise<string>`
-    - `sendTerminalKeys(input: { sessionName: string; keys: string; literal: boolean }): Promise<void>`
-    - capture와 send-keys는 `writeTerminalSession`처럼 `ensureStarted` + `assertReadyTerminalSession`을 거친다.
-
-- [ ] **Step 1: Write the failing tests**
-
-- `terminal-worker-runtime.test.ts` (기존 `execFileMock` 방식):
-  - `capturePane('rtv2-ws-a-pane-b-tab-c', 50)`이 args `['-L', 'codexmux-runtime-v2', 'capture-pane', '-p', '-S', '-50', '-t', 'rtv2-ws-a-pane-b-tab-c']`로 execFile을 부르고 stdout을 `content`로 돌려준다.
-  - `capturePane(..., 0)`은 `-S`를 넣지 않는다.
-  - `sendKeys(name, '1', false)`의 마지막 execFile args가 `['-L', 'codexmux-runtime-v2', 'send-keys', '-t', name, '1']`이다.
-  - `literal: true`이면 `-l`이 `-t` 앞에 들어간다.
-  - `capturePane('pt-ws-a', 0)`은 reject한다.
-- `terminal-worker-service.test.ts`:
-  - fake runtime의 `capturePane`/`sendKeys` 결과가 reply로 나온다.
-  - method가 없는 fake runtime은 `code: 'runtime-v2-terminal-unsupported'`, `retryable: false` 실패를 돌려준다.
-- `ipc.test.ts`:
-  - `historyLines: 2001`, `historyLines: -1`, `sessionName: 'pt-ws-a'`, 빈 `keys`, 추가 필드는 parse 실패한다.
-  - 정상 payload는 통과한다.
-- `supervisor.test.ts`: 기존 terminal client mock으로 `hasTerminalSession`이 not-found 오류를 false로 바꾸고, `captureTerminalSession`이 reply의 `content`를 돌려준다.
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `corepack pnpm vitest run tests/unit/lib/runtime/terminal-worker-runtime.test.ts tests/unit/lib/runtime/terminal-worker-service.test.ts tests/unit/lib/runtime/ipc.test.ts tests/unit/lib/runtime/supervisor.test.ts`
-Expected: FAIL
-
-- [ ] **Step 3: Implement the contract methods, tmux runtime, IPC commands, worker handlers and supervisor methods**
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: 같은 명령 + `corepack pnpm exec tsc --noEmit`
-Expected: PASS
-
-- [ ] **Step 5: Commit** — `feat(runtime): capture and send keys to runtime v2 terminal sessions`
-
----
-
-### Task 6: Session 단위 terminal 작업 routing과 tmux API
-
-**Files:**
-- Create: `src/lib/session-terminal-ops.ts`
-- Modify: `src/pages/api/tmux/permission-options.ts`, `src/pages/api/tmux/plan-options.ts:63-78`, `src/pages/api/tmux/send-input.ts:83-90`
-- Test: `tests/unit/lib/session-terminal-ops.test.ts` (create), `tests/unit/pages/permission-options-api.test.ts`, `tests/unit/pages/send-input-api.test.ts`
-
-**Interfaces:**
-- Consumes: Task 5 supervisor `hasTerminalSession`, `captureTerminalSession`, `sendTerminalKeys`
-- Produces (`src/lib/session-terminal-ops.ts`):
-  - `export const isRuntimeV2SessionName = (sessionName: string): boolean` — `runtimeSessionNameSchema.safeParse(sessionName).success`
-  - `export const sessionExists = (sessionName: string): Promise<boolean>`
-    - v2: `getRuntimeSupervisor().hasTerminalSession`. Supervisor 호출이 throw하면 false.
-    - v1: `hasSession` from `@/lib/tmux`.
-  - `export const captureSessionScreen = (sessionName: string, size: { cols: number; rows: number }): Promise<string | null>`
-    - v1: 기존 `capturePaneAtWidth(sessionName, cols, rows)`.
-    - v2: `captureTerminalSession({ sessionName, historyLines: 50 })`. v2는 PTY 크기를 바꾸지 않는다. `runtime-v2-terminal-unsupported`나 다른 오류는 null.
-  - `export const sendSessionKeys = (sessionName: string, keys: string): Promise<void>`
-    - v1: `sendRawKeys`.
-    - v2: `sendTerminalKeys({ sessionName, keys, literal: false })`.
-  - 세 API route는 `hasSession`/`capturePaneAtWidth`/`sendRawKeys` 대신 위 함수를 쓴다. 응답 형식은 바꾸지 않는다. 캡처가 null이면 permission-options는 기존 `captureEmpty: true` 응답을 쓴다.
-
-- [ ] **Step 1: Write the failing tests**
-
-`tests/unit/lib/session-terminal-ops.test.ts` (`@/lib/tmux`, `@/lib/capture-at-width`, `@/lib/runtime/supervisor` mock):
-```ts
-expect(isRuntimeV2SessionName('rtv2-ws-a-pane-b-tab-c')).toBe(true);
-expect(isRuntimeV2SessionName('pt-ws-a-pane-b-tab-c')).toBe(false);
-await sessionExists('pt-ws-a'); // hasSession 호출, supervisor 미호출
-await sessionExists('rtv2-ws-a'); // supervisor.hasTerminalSession 호출, hasSession 미호출
-supervisor.hasTerminalSession.mockRejectedValue(new Error('down'));
-await expect(sessionExists('rtv2-ws-a')).resolves.toBe(false);
-supervisor.captureTerminalSession.mockRejectedValue(Object.assign(new Error('x'), { code: 'runtime-v2-terminal-unsupported' }));
-await expect(captureSessionScreen('rtv2-ws-a', { cols: 120, rows: 50 })).resolves.toBeNull();
-await sendSessionKeys('rtv2-ws-a', '2');
-expect(supervisor.sendTerminalKeys).toHaveBeenCalledWith({ sessionName: 'rtv2-ws-a', keys: '2', literal: false });
-```
-`permission-options-api.test.ts`: v2 session 이름으로 요청하면 supervisor capture 결과(권한 요청 fixture 화면)에서 선택지를 parse해 돌려준다. v2 캡처가 null이면 `captureEmpty: true`와 200을 돌려준다.
-`send-input-api.test.ts`: v2 session 이름이면 `sendTerminalKeys`가 불리고 audit `selection-sent`가 기록된다.
-
-- [ ] **Step 2: Run tests to verify they fail**
-
-Run: `corepack pnpm vitest run tests/unit/lib/session-terminal-ops.test.ts tests/unit/pages/permission-options-api.test.ts tests/unit/pages/send-input-api.test.ts`
-Expected: FAIL
-
-- [ ] **Step 3: Implement `session-terminal-ops.ts` and switch the three routes**
-
-- [ ] **Step 4: Run tests to verify they pass**
-
-Run: 같은 명령 + `corepack pnpm exec tsc --noEmit`
-Expected: PASS
-
-- [ ] **Step 5: Commit** — `fix(approval): read and answer prompts on runtime v2 tabs`
-
----
-
-### Task 7: Client provider metadata, 화면의 Codex 고정 분기, 문구 버그
+### Task 5: Client provider metadata, 화면의 Codex 고정 분기, 문구 버그
 
 **Files:**
 - Create: `src/lib/agent-provider-meta.ts`, `src/components/icons/agent-provider-icon.tsx`
@@ -460,10 +364,10 @@ Expected: PASS, lint error 0
 
 ---
 
-### Task 8: 문서, 전체 검증, Codex 회귀 확인
+### Task 6: 문서, 전체 검증, Codex 회귀 확인
 
 **Files:**
-- Modify: `docs/TMUX.md` (Runtime v2 Terminal Worker 명령 목록에 `terminal.capture-pane`, `terminal.send-keys`)
+- Modify: `docs/RUNTIME-V2-CUTOVER.md` (2단계: agent 탭은 Runtime v2 agent 지원 전까지 v1으로 만든다는 규칙과 이유)
 - Modify: `docs/STATUS.md` (Codex 전용 분기가 provider status 동작 flag로 바뀐 점과 flag 표)
 - Modify: `docs/FOLLOW-UP.md` (Purplemux 기능 추가 행: 단계 1 완료와 다음 단계)
 - Modify: `docs/operations/2026-11-10-multi-agent-brainstorming-handoff.md` (Current Lifecycle Stage, Next Action)
@@ -477,17 +381,24 @@ Expected: 모두 통과. lint는 error 0(기존 경고 6개 외 새 경고 없�
 
 - [ ] **Step 3: Run the isolated Runtime v2 smokes**
 
-Run: `corepack pnpm smoke:runtime-v2 && corepack pnpm smoke:runtime-v2:phase2`
-Expected: 둘 다 `ok`
+Smoke script는 `HOME`만 바꾸고 `TMUX_TMPDIR`는 바꾸지 않아, 그대로 돌리면 live tmux socket(`/tmp/tmux-1000/`)에 session을 만든다. 반드시 새 임시 `TMUX_TMPDIR`로 돌린다.
+
+Run: `T=$(mktemp -d) && TMUX_TMPDIR="$T" corepack pnpm smoke:runtime-v2 && TMUX_TMPDIR="$T" corepack pnpm smoke:runtime-v2:phase2; TMUX_TMPDIR="$T" tmux -L codexmux kill-server 2>/dev/null; TMUX_TMPDIR="$T" tmux -L codexmux-runtime-v2 kill-server 2>/dev/null; rm -rf "$T"`
+Expected: 두 smoke 모두 `ok`. 실행 전후 `tmux -L codexmux ls`, `tmux -L codexmux-runtime-v2 ls`(기본 `TMUX_TMPDIR`)의 session 목록이 같다.
 
 - [ ] **Step 4: Codex regression check in an isolated environment**
 
-Codex 로그인 정보가 필요하므로 `HOME`은 그대로 두고, 임시 data dir(`AGENTMUX_DATA_DIR`), 임시 `TMUX_TMPDIR`, live와 다른 port, `AGENTMUX_RUNTIME_V2=1`과 live와 같은 mode 값으로 production build를 띄운다. 사용자 `~/.codex/config.toml`은 고치지 않고, 임시 data dir의 `config.json`에 `codexApprovalPolicy: "on-request"`, `codexSandbox: "read-only"`를 넣어 그 서버가 띄우는 Codex에만 적용한다. 아래를 확인한다:
-1. Codex 탭 새로 만들기 → 짧은 prompt → `busy` → `ready-for-review` 전환이 sidebar에 나타난다.
-2. 같은 탭을 다시 열면 timeline이 보이고 resume 목록에 세션이 있다.
-3. 새 Codex 탭(Runtime v2, session 이름 `rtv2-…`)에 파일 쓰기를 요구하는 prompt를 보내 권한 요청 화면이 뜨면, 웹 카드에 선택지가 나오고 "거절" 선택이 그 session에 들어간다.
-4. 확인 뒤 임시 서버와 임시 tmux server를 끄고 임시 directory를 지운다.
+Codex 로그인 정보가 필요하므로 `HOME`은 그대로 둔다. 이 worktree의 production build를 아래 환경 변수**만** 더해 띄운다. Live drop-in의 다른 값(`AGENTMUX_BRIDGE_TRACE_URL` 등)은 복사하지 않는다.
+- `AGENTMUX_DATA_DIR=<임시 dir>`, `TMUX_TMPDIR=<임시 dir>`, `PORT=<8122가 아닌 빈 port>`
+- `AGENTMUX_RUNTIME_V2=1`, `AGENTMUX_RUNTIME_STORAGE_V2_MODE=default`, `AGENTMUX_RUNTIME_TERMINAL_V2_MODE=new-tabs`, `AGENTMUX_RUNTIME_TIMELINE_V2_MODE=default`, `AGENTMUX_RUNTIME_STATUS_V2_MODE=default`
+
+사용자 `~/.codex/config.toml`은 고치지 않는다. 임시 data dir의 `config.json`에 `codexApprovalPolicy: "on-request"`, `codexSandbox: "read-only"`를 넣어 그 서버가 띄우는 Codex에만 적용한다. Workspace directory는 Codex가 이미 신뢰하는 directory(이 worktree의 상위 repo 등)를 쓴다. Codex folder trust 확인이 뜨면 수락하지 않는다(수락하면 사용자 `~/.codex/config.toml`에 기록된다). 아래를 확인한다:
+1. 새 탭 메뉴로 Codex 탭을 만들면 session 이름이 `pt-…`(v1)이고 Codex가 시작된다. 같은 서버에서 plain terminal 탭은 `rtv2-…`(v2)로 만들어진다.
+2. 짧은 prompt → `busy` → `ready-for-review` 전환이 sidebar에 나타난다.
+3. 같은 탭을 다시 열면 timeline이 보이고 resume 목록에 세션이 있다.
+4. 파일 쓰기를 요구하는 prompt를 보내 권한 요청 화면이 뜨면, 웹 카드에 선택지가 나오고 "거절" 선택이 그 session에 들어간다.
+5. 확인 뒤 임시 서버를 끄고, 임시 `TMUX_TMPDIR`의 두 tmux server를 `kill-server`로 끄고, 임시 directory를 지운다.
 
 결과는 handoff 문서에 기록한다. Live service에는 배포하지 않는다(배포는 단계별 사용자 확인).
 
-- [ ] **Step 5: Commit** — `docs: record agent boundary refactor and runtime v2 prompt fix`
+- [ ] **Step 5: Commit** — `docs: record agent boundary refactor and legacy agent tabs`

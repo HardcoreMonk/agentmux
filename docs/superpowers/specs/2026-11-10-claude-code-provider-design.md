@@ -45,6 +45,8 @@ purplemux를 기준으로 맞추되 구조는 agentmux 위에 다시 설계한�
 - agentmux가 띄운 Claude Code에서 `agentmux tab` 명령을 **미리 허용**한다 (사용자: "미리 허용", 2026-11-10).
   Live Codex가 `danger-full-access` + `approval_policy = "never"`로 돌기 때문에 Claude가 Codex에게 보낸 지시는
   어디서도 확인받지 않고 실행된다는 점을 설명한 뒤 받은 결정이다.
+- Agent 탭은 옛 terminal 경로(Runtime v1)로 만들고 Runtime v2 agent 지원은 후속 작업으로 넘긴다 (사용자: "(추천)
+  agent 탭은 옛 terminal 경로(v1)로 만든다", 2026-11-10, plan-eng-review에서 v2 Codex 탭의 상태 감지 결함을 확인한 뒤).
 - Android 앱은 Linux 서버에 접속하는 client로 유지한다. 이 설계는 Android 쪽 코드를 바꾸지 않는다.
 
 ## 목표
@@ -177,11 +179,24 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
   Esc 두 번), 세션 종료 시 timeline을 남기는지.
 - Runtime v2 IPC schema(`runtime/ipc.ts`)의 panelType union, supervisor annotation 검증, storage legacy
   import는 agent 종류 집합을 따른다. `status.reduce-codex-state`는 Codex 전용 명령으로 남긴다.
-- **탭 단위 terminal 작업의 runtime 구분**: 화면 캡처(`capturePaneAtWidth`, `/api/tmux/permission-options`,
-  plan·질문 선택지), 원시 key 입력(`/api/tmux/send-input`), session 존재 확인은 지금 옛 tmux socket만 쓴다.
-  Runtime v2 탭(live의 새 terminal 탭과 새 Codex 탭)에서는 권한 요청 카드가 "Session not found"로 동작하지
-  않는다(2026-11-10 grill에서 확인한 기존 결함). Runtime v2 terminal worker에 화면 캡처 명령을 더하고, 위
-  작업들과 아래 위임 CLI가 탭의 `runtimeVersion`에 맞는 경로를 쓰게 한다. 단계 1에 포함한다.
+- **Agent 탭은 옛 terminal 경로(Runtime v1, legacy tmux adapter)로 만든다** (사용자 결정 2026-11-10, plan-eng-review
+  뒤).
+  - 현재 사실: live는 `AGENTMUX_RUNTIME_TERMINAL_V2_MODE=new-tabs`라, 새 탭 메뉴로 만든 Codex 탭(`startAgent`)을
+    Runtime v2 terminal로 만든다(`api/layout/pane/[paneId]/tabs/index.ts:56`). 그런데 agent 기능은 대부분 옛
+    socket만 본다. 그래서 v2 Codex 탭에서는 다음이 동작하지 않는다.
+    - hook 인증: `parseSessionName`이 `pt-` 이름만 받아 v2 session의 hook을 거절한다. live log에 "rejected status
+      hook target"이 있다.
+    - 상태 감시: `getAllPanesInfo`는 옛 socket만 나열한다.
+    - timeline: `getSessionPanePid`가 v2 pane을 못 찾는다.
+    - storage 조회: `getReadyTerminalTabBySession`이 `panel_type = 'terminal'` 행만 찾는다. 그래서 실행 입력과 화면
+      캡처가 막힌다.
+    - 권한 요청 카드: 화면 캡처와 key 입력도 옛 socket만 쓴다.
+  - 결정: Codex와 Claude 탭은 terminal v2 mode와 관계없이 v1 탭으로 만든다. Plain terminal 탭만 v2 규칙을 따른다.
+    이것은 `docs/RUNTIME-V2-CUTOVER.md` 2단계("새 plain terminal tab만 runtime v2로 생성")와 같은 규칙이다. 단계 1에
+    포함한다.
+  - Runtime v2 agent 지원은 이 설계 범위 밖의 후속 작업이다. 범위는 hook 인증, 상태 감시, timeline process 찾기,
+    storage 행 구분, 화면 캡처와 key 입력이다.
+  - 이미 만들어진 v2 Codex 탭은 그대로 남는다. 2026-11-10 live layout에는 v2 agent 탭이 없다.
 
 ### 2. Claude Code provider (A)
 
@@ -298,11 +313,14 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
 - **CLI 찾기**: agentmux 명령은 호스트 PATH에 없다(live는 `node <checkout>/bin/agentmux.js`로 돈다). Server가
   시작할 때 data dir 아래 `bin/agentmux` shim(현재 build의 `bin/agentmux.js`를 현재 node로 실행)을 쓰고, 탭
   환경 변수에서 이 directory를 `PATH` 앞에 붙인다. 안내는 `agentmux` 명령 이름으로 쓴다.
-- **Runtime v2 탭**: live는 새 탭을 Runtime v2 terminal로 만든다(`AGENTMUX_RUNTIME_TERMINAL_V2_MODE=new-tabs`).
-  지금 `/api/cli/tabs*`는 옛 tmux socket만 다루므로 화면에서 만든 탭에 `send/status/result`가 실패한다. 이
-  설계에서 고친다.
-  - CLI가 만드는 탭은 화면에서 만드는 탭과 같은 v1/v2 규칙을 따른다.
-  - `send/status/result/close`는 탭의 `runtimeVersion`에 맞는 terminal 경로(v2는 runtime supervisor)를 쓴다.
+- **Runtime v2 탭**: live는 새 plain terminal 탭을 Runtime v2 terminal로 만든다
+  (`AGENTMUX_RUNTIME_TERMINAL_V2_MODE=new-tabs`). 지금 `/api/cli/tabs*`는 옛 tmux socket만 다루므로 v2 terminal 탭에
+  `send/status/result`가 실패한다. 이 설계에서 고친다.
+  - CLI가 만드는 탭은 화면에서 만드는 탭과 같은 규칙을 따른다. Agent 탭은 v1, plain terminal 탭은 terminal v2 mode
+    규칙을 따른다(1절).
+  - `send/status/result/close`는 탭의 `runtimeVersion`에 맞는 terminal 경로를 쓴다. v2 terminal 탭의 `send`는 기존
+    supervisor `writeTerminalSession`을 쓴다. `result`의 화면 캡처는 Runtime v2 terminal worker에 화면 캡처 명령을
+    더해 supervisor를 거친다. Runtime v2가 꺼져 있으면 v2 session은 없는 것으로 다룬다.
   - `cliState`는 status live mode면 status worker에서, 아니면 status manager에서 읽는다.
 - **CLI 동작 변경**:
   - `tab create -t claude|codex`는 server에서 agent를 바로 띄운다(기존 `launchAgentInTab` 재사용). 브라우저가
@@ -363,8 +381,8 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
 각 단계는 별도 PR이고 main CI 통과 뒤 merge한다. Live 배포는 단계 4 뒤 한 번 하거나 단계별로 할 수 있다
 (builder 재량, 배포마다 사용자 확인).
 
-1. **Provider 계약 확장**: 위 1절. Codex 동작 변화 없음. 예외는 Runtime v2 탭의 화면 캡처·원시 key 입력
-   결함 수정이다. 기존 test 전부 통과 + Codex 회귀 test.
+1. **Provider 계약 확장**: 위 1절. Codex 동작 변화 없음. 예외는 새 Codex 탭을 v1으로 만드는 수정이다(v2로 만들면
+   상태 감지가 동작하지 않는 결함). 기존 test 전부 통과 + Codex 회귀 test.
 2. **Claude provider core**: 실행, hook, 상태, timeline, statusLine, rate limit, 권한 요청·trust, preflight.
    서버 쪽과 최소 화면(새 탭 메뉴, 보기 전환)까지.
 3. **공통 agent 화면**: 나머지 B 항목(전환 잠금, 보기 제안, 시작 진행, 통합 목록, Session Explorer, 통계,
@@ -391,6 +409,7 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
     안내를 붙인다 (Draft)
   - ADR-036: Agent 위임은 확인 없이 진행하고(agentmux가 띄운 Claude Code에서 `agentmux tab` 명령 미리 허용)
     신뢰 경계는 Unix 사용자로 둔다. CLI 제한은 실수 방지 장치다 (Draft)
+  - ADR-037: Runtime v2 agent 지원 전까지 agent 탭은 legacy tmux adapter(Runtime v1)로 만든다 (Draft)
 
 ## 인수 기준
 
@@ -405,15 +424,15 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
    사용자 명령의 출력을 보여 준다. 사용자 hook도 실행된다.
 5. Timeline: Claude JSONL fixture(tool 호출, 하위 agent, plan, 질문, 중단, 알 수 없는 항목)가 오류 없이 그려진다.
    Fixture는 합성 데이터만 쓴다.
-6. 권한 요청과 trust 확인에 웹 응답이 동작한다(capture fixture unit test + live smoke). Runtime v1 탭과 v2 탭
-   모두에서 권한 요청 선택지를 읽고 응답한다. 기존 Codex v2 탭도 해당한다.
+6. 권한 요청과 trust 확인에 웹 응답이 동작한다(capture fixture unit test + live smoke). `new-tabs` mode에서 새로
+   만든 Codex·Claude 탭이 v1 탭(`pt-` session)으로 만들어지고 상태 감지와 권한 요청 카드가 동작한다.
 7. 통합 세션 목록에서 Claude와 Codex 세션을 고르면 각각 맞는 agent로 재개된다.
 8. Session Explorer migration: 기존 DB에서 시작해 rebuild 뒤 Codex 세션 수가 같고 Claude 세션이 더해진다.
 9. 하나만 설치된 호스트(격리 PATH)에서 앱이 열리고 없는 agent는 설치 안내를 보인다.
 10. 위임: 브라우저를 열지 않은 상태에서 Claude 탭 안의 agent가 `agentmux tab create -t codex`와 `tab send`를
     실행하면 Codex가 호출한 탭의 cwd에서 시작되고 지시를 받는다. `tab status`와 `tab result`가 상태와 마지막
     응답을 돌려준다. needs-input 대상과 준비 전 대상에 `tab send`는 거절되고 아무 글자도 입력되지 않는다.
-    개수 제한과 닫기 제한이 동작한다. 화면에서 만든 Runtime v2 탭에도 `send/status/result`가 동작한다.
+    개수 제한과 닫기 제한이 동작한다. 화면에서 만든 Runtime v2 terminal 탭에도 `send/status/result`가 동작한다.
 11. Runtime v2 live mode와 legacy mode 모두에서 3, 7, 10이 동작한다.
 12. 기본 gate: `check:project-design`, 이름 검사, lint, `tsc --noEmit`, unit test, production build.
 13. Live 배포 뒤 tmux 서버와 기존 세션이 살아 있고, handoff에 배포 기록을 남긴다.
@@ -433,7 +452,7 @@ Codex 고정 분기를 provider 계약 뒤로 옮긴다. 이 단계 자체는 �
 | 질문 | 처리 |
 | --- | --- |
 | 새로 만든 agent가 준비되기 전 `tab send`가 시작 화면에 글자를 넣는다 | `tab create`가 SessionStart까지 최대 60초 기다리고, `tab send`는 준비 전·needs-input 대상을 거절하고 보내기 직전 화면을 다시 확인 (Claude 판단) |
-| CLI가 Runtime v2 탭을 다루지 못한다 | 코드와 live 설정으로 확인. CLI가 탭의 `runtimeVersion`에 맞는 경로를 쓰도록 범위에 포함 (프로젝트 사실) |
+| CLI가 Runtime v2 탭을 다루지 못한다 | 코드와 live 설정으로 확인. CLI가 탭의 `runtimeVersion`에 맞는 경로를 쓰도록 범위에 포함 (프로젝트 사실). Agent 탭은 v1으로 만들기로 해(plan-eng-review 뒤 사용자 결정) v2 대상은 plain terminal 탭이다 |
 | Agent가 CLI를 찾는 방법 | PATH에 없음을 확인. Data dir shim + 탭 PATH 앞붙이기 (Claude 판단) |
 | Claude Code 자체 권한 확인이 CLI 호출을 막는다 | 사용자 결정: 탭 설정에서 `agentmux tab` 하위 명령만 미리 허용 |
 | Codex sandbox가 local API를 막는다 | sandbox를 바꾸지 않고 미지원으로 문서화. Live는 `danger-full-access` (Claude 판단) |
