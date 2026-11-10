@@ -10,8 +10,52 @@ import {
   runtimeCommandRegistry,
   runtimeEventRegistry,
 } from '@/lib/runtime/ipc';
+import { PANEL_TYPES } from '@/lib/panel-type';
 
 describe('runtime ipc', () => {
+  describe('panelType schemas', () => {
+    const statusPayload = (panelType: string) => ({
+      tabs: {
+        'tab-a': {
+          cliState: 'idle',
+          workspaceId: 'ws-a',
+          tabName: 'Tab',
+          panelType,
+          terminalStatus: 'running',
+          lastEvent: null,
+          eventSeq: 1,
+        },
+      },
+      rateLimits: null,
+    });
+    const layoutReply = (panelType: string) => ({
+      root: {
+        type: 'pane',
+        id: 'pane-a',
+        tabs: [{
+          id: 'tab-a',
+          sessionName: 'pt-ws-a-pane-a-tab-a',
+          name: 'Tab',
+          order: 0,
+          runtimeVersion: 2,
+          panelType,
+        }],
+        activeTabId: 'tab-a',
+      },
+      activePaneId: 'pane-a',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    it.each(PANEL_TYPES)('accepts %s in status and layout tab payloads', (panelType) => {
+      expect(() => parseRuntimeEventPayload('status.sync', statusPayload(panelType))).not.toThrow();
+      expect(() => parseRuntimeReplyPayload('storage.get-layout', layoutReply(panelType))).not.toThrow();
+    });
+
+    it('rejects an unknown panelType in status and layout tab payloads', () => {
+      expect(() => parseRuntimeEventPayload('status.sync', statusPayload('not-a-panel'))).toThrow(/Invalid runtime IPC/);
+      expect(() => parseRuntimeReplyPayload('storage.get-layout', layoutReply('not-a-panel'))).toThrow(/Invalid runtime IPC/);
+    });
+  });
   it('creates and parses command envelopes', () => {
     const msg = createRuntimeCommand({
       id: 'cmd-1',

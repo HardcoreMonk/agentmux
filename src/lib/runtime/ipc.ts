@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { PANEL_TYPES } from '@/lib/panel-type';
 import { runtimeSessionNameSchema } from '@/lib/runtime/session-name';
 import {
   sessionIdSchema,
@@ -159,12 +160,7 @@ const statusEventNameSchema = z.union([
   z.literal('stop'),
   z.literal('interrupt'),
 ]);
-const statusPanelTypeSchema = z.union([
-  z.literal('terminal'),
-  z.literal('codex'),
-  z.literal('web-browser'),
-  z.literal('diff'),
-]);
+const panelTypeSchema = z.enum(PANEL_TYPES);
 const statusTerminalStatusSchema = z.union([
   z.literal('idle'),
   z.literal('running'),
@@ -280,12 +276,7 @@ const runtimeLayoutTabSchema = z.object({
   title: z.string().optional(),
   cwd: z.string().optional(),
   runtimeVersion: z.union([z.literal(1), z.literal(2)]),
-  panelType: z.union([
-    z.literal('terminal'),
-    z.literal('codex'),
-    z.literal('web-browser'),
-    z.literal('diff'),
-  ]).optional(),
+  panelType: panelTypeSchema.optional(),
   agentSessionId: z.string().nullable().optional(),
   agentJsonlPath: z.string().nullable().optional(),
   agentSummary: z.string().nullable().optional(),
@@ -607,7 +598,7 @@ const statusClientTabStatusEntrySchema = z.object({
   tabName: z.string(),
   currentProcess: z.string().optional(),
   paneTitle: z.string().optional(),
-  panelType: statusPanelTypeSchema.optional(),
+  panelType: panelTypeSchema.optional(),
   terminalStatus: statusTerminalStatusSchema.optional(),
   listeningPorts: z.array(z.number().int().nonnegative()).optional(),
   agentSummary: z.string().nullable().optional(),
