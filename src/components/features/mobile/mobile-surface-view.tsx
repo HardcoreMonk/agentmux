@@ -13,6 +13,8 @@ import useTabMetadataStore from '@/hooks/use-tab-metadata-store';
 import TerminalContainer from '@/components/features/workspace/terminal-container';
 import ConnectionStatus from '@/components/features/workspace/connection-status';
 import MobileAgentPanel from '@/components/features/mobile/mobile-agent-panel';
+import TrustPromptCard from '@/components/features/workspace/trust-prompt-card';
+import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
 import MobileTerminalToolbar from '@/components/features/mobile/mobile-terminal-toolbar';
 import { formatTabTitle, isShellProcess } from '@/lib/tab-title';
 import {
@@ -177,7 +179,7 @@ const MobileSurfaceView = ({
     return true;
   }, []);
 
-  const { terminalRef, write, clear, reset, fit, focus, isReady } = useTerminal({
+  const { terminalRef, write, clear, reset, fit, focus, isReady, getBufferText } = useTerminal({
     theme: terminalTheme.colors,
     fontSize: isAgentPanel && !showAgentTerminalPreview ? undefined : MOBILE_FONT_SIZE,
     onInput: (data) => wsActionsRef.current.sendStdin(data),
@@ -260,6 +262,20 @@ const MobileSurfaceView = ({
     }
   }, [paneId, onSwitchTab, onDeleteTab]);
 
+  const trustDataRef = useRef<() => void>(() => {});
+  const trustCliState = useTabStore((s) => activeTabId ? s.tabs[activeTabId]?.cliState ?? 'inactive' : 'inactive');
+  // trust 화면은 agent가 아직 뜨지 않았거나(inactive/unknown) 세션 확인 중(check)일 때만 나온다
+  const trustPromptEnabled = isAgentPanel
+    && (trustCliState === 'inactive' || trustCliState === 'unknown' || sessionView === 'check');
+  const { trustPrompt, onTerminalData: onTrustTerminalData, onTrustResponse } = useTrustPromptDetector({
+    enabled: trustPromptEnabled,
+    getBufferText,
+    sendStdin: (data) => wsActionsRef.current.sendStdin(data),
+  });
+  useEffect(() => {
+    trustDataRef.current = onTrustTerminalData;
+  });
+
   const {
     status,
     retryCount,
@@ -271,7 +287,10 @@ const MobileSurfaceView = ({
     sendResize,
   } = useTerminalWebSocket({
     endpoint: terminalEndpoint,
-    onData: (data) => termActionsRef.current.write(data),
+    onData: (data) => {
+      termActionsRef.current.write(data);
+      trustDataRef.current();
+    },
     onConnected: () => {
       setHasEverConnected(true);
       setAttemptedTabId(activeTabIdRef.current);
@@ -528,6 +547,12 @@ const MobileSurfaceView = ({
           onRestartSession={handleRestartAgentSession}
           onNewSession={handleNewAgentSession}
         />
+      )}
+
+      {isAgentPanel && trustPrompt && (
+        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center p-3">
+          <TrustPromptCard folderPath={trustPrompt.folderPath} onRespond={onTrustResponse} />
+        </div>
       )}
 
       {!isWebBrowser && !isDiff && (

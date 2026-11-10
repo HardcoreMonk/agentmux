@@ -11,9 +11,10 @@ const OPTION_KEYWORDS = [
 ];
 const INDICATOR_RE = /^\s*(?:[❯›>]\s+)?(.+)$/;
 const FOCUSED_RE = /^\s*[❯›>]\s+/;
+// Claude Code 목록은 스크롤 가능한 줄 앞에 ↓/↑를 붙인다(포커스 표시가 아님)
 const NUMBER_PREFIX_RE = /^\d+\.\s+/;
 // 좁은 터미널에서 "2. Yes..."가 "2Yes..."로 렌더되는 wrap 아티팩트까지 허용하기 위해 period/space를 optional로 둠
-const NUMBERED_LINE_RE = /^\s*([❯›>])?\s*(\d+)\.?\s*(\S.*)$/;
+const NUMBERED_LINE_RE = /^\s*([❯›>↓↑])?\s*(\d+)\.?\s*(\S.*)$/;
 const MAX_COMMAND_PREVIEW_LENGTH = 80;
 
 export type TApprovalPromptType = 'command' | 'file' | 'permission' | 'resume-directory' | 'conversation' | 'unknown';
@@ -67,7 +68,11 @@ const normalizeOption = (text: string): string => {
   const damaged = text.match(DAMAGED_DONT_ASK_RE);
   if (damaged) return `${damaged[1]} again for: ${damaged[2].trim()}`;
   if (/^Yes(?![,\s]|$)/.test(text)) return 'Yes';
-  if (DAMAGED_CODEX_NO_TELL_RE.test(text)) return 'No, and tell Codex what to do differently';
+  if (DAMAGED_CODEX_NO_TELL_RE.test(text)) {
+    // 화면에 실제로 나온 agent 이름을 유지한다 (Claude 화면을 Codex로 바꾸지 않는다)
+    const agentName = /Claude/i.test(text) ? 'Claude' : 'Codex';
+    return `No, and tell ${agentName} what to do differently`;
+  }
   if (DAMAGED_NO_RE.test(text)) return 'No';
   if (/^No(?![,\s]|$)/.test(text)) return 'No';
   return text;
@@ -199,7 +204,10 @@ const classifyPromptType = (
   if ((hasOption(options, 'Accept') && hasOption(options, 'Decline'))
     || hasOption(options, 'Open System Settings')
     || /bypass permissions|open system settings|sandbox|trust this workspace/i.test(combined)) return 'permission';
-  if (commandPreview || /run the following command|for commands that start with/i.test(combined)) return 'command';
+  if (/do you want to (?:make this edit|create)\b/i.test(combined)) return 'file';
+  if (commandPreview || /run the following command|for commands that start with/i.test(combined)
+    // 단독 "Do you want to proceed?"는 기존 unknown 계약을 유지하고, Claude의 Bash 도구 헤더가 함께 있을 때만 command다
+    || (/do you want to proceed\?/i.test(combined) && /^\s*Bash command\b/im.test(combined))) return 'command';
   if (fileHints.length > 0 || /\b(edit|write|read|modify|open)\b.+\/[^\s"'`),]+/i.test(combined)) return 'file';
   return 'unknown';
 };

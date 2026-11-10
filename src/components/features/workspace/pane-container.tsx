@@ -15,6 +15,8 @@ import useConfigStore from '@/hooks/use-config-store';
 import { useShallow } from 'zustand/react/shallow';
 import TerminalContainer from '@/components/features/workspace/terminal-container';
 import AgentPanel from '@/components/features/workspace/agent-panel';
+import TrustPromptCard from '@/components/features/workspace/trust-prompt-card';
+import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
 import WebInputBar from '@/components/features/workspace/web-input-bar';
 import QuickPromptBar from '@/components/features/workspace/quick-prompt-bar';
 import ConnectionStatus from '@/components/features/workspace/connection-status';
@@ -318,7 +320,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     return true;
   }, []);
 
-  const { terminalRef, write, clear, reset, fit, focus, isReady } = useTerminal({
+  const { terminalRef, write, clear, reset, fit, focus, isReady, getBufferText } = useTerminal({
     theme: terminalTheme.colors,
     fontSize: (TERMINAL_FONT_SIZES[configFontSize] ?? TERMINAL_FONT_SIZES.normal)[isAgentPanel ? 'agent' : 'normal'],
     onInput: (data) => {
@@ -418,6 +420,19 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     }
   }, [paneId, switchTabInPane, deleteTabInPane, closePane]);
 
+  const trustDataRef = useRef<() => void>(() => {});
+  // trust 화면은 agent가 아직 뜨지 않았거나(inactive/unknown) 세션 확인 중(check)일 때만 나온다
+  const trustPromptEnabled = isAgentPanel
+    && (agentCliState === 'inactive' || agentCliState === 'unknown' || sessionView === 'check');
+  const { trustPrompt, onTerminalData: onTrustTerminalData, onTrustResponse } = useTrustPromptDetector({
+    enabled: trustPromptEnabled,
+    getBufferText,
+    sendStdin: (data) => wsActionsRef.current.sendStdin(data),
+  });
+  useEffect(() => {
+    trustDataRef.current = onTrustTerminalData;
+  });
+
   const {
     status,
     retryCount,
@@ -429,7 +444,10 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     sendResize,
   } = useTerminalWebSocket({
     endpoint: terminalEndpoint,
-    onData: (data) => termActionsRef.current.write(data),
+    onData: (data) => {
+      termActionsRef.current.write(data);
+      trustDataRef.current();
+    },
     onConnected: () => {
       setHasEverConnected(true);
       prevConnectedTabIdRef.current = activeTabIdRef.current;
@@ -907,6 +925,11 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   addPendingMessageRef={addPendingMessageRef}
                   removePendingMessageRef={removePendingMessageRef}
                 />
+              )}
+              {isAgentPanel && trustPrompt && (
+                <div className="flex shrink-0 justify-center px-3 pb-3">
+                  <TrustPromptCard folderPath={trustPrompt.folderPath} onRespond={onTrustResponse} />
+                </div>
               )}
               {isAgentPanel && !showInitialLoading && agentInputVisible && (
                 <WebInputBar
