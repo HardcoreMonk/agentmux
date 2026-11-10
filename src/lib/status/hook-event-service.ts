@@ -1,6 +1,6 @@
 import { shouldProcessHookEvent } from '@/lib/status-notification-policy';
 import { reduceHookState, type IHookStateDecision } from '@/lib/status-state-machine';
-import type { IAgentProviderStatusBehavior } from '@/lib/providers';
+import type { TAgentHookStatusBehavior } from '@/lib/providers';
 import type { TCliState } from '@/types/timeline';
 import type { ILastEvent, ITabStatusEntry, TEventName } from '@/types/status';
 
@@ -33,7 +33,7 @@ interface IEvaluateStatusHookEventInput {
   notificationType?: string;
   entry: Pick<ITabStatusEntry, 'cliState' | 'eventSeq' | 'jsonlPath'>;
   providerId?: string | null;
-  statusBehavior?: IAgentProviderStatusBehavior | null;
+  statusBehavior?: TAgentHookStatusBehavior | null;
   now?: () => number;
 }
 

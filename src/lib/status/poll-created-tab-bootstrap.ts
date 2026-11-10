@@ -1,4 +1,5 @@
 import { readAgentSessionId, readAgentSummary } from '@/lib/agent-tab-fields';
+import type { IAgentProviderStatusBehavior } from '@/lib/providers';
 import { resolveAgentSessionId } from '@/lib/status-session-mapping';
 import {
   createSyntheticStatusLastEvent,
@@ -21,7 +22,7 @@ interface IStatusPollDetectedMetadata {
 interface IBuildStatusPollCreatedTabBootstrapInput {
   workspaceId: string;
   tab: ITab;
-  providerId?: string | null;
+  statusBehavior: IAgentProviderStatusBehavior | null;
   paneInfo?: IPaneInfo;
   detected: IStatusPollDetectedMetadata;
   terminalStatus: TTerminalStatus;
@@ -42,7 +43,7 @@ interface IStatusPollCreatedTabBootstrap {
 export const buildStatusPollCreatedTabBootstrap = ({
   workspaceId,
   tab,
-  providerId,
+  statusBehavior,
   paneInfo,
   detected,
   terminalStatus,
@@ -51,7 +52,7 @@ export const buildStatusPollCreatedTabBootstrap = ({
 }: IBuildStatusPollCreatedTabBootstrapInput): IStatusPollCreatedTabBootstrap => {
   const cliState = resolveStatusInitialCliState({
     persistedState: tab.cliState,
-    providerId,
+    reconcileStateFromJsonl: !!statusBehavior?.reconcileStateFromJsonl,
     detected,
   });
   const agentSessionId = resolveAgentSessionId({
@@ -79,7 +80,7 @@ export const buildStatusPollCreatedTabBootstrap = ({
   return {
     entry,
     actions: {
-      shouldStartJsonlWatch: providerId === 'codex' && !!detected.jsonlPath,
+      shouldStartJsonlWatch: !!statusBehavior?.watchJsonlWhenBound && !!detected.jsonlPath,
       shouldResolveUnknown: cliState === 'unknown',
     },
   };

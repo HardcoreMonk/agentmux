@@ -1,5 +1,6 @@
 import type { IChunkReadResult, IIncrementalResult, ISessionInfo, ITimelineEntry } from '@/types/timeline';
 import type { ISessionWatcher } from '@/lib/session-detection';
+import type { IAgentJsonlStatus } from '@/lib/status/jsonl-check';
 import type { ITab, TPanelType } from '@/types/terminal';
 
 export interface IAgentResumeCommandOptions {
@@ -33,7 +34,14 @@ export interface IAgentPromptClaim {
 export interface IAgentProviderStatusBehavior {
   readonly watchJsonlWhenBound: boolean;
   readonly deferStopHookUntilJsonlIdle: boolean;
+  readonly reconcileStateFromJsonl: boolean;
+  readonly recoverPaneInput: boolean;
 }
+
+export type TAgentHookStatusBehavior = Pick<
+  IAgentProviderStatusBehavior,
+  'watchJsonlWhenBound' | 'deferStopHookUntilJsonlIdle'
+>;
 
 export interface IAgentProvider {
   readonly id: string;
@@ -65,6 +73,7 @@ export interface IAgentProvider {
     fromOffset: number,
     pendingBuffer?: string,
   ): Promise<IIncrementalResult>;
+  readJsonlStatus(jsonlPath: string): Promise<IAgentJsonlStatus>;
 
   readSessionId(tab: ITab): string | null;
   writeSessionId(tab: ITab, sessionId: string | null | undefined): void;

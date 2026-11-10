@@ -28,7 +28,7 @@ interface IStatusPollPaneRecoveryResult {
 }
 
 interface IRecoverStatusPollPaneInput {
-  providerId?: string | null;
+  recoverPaneInput: boolean;
   running: boolean;
   recoverPending: () => Promise<IStatusPollPaneRecoveryResult>;
   recoverInterrupted: () => Promise<IStatusPollPaneRecoveryResult>;
@@ -54,12 +54,12 @@ export const shouldCheckStatusPollBusyStuck = ({
   && now - lastEventAt > busyStuckMs;
 
 export const recoverStatusPollPaneInput = async ({
-  providerId,
+  recoverPaneInput,
   running,
   recoverPending,
   recoverInterrupted,
 }: IRecoverStatusPollPaneInput): Promise<IStatusPollPaneRecoveryResult> => {
-  if (providerId !== 'codex' || !running) {
+  if (!recoverPaneInput || !running) {
     return { recovered: false };
   }
 

@@ -27,6 +27,7 @@ import {
   writeAgentSessionId,
   writeAgentSummary,
 } from '@/lib/agent-tab-fields';
+import { checkCodexJsonlState } from '@/lib/codex-jsonl-state';
 import { buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
 
 const readCodexCommandOptions = async (): Promise<ICodexCommandOptions> => {
@@ -58,6 +59,8 @@ export const codexProvider: IAgentProvider = {
   statusBehavior: {
     watchJsonlWhenBound: true,
     deferStopHookUntilJsonlIdle: true,
+    reconcileStateFromJsonl: true,
+    recoverPaneInput: true,
   },
 
   matchesProcess: (commandName) => commandName === 'codex',
@@ -99,6 +102,21 @@ export const codexProvider: IAgentProvider = {
   readTailEntries: readCodexTailEntries,
   readEntriesBefore: readCodexEntriesBefore,
   parseIncremental: parseCodexIncremental,
+  readJsonlStatus: async (jsonlPath) => {
+    const result = await checkCodexJsonlState(jsonlPath);
+    return {
+      idle: result.idle,
+      stale: result.stale,
+      lastAssistantSnippet: result.lastAssistantSnippet,
+      currentAction: result.currentAction,
+      reset: result.reset,
+      lastEntryTs: result.lastEntryTs,
+      staleMs: 0,
+      interrupted: result.interrupted,
+      completionTurnId: result.completionTurnId,
+      rateLimits: result.rateLimits,
+    };
+  },
 
   readSessionId: readAgentSessionId,
   writeSessionId: writeAgentSessionId,

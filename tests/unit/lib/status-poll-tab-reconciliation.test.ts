@@ -33,25 +33,25 @@ describe('status poll tab reconciliation', () => {
   it('resolves initial CLI state from persisted state and Codex metadata', () => {
     expect(resolveStatusInitialCliState({
       persistedState: 'busy',
-      providerId: null,
+      reconcileStateFromJsonl: false,
       detected,
     })).toBe('unknown');
 
     expect(resolveStatusInitialCliState({
       persistedState: 'unknown',
-      providerId: 'codex',
+      reconcileStateFromJsonl: true,
       detected: { ...detected, running: false },
     })).toBe('idle');
 
     expect(resolveStatusInitialCliState({
       persistedState: 'idle',
-      providerId: 'codex',
+      reconcileStateFromJsonl: true,
       detected: { ...detected, running: true, jsonlPath: null },
     })).toBe('busy');
 
     expect(resolveStatusInitialCliState({
       persistedState: 'busy',
-      providerId: 'codex',
+      reconcileStateFromJsonl: true,
       detected: {
         ...detected,
         running: true,
@@ -63,9 +63,27 @@ describe('status poll tab reconciliation', () => {
 
     expect(resolveStatusInitialCliState({
       persistedState: 'ready-for-review',
-      providerId: 'other',
+      reconcileStateFromJsonl: false,
       detected: { ...detected, running: true },
     })).toBe('ready-for-review');
+  });
+
+  it('keeps the persisted baseline when the provider does not reconcile state from JSONL', () => {
+    expect(resolveStatusInitialCliState({
+      persistedState: 'busy',
+      reconcileStateFromJsonl: false,
+      detected: { running: true, jsonlPath: null, idle: false, lastAssistantSnippet: null },
+    })).toBe('unknown');
+    expect(resolveStatusInitialCliState({
+      persistedState: 'idle',
+      reconcileStateFromJsonl: false,
+      detected: {
+        running: true,
+        jsonlPath: '/tmp/session.jsonl',
+        idle: true,
+        lastAssistantSnippet: 'done',
+      },
+    })).toBe('idle');
   });
 
   it('creates synthetic needs-input baseline events only for needs-input state', () => {

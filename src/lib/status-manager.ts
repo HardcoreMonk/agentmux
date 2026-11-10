@@ -13,7 +13,7 @@ import { mergeRateLimitsData, rateLimitsEqual } from '@/lib/codex-rate-limits';
 import { createLogger } from '@/lib/logger';
 import type { IPaneInfo } from '@/lib/tmux';
 import type { TCliState } from '@/types/timeline';
-import type { ICurrentAction, TTerminalStatus, ITabStatusEntry, IClientTabStatusEntry, IRateLimitsData } from '@/types/status';
+import type { TTerminalStatus, ITabStatusEntry, IClientTabStatusEntry, IRateLimitsData } from '@/types/status';
 import {
   addSessionHistoryEntry as addLegacySessionHistoryEntry,
   updateSessionHistoryDismissedAt as updateLegacySessionHistoryDismissedAt,
@@ -23,7 +23,6 @@ import { isAnyDeviceVisible } from '@/lib/push-subscriptions';
 import { nanoid } from 'nanoid';
 import fs from 'fs/promises';
 import { readAgentSessionId, readAgentSummary } from '@/lib/agent-tab-fields';
-import { checkCodexJsonlState } from '@/lib/codex-jsonl-state';
 import { getConfig } from '@/lib/config-store';
 import { reduceCodexState } from '@/lib/status-state-machine';
 import { createDedupeKeyStore } from '@/lib/dedupe-key-store';
@@ -45,9 +44,11 @@ import {
   type IStatusSideEffectPolicyInput,
 } from '@/lib/status-side-effect-policy';
 import {
-  extractStatusAssistantInfo,
-  scanStatusJsonlLines,
-} from '@/lib/status/jsonl-idle-scan';
+  checkJsonlIdle,
+  clearJsonlCheckCache,
+  emptyJsonlCheckResult,
+  type IJsonlCheckResult,
+} from '@/lib/status/jsonl-check';
 import {
   buildStatusSessionHistoryEntry,
   type IStatusJsonlStats,
@@ -104,39 +105,9 @@ type TChildPidCache = Map<number, Promise<number[]>>;
 const COMPACT_STALE_MS = 60_000;
 
 const BUSY_STUCK_MS = 10 * 60 * 1000;
-const JSONL_TAIL_SIZE = 8192;
 const JSONL_EXTENDED_TAIL_SIZE = 131_072;
 const PROCESS_RETRY_COUNT = 3;
 const CODEX_STOP_RECHECK_MS = 500;
-
-interface IJsonlIdleCache {
-  mtimeMs: number;
-  idle: boolean;
-  stale: boolean;
-  needsStaleRecheck: boolean;
-  staleMs: number;
-  lastAssistantSnippet: string | null;
-  currentAction: ICurrentAction | null;
-  reset: boolean;
-  lastEntryTs: number | null;
-  interrupted: boolean;
-  completionTurnId: string | null;
-}
-
-const MAX_JSONL_CACHE = 256;
-const jsonlIdleCache = new Map<string, IJsonlIdleCache>();
-
-interface IJsonlCheckResult {
-  idle: boolean;
-  stale: boolean;
-  lastAssistantSnippet: string | null;
-  currentAction: ICurrentAction | null;
-  reset: boolean;
-  lastEntryTs: number | null;
-  staleMs: number;
-  interrupted: boolean;
-  completionTurnId: string | null;
-}
 
 interface IReadTabMetadataResult extends IJsonlCheckResult {
   jsonlPath: string | null;
@@ -144,88 +115,14 @@ interface IReadTabMetadataResult extends IJsonlCheckResult {
   sessionId?: string | null;
 }
 
-const emptyJsonlCheckResult = (): IJsonlCheckResult => ({
-  idle: false,
-  stale: false,
-  lastAssistantSnippet: null,
-  currentAction: null,
-  reset: false,
-  lastEntryTs: null,
-  staleMs: 0,
-  interrupted: false,
-  completionTurnId: null,
-});
-
-const checkJsonlIdle = async (jsonlPath: string): Promise<IJsonlCheckResult> => {
-  try {
-    const stat = await fs.stat(jsonlPath);
-    if (stat.size === 0) return { idle: true, stale: false, lastAssistantSnippet: null, currentAction: null, reset: false, lastEntryTs: null, staleMs: 0, interrupted: false, completionTurnId: null };
-
-    const cached = jsonlIdleCache.get(jsonlPath);
-    if (cached && cached.mtimeMs === stat.mtimeMs) {
-      jsonlIdleCache.delete(jsonlPath);
-      jsonlIdleCache.set(jsonlPath, cached);
-      if (cached.idle) return { idle: true, stale: cached.stale, lastAssistantSnippet: cached.lastAssistantSnippet, currentAction: cached.currentAction, reset: cached.reset, lastEntryTs: cached.lastEntryTs, staleMs: cached.staleMs, interrupted: cached.interrupted, completionTurnId: cached.completionTurnId };
-      if (cached.needsStaleRecheck) {
-        const idle = Date.now() - stat.mtimeMs > cached.staleMs;
-        return { idle, stale: true, lastAssistantSnippet: cached.lastAssistantSnippet, currentAction: cached.currentAction, reset: cached.reset, lastEntryTs: cached.lastEntryTs, staleMs: cached.staleMs, interrupted: cached.interrupted, completionTurnId: cached.completionTurnId };
-      }
-      return { idle: false, stale: false, lastAssistantSnippet: cached.lastAssistantSnippet, currentAction: cached.currentAction, reset: cached.reset, lastEntryTs: cached.lastEntryTs, staleMs: cached.staleMs, interrupted: cached.interrupted, completionTurnId: cached.completionTurnId };
-    }
-
-    const handle = await fs.open(jsonlPath, 'r');
-    try {
-      const elapsed = Date.now() - stat.mtimeMs;
-
-      const readSize = Math.min(stat.size, JSONL_TAIL_SIZE);
-      const buffer = Buffer.alloc(readSize);
-      await handle.read(buffer, 0, readSize, stat.size - readSize);
-      const lines = buffer.toString('utf-8').split('\n').filter((l) => l.trim());
-
-      let scan = scanStatusJsonlLines(lines, elapsed);
-      let extracted = extractStatusAssistantInfo(lines);
-
-      if (!scan.matched && stat.size > JSONL_TAIL_SIZE) {
-        const extSize = Math.min(stat.size, JSONL_EXTENDED_TAIL_SIZE);
-        const extBuffer = Buffer.alloc(extSize);
-        await handle.read(extBuffer, 0, extSize, stat.size - extSize);
-        const extLines = extBuffer.toString('utf-8').split('\n').filter((l) => l.trim());
-        scan = scanStatusJsonlLines(extLines, elapsed);
-        if (!extracted.lastAssistantSnippet && !extracted.currentAction) extracted = extractStatusAssistantInfo(extLines);
-      }
-
-      if (jsonlIdleCache.size >= MAX_JSONL_CACHE) {
-        jsonlIdleCache.delete(jsonlIdleCache.keys().next().value!);
-      }
-      jsonlIdleCache.set(jsonlPath, { mtimeMs: stat.mtimeMs, idle: scan.idle, stale: scan.stale, needsStaleRecheck: scan.needsStaleRecheck, staleMs: scan.staleMs, lastAssistantSnippet: extracted.lastAssistantSnippet, currentAction: extracted.currentAction, reset: extracted.reset, lastEntryTs: scan.lastEntryTs, interrupted: scan.interrupted, completionTurnId: null });
-      return { idle: scan.idle, stale: scan.stale, lastAssistantSnippet: extracted.lastAssistantSnippet, currentAction: extracted.currentAction, reset: extracted.reset, lastEntryTs: scan.lastEntryTs, staleMs: scan.staleMs, interrupted: scan.interrupted, completionTurnId: null };
-    } finally {
-      await handle.close();
-    }
-  } catch {
-    return { idle: false, stale: false, lastAssistantSnippet: null, currentAction: null, reset: false, lastEntryTs: null, staleMs: 0, interrupted: false, completionTurnId: null };
-  }
-};
-
 const checkProviderJsonlIdle = async (
   provider: IAgentProvider,
   jsonlPath: string,
   onRateLimits?: (data: IRateLimitsData) => void,
 ): Promise<IJsonlCheckResult> => {
-  if (provider.id !== 'codex') return checkJsonlIdle(jsonlPath);
-  const result = await checkCodexJsonlState(jsonlPath);
-  if (result.rateLimits) onRateLimits?.(result.rateLimits);
-  return {
-    idle: result.idle,
-    stale: result.stale,
-    lastAssistantSnippet: result.lastAssistantSnippet,
-    currentAction: result.currentAction,
-    reset: result.reset,
-    lastEntryTs: result.lastEntryTs,
-    staleMs: 0,
-    interrupted: result.interrupted,
-    completionTurnId: result.completionTurnId,
-  };
+  const { rateLimits, ...result } = await provider.readJsonlStatus(jsonlPath);
+  if (rateLimits) onRateLimits?.(rateLimits);
+  return result;
 };
 
 const parseJsonlStats = async (jsonlPath: string): Promise<IStatusJsonlStats> => {
@@ -353,7 +250,7 @@ export class StatusManager {
       delayMs: CODEX_STOP_RECHECK_MS,
       recheckCodexStop: ({ tabId, tmuxSession }) => this.recheckCodexStopNow(tabId, tmuxSession),
       refreshStopSnippet: ({ tabId, jsonlPath }) => this.refreshStopSnippet(tabId, jsonlPath),
-      clearJsonlCache: (jsonlPath) => jsonlIdleCache.delete(jsonlPath),
+      clearJsonlCache: (jsonlPath) => clearJsonlCheckCache(jsonlPath),
       warn: (message) => hookLog.warn(message),
     });
     this.sessionHistoryPersistence = createStatusSessionHistoryPersistence({
@@ -416,7 +313,7 @@ export class StatusManager {
         const bootstrap = buildStatusScanTabBootstrap({
           workspaceId,
           tab,
-          providerId: provider?.id ?? null,
+          statusBehavior: provider?.statusBehavior ?? null,
           paneInfo,
           detected,
           terminalStatus,
@@ -530,7 +427,7 @@ export class StatusManager {
     entry: ITabStatusEntry,
     metadata: IReadTabMetadataResult,
   ): boolean {
-    if (getProviderByPanelType(entry.panelType)?.id !== 'codex') return false;
+    if (!getProviderByPanelType(entry.panelType)?.statusBehavior.reconcileStateFromJsonl) return false;
 
     const decision = reduceCodexState({
       currentState: entry.cliState,
@@ -620,7 +517,7 @@ export class StatusManager {
           const bootstrap = buildStatusPollCreatedTabBootstrap({
             workspaceId,
             tab,
-            providerId: provider?.id ?? null,
+            statusBehavior: provider?.statusBehavior ?? null,
             paneInfo,
             detected,
             terminalStatus,
@@ -676,7 +573,7 @@ export class StatusManager {
         });
         const metadataChanged = this.mergeJsonlMetadata(existing, refreshed);
         const codexStateChanged = this.reconcileCodexState(tab.id, existing, refreshed);
-        if (provider?.id === 'codex' && existing.jsonlPath) {
+        if (provider?.statusBehavior.watchJsonlWhenBound && existing.jsonlPath) {
           this.startJsonlWatch(tab.id, existing.jsonlPath);
         }
 
@@ -700,7 +597,7 @@ export class StatusManager {
         }
 
         const paneRecovery = await recoverStatusPollPaneInput({
-          providerId: provider?.id ?? null,
+          recoverPaneInput: !!provider?.statusBehavior.recoverPaneInput,
           running: refreshed.running,
           recoverPending: () => this.recoverPendingInputFromPane(tab.id),
           recoverInterrupted: () => this.recoverInterruptedPromptFromPane(tab.id),
@@ -1144,7 +1041,7 @@ export class StatusManager {
     }
 
     if (!entry?.jsonlPath) return;
-    jsonlIdleCache.delete(entry.jsonlPath);
+    clearJsonlCheckCache(entry.jsonlPath);
     await this.onJsonlFileChange(tabId, entry.jsonlPath);
   }
 
@@ -1332,8 +1229,10 @@ export class StatusManager {
       this.startJsonlWatch(tabId, jsonlPath);
     }
     const provider = getProviderByPanelType(entry.panelType);
-    if (provider?.id === 'codex') {
+    if (provider?.statusBehavior.watchJsonlWhenBound) {
       this.startJsonlWatch(tabId, jsonlPath);
+    }
+    if (provider?.statusBehavior.reconcileStateFromJsonl) {
       const metadata = await checkProviderJsonlIdle(
         provider,
         jsonlPath,
@@ -1360,8 +1259,11 @@ export class StatusManager {
       return;
     }
     const provider = getProviderByPanelType(entry.panelType);
-    const isCodex = provider?.id === 'codex';
-    if (!shouldKeepStatusJsonlWatch({ cliState: entry.cliState, providerId: provider?.id ?? null })) {
+    const statusBehavior = provider?.statusBehavior ?? null;
+    if (!shouldKeepStatusJsonlWatch({
+      cliState: entry.cliState,
+      watchJsonlWhenBound: !!statusBehavior?.watchJsonlWhenBound,
+    })) {
       this.stopJsonlWatch(tabId);
       return;
     }
@@ -1387,9 +1289,12 @@ export class StatusManager {
 
     changed = this.mergeJsonlMetadata(entry, check) || changed;
 
-    if (isCodex) {
+    if (statusBehavior?.reconcileStateFromJsonl) {
       entry.jsonlPath = jsonlPath;
       changed = this.reconcileCodexState(tabId, entry, { ...check, jsonlPath, running: true }) || changed;
+    }
+
+    if (statusBehavior?.recoverPaneInput) {
       const recovery = await this.recoverPendingInputFromPane(tabId);
       if (recovery.recovered) {
         changed = false;

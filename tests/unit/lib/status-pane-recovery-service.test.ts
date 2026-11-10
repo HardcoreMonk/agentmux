@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createStatusPaneRecoveryService } from '@/lib/status/pane-recovery-service';
 import type { IApprovalPromptMetadata } from '@/lib/permission-prompt';
+import type { IAgentProviderStatusBehavior } from '@/lib/providers';
 import type { ITabStatusEntry } from '@/types/status';
 
 const metadata: IApprovalPromptMetadata = {
@@ -11,6 +12,20 @@ const metadata: IApprovalPromptMetadata = {
   commandPreview: 'corepack pnpm test',
   fileHints: [],
   fallbackReason: null,
+};
+
+const codexStatusBehavior: IAgentProviderStatusBehavior = {
+  watchJsonlWhenBound: true,
+  deferStopHookUntilJsonlIdle: true,
+  reconcileStateFromJsonl: true,
+  recoverPaneInput: true,
+};
+
+const passiveStatusBehavior: IAgentProviderStatusBehavior = {
+  watchJsonlWhenBound: false,
+  deferStopHookUntilJsonlIdle: false,
+  reconcileStateFromJsonl: false,
+  recoverPaneInput: false,
 };
 
 const makeEntry = (overrides: Partial<ITabStatusEntry> = {}): ITabStatusEntry => ({
@@ -29,7 +44,7 @@ const createService = (overrides: Partial<Parameters<typeof createStatusPaneReco
     capturePaneAtWidth: vi.fn(async () => 'pane content'),
     parsePermissionOptions: vi.fn(() => ({ options: ['1. Yes', '2. No'], focusedIndex: 0, metadata })),
     hasInterruptedPrompt: vi.fn(() => true),
-    getProviderId: () => 'codex',
+    getStatusBehavior: () => codexStatusBehavior,
     now: () => 1_234,
     warn: vi.fn(),
     ...overrides,
@@ -53,11 +68,11 @@ describe('status pane recovery service', () => {
     });
   });
 
-  it('rejects pending input recovery for non-Codex entries and panes with no options', async () => {
-    await expect(createService({ getProviderId: () => null }).recoverPendingInput({
+  it('rejects pending input recovery for entries without a provider and panes with no options', async () => {
+    await expect(createService({ getStatusBehavior: () => null }).recoverPendingInput({
       tabId: 'tab-a',
       entry: makeEntry({ panelType: undefined }),
-    })).resolves.toEqual({ recovered: false, reason: 'not-codex' });
+    })).resolves.toEqual({ recovered: false, reason: 'not-supported' });
 
     await expect(createService({
       parsePermissionOptions: vi.fn(() => ({ options: [], focusedIndex: 0, metadata })),
@@ -65,6 +80,24 @@ describe('status pane recovery service', () => {
       tabId: 'tab-a',
       entry: makeEntry(),
     })).resolves.toEqual({ recovered: false, reason: 'no-options' });
+  });
+
+  it('does not capture the pane when the provider does not recover pane input', async () => {
+    const capturePaneAtWidth = vi.fn(async () => 'pane content');
+    const service = createService({
+      capturePaneAtWidth,
+      getStatusBehavior: () => passiveStatusBehavior,
+    });
+
+    await expect(service.recoverPendingInput({
+      tabId: 'tab-a',
+      entry: makeEntry(),
+    })).resolves.toEqual({ recovered: false, reason: 'not-supported' });
+    await expect(service.recoverInterruptedPrompt({
+      tabId: 'tab-a',
+      entry: makeEntry(),
+    })).resolves.toEqual({ recovered: false, reason: 'not-supported' });
+    expect(capturePaneAtWidth).not.toHaveBeenCalled();
   });
 
   it('recovers interrupted prompts as idle without history', async () => {

@@ -65,6 +65,7 @@ export {
 export type {
   IAgentProvider,
   IAgentProviderStatusBehavior,
+  TAgentHookStatusBehavior,
   IAgentJsonlResolution,
   IAgentPromptClaim,
   IAgentLaunchCommandOptions,

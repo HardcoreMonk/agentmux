@@ -27,6 +27,8 @@ const makeProvider = (parseIncremental: IAgentProvider['parseIncremental']): IAg
   statusBehavior: {
     watchJsonlWhenBound: true,
     deferStopHookUntilJsonlIdle: true,
+    reconcileStateFromJsonl: true,
+    recoverPaneInput: true,
   },
   matchesProcess: () => true,
   isValidSessionId: (id: unknown): id is string => typeof id === 'string',
@@ -40,6 +42,7 @@ const makeProvider = (parseIncremental: IAgentProvider['parseIncremental']): IAg
   readTailEntries: vi.fn(),
   readEntriesBefore: vi.fn(),
   parseIncremental,
+  readJsonlStatus: vi.fn(),
   readSessionId: vi.fn(),
   writeSessionId: vi.fn(),
   readJsonlPath: vi.fn(),

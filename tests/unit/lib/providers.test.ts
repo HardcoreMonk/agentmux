@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 
 import { normalizePanelType } from '@/lib/panel-type';
 import { buildAgentSessionRelationship } from '@/lib/agent-session-relationship';
+import { checkCodexJsonlState } from '@/lib/codex-jsonl-state';
 import { getProviderByPanelType, getProviderByProcessName, listProviders } from '@/lib/providers';
+import { codexProvider } from '@/lib/providers/codex';
 
 const UUID = '12345678-1234-1234-1234-123456789abc';
 const codexLine = (value: unknown): string => JSON.stringify(value);
@@ -51,12 +54,90 @@ describe('agent providers', () => {
       expect(typeof provider.readTailEntries).toBe('function');
       expect(typeof provider.readEntriesBefore).toBe('function');
       expect(typeof provider.parseIncremental).toBe('function');
+      expect(typeof provider.readJsonlStatus).toBe('function');
       expect(typeof provider.readSessionId).toBe('function');
       expect(typeof provider.writeSessionId).toBe('function');
       expect(typeof provider.readJsonlPath).toBe('function');
       expect(typeof provider.writeJsonlPath).toBe('function');
       expect(typeof provider.readSummary).toBe('function');
       expect(typeof provider.writeSummary).toBe('function');
+    }
+  });
+
+  it('keeps every Codex status behavior enabled', () => {
+    expect(codexProvider.statusBehavior).toEqual({
+      watchJsonlWhenBound: true,
+      deferStopHookUntilJsonlIdle: true,
+      reconcileStateFromJsonl: true,
+      recoverPaneInput: true,
+    });
+  });
+
+  it('reads Codex JSONL status with the same state and rate limits as checkCodexJsonlState', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-provider-status-'));
+    const filePath = path.join(tempDir, 'session.jsonl');
+    try {
+      await fs.writeFile(filePath, [
+        {
+          type: 'event_msg',
+          timestamp: '2026-04-28T00:59:00.000Z',
+          payload: { type: 'task_started', turn_id: 'turn-1' },
+        },
+        {
+          type: 'event_msg',
+          timestamp: '2026-04-28T00:59:01.000Z',
+          payload: { type: 'user_message', message: 'Finish' },
+        },
+        {
+          type: 'event_msg',
+          timestamp: '2026-04-28T00:59:30.000Z',
+          payload: { type: 'agent_message', message: 'Intermediate note.' },
+        },
+        {
+          type: 'event_msg',
+          timestamp: '2026-04-28T00:59:40.000Z',
+          payload: {
+            type: 'token_count',
+            rate_limits: {
+              primary: { used_percent: 42, window_minutes: 300, resets_at: 1_800_000_000 },
+              secondary: { used_percent: 9, window_minutes: 10_080, resets_at: 1_900_000_000 },
+            },
+          },
+        },
+        {
+          type: 'event_msg',
+          timestamp: '2026-04-28T00:59:45.000Z',
+          payload: {
+            type: 'task_complete',
+            turn_id: 'turn-1',
+            last_agent_message: 'Final answer.',
+          },
+        },
+      ].map(codexLine).join('\n') + '\n');
+
+      const expected = await checkCodexJsonlState(filePath);
+      const status = await codexProvider.readJsonlStatus(filePath);
+
+      expect(expected.idle).toBe(true);
+      expect(expected.lastAssistantSnippet).toBe('Final answer.');
+      expect(expected.rateLimits?.five_hour?.used_percentage).toBe(42);
+      expect(status.idle).toBe(expected.idle);
+      expect(status.lastAssistantSnippet).toBe(expected.lastAssistantSnippet);
+      expect(status.rateLimits).toEqual(expected.rateLimits);
+      expect(status).toEqual({
+        idle: expected.idle,
+        stale: expected.stale,
+        lastAssistantSnippet: expected.lastAssistantSnippet,
+        currentAction: expected.currentAction,
+        reset: expected.reset,
+        lastEntryTs: expected.lastEntryTs,
+        staleMs: 0,
+        interrupted: expected.interrupted,
+        completionTurnId: expected.completionTurnId,
+        rateLimits: expected.rateLimits,
+      });
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
     }
   });
 

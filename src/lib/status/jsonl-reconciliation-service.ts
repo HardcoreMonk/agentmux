@@ -3,7 +3,7 @@ import type { TCliState } from '@/types/timeline';
 
 interface IStatusJsonlWatchInput {
   cliState: TCliState;
-  providerId?: string | null;
+  watchJsonlWhenBound: boolean;
 }
 
 interface ISyntheticJsonlInterruptInput {
@@ -21,8 +21,8 @@ interface IDelayedJsonlInputRecoveryInput {
 
 export const shouldKeepStatusJsonlWatch = ({
   cliState,
-  providerId,
-}: IStatusJsonlWatchInput): boolean => providerId === 'codex'
+  watchJsonlWhenBound,
+}: IStatusJsonlWatchInput): boolean => watchJsonlWhenBound
   || cliState === 'busy'
   || cliState === 'needs-input'
   || cliState === 'unknown'

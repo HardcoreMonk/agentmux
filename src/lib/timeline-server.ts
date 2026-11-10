@@ -16,7 +16,6 @@ import { getStatusManager } from './status-manager';
 import { getProviderByPanelType } from '@/lib/providers';
 import type { IAgentProvider } from '@/lib/providers';
 import { extractSessionIdFromJsonlPath, readSessionStats } from './session-stats';
-import { checkCodexJsonlState } from '@/lib/codex-jsonl-state';
 import type { ISessionStats } from '@/types/timeline';
 import path from 'path';
 import { isAllowedJsonlPath } from './path-validation';
@@ -127,7 +126,6 @@ const timelineResumeSessionService = createTimelineResumeSessionService({
       return null;
     }
   },
-  checkJsonlState: checkCodexJsonlState,
   extractSessionIdFromJsonlPath,
 });
 
