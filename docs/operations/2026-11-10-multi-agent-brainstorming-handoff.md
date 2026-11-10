@@ -153,16 +153,18 @@
 
 ## Current Lifecycle Stage
 
-- Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): `superpowers:brainstorming`, 설계
-  문서 builder check 반영 뒤 사용자 승인 대기.
+- Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
+  grill-me Passed(`docs/superpowers/grill-me/2026-11-10-claude-code-provider.md`), design review Approved
+  조건부(`docs/superpowers/reviews/2026-11-10-claude-code-provider-design-review.md`), 단계 1 계획 작성
+  (`docs/superpowers/plans/2026-11-10-claude-code-provider-phase1.md`). 계획 검토와 실행 방식 선택 대기.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-설계 1 문서(`docs/superpowers/specs/2026-11-10-claude-code-provider-design.md`)의 builder check 결과를
-반영하고 사용자 승인을 받는다. 승인 뒤 grill-me, plan-design-review, writing-plans 순서로 간다. 승인 전에는
-구현하지 않는다.
+사용자가 단계 1 계획을 검토하고 실행 방식(subagent-driven 또는 native)을 고르면 plan-eng-review를 거쳐
+`feat/claude-provider-phase1` branch에서 구현한다. 단계 2~4 계획은 앞 단계가 merge된 뒤 그 interface를 기준으로
+쓴다.
 
 ## Follow-Up Tasks
 
