@@ -15,11 +15,6 @@
   "installTmux": "Install tmux",
   "upgradeTmux": "Upgrade tmux",
   "installGit": "Install git",
-  "installCodex": "Install Codex CLI",
-  "fixCodexPath": "Configure Codex CLI PATH",
-  "codexPathMissing": "Codex CLI (PATH not configured)",
-  "codexLogin": "Log in to Codex",
-  "codexLoginDescription": "Codex CLI is installed. Log in to connect your account. Once logged in, type /exit to close.",
   "password": "Password",
   "passwordPlaceholder": "Min 4 characters",
   "confirmPassword": "Confirm password",
@@ -60,5 +55,20 @@
   "submitting": "Saving...",
   "completeButton": "Complete Setup",
   "setupFailed": "Setup failed.",
-  "connectionError": "Cannot connect to server."
+  "connectionError": "Cannot connect to server.",
+  "agentsHeading": "Coding agents",
+  "agentsHint": "One ready agent is enough to continue. Codex or Claude Code both work.",
+  "agentState": {
+    "ready": "Ready",
+    "notInstalled": "Not installed",
+    "pathMissing": "Installed, PATH not configured",
+    "needsUpdate": "Needs an update",
+    "needsLogin": "Installed, login required"
+  },
+  "agentActions": {
+    "install": "Install {agent}",
+    "path": "Configure {agent} PATH",
+    "login": "Log in to {agent}"
+  },
+  "agentLoginHint": "After logging in, type /exit to close the login session, then refresh."
 }

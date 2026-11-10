@@ -15,11 +15,6 @@
   "installTmux": "tmux 설치",
   "upgradeTmux": "tmux 업그레이드",
   "installGit": "git 설치",
-  "installCodex": "Codex CLI 설치",
-  "fixCodexPath": "Codex CLI PATH 설정",
-  "codexPathMissing": "Codex CLI (PATH 설정 필요)",
-  "codexLogin": "Codex 로그인",
-  "codexLoginDescription": "Codex CLI가 설치되었습니다. 로그인하여 계정을 연결하세요. 로그인이 완료되면 /exit를 입력하여 종료합니다.",
   "password": "비밀번호",
   "passwordPlaceholder": "4자 이상 입력",
   "confirmPassword": "비밀번호 확인",
@@ -60,5 +55,20 @@
   "submitting": "설정 중...",
   "completeButton": "설정 완료",
   "setupFailed": "설정에 실패했습니다.",
-  "connectionError": "서버에 연결할 수 없습니다."
+  "connectionError": "서버에 연결할 수 없습니다.",
+  "agentsHeading": "코딩 에이전트",
+  "agentsHint": "에이전트 하나만 준비되면 계속할 수 있습니다. Codex와 Claude Code 중 편한 쪽을 쓰세요.",
+  "agentState": {
+    "ready": "준비됨",
+    "notInstalled": "설치되지 않음",
+    "pathMissing": "설치됨, PATH 설정 필요",
+    "needsUpdate": "업데이트 필요",
+    "needsLogin": "설치됨, 로그인 필요"
+  },
+  "agentActions": {
+    "install": "{agent} 설치",
+    "path": "{agent} PATH 설정",
+    "login": "{agent} 로그인"
+  },
+  "agentLoginHint": "로그인이 끝나면 /exit를 입력해 로그인 세션을 닫고 새로고침하세요."
 }

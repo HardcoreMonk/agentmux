@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createTerminalRuntimePreflightStatus,
@@ -115,5 +115,46 @@ describe('preflight agent status', () => {
     expect(isSemanticVersionAtLeast('0.147.0', '0.144.1')).toBe(true);
     expect(isSemanticVersionAtLeast('0.99.0', '0.144.1')).toBe(false);
     expect(isSemanticVersionAtLeast(null, '0.144.1')).toBe(false);
+  });
+});
+
+describe('getPreflightStatus agents', () => {
+  const setup = async (files: string[]) => {
+    const { mkdtemp, mkdir, writeFile, rm } = await import('node:fs/promises');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    const home = await mkdtemp(path.join(os.tmpdir(), 'preflight-home-'));
+    await mkdir(path.join(home, '.local', 'bin'), { recursive: true });
+    await writeFile(path.join(home, '.local', 'bin', 'claude'), '');
+    for (const file of files) await writeFile(path.join(home, file), '');
+    vi.stubEnv('HOME', home);
+    vi.resetModules();
+    const mod = await import('@/lib/preflight');
+    return { mod, cleanup: () => rm(home, { recursive: true, force: true }) };
+  };
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('marks Claude logged in when ~/.claude.json exists', async () => {
+    const { mod, cleanup } = await setup(['.claude.json']);
+    try {
+      const status = await mod.getPreflightStatus();
+      expect(status.agents.claude?.loggedIn).toBe(true);
+      expect(status.agent).toBe(status.agents.codex);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('marks Claude logged out without credentials files', async () => {
+    const { mod, cleanup } = await setup([]);
+    try {
+      const status = await mod.getPreflightStatus();
+      expect(status.agents.claude?.loggedIn).toBe(false);
+    } finally {
+      await cleanup();
+    }
   });
 });

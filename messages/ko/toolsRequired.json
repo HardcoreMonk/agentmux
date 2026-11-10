@@ -6,11 +6,17 @@
   "installTmux": "tmux 설치",
   "upgradeTmux": "tmux 업그레이드",
   "installGit": "git 설치",
-  "installCodex": "Codex CLI 설치",
-  "updateCodex": "Codex CLI 업데이트",
-  "fixCodexPath": "Codex CLI PATH 설정",
-  "codexPathMissing": "Codex CLI (PATH 설정 필요)",
   "recheck": "다시 확인",
   "allGood": "모든 도구가 설치되어 있습니다!",
-  "redirecting": "이동 중..."
+  "redirecting": "이동 중...",
+  "agentsHint": "에이전트 하나만 준비되면 됩니다. Codex 또는 Claude Code를 설치하세요.",
+  "agentState": {
+    "ready": "준비됨",
+    "notInstalled": "설치되지 않음",
+    "pathMissing": "PATH 설정 필요",
+    "needsUpdate": "업데이트 필요"
+  },
+  "installAgent": "{agent} 설치",
+  "updateAgent": "{agent} 업데이트",
+  "fixAgentPath": "{agent} PATH 설정"
 }

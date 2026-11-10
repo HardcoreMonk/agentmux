@@ -6,11 +6,17 @@
   "installTmux": "Install tmux",
   "upgradeTmux": "Upgrade tmux",
   "installGit": "Install git",
-  "installCodex": "Install Codex CLI",
-  "updateCodex": "Update Codex CLI",
-  "fixCodexPath": "Configure Codex CLI PATH",
-  "codexPathMissing": "Codex CLI (PATH not configured)",
   "recheck": "Recheck",
   "allGood": "All tools are available!",
-  "redirecting": "Redirecting..."
+  "redirecting": "Redirecting...",
+  "agentsHint": "One ready agent is enough. Install Codex or Claude Code.",
+  "agentState": {
+    "ready": "Ready",
+    "notInstalled": "Not installed",
+    "pathMissing": "PATH not configured",
+    "needsUpdate": "Needs an update"
+  },
+  "installAgent": "Install {agent}",
+  "updateAgent": "Update {agent}",
+  "fixAgentPath": "Configure {agent} PATH"
 }
