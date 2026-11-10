@@ -6,7 +6,7 @@ import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getDataDir } from '@/lib/app-identity';
 import { getStatusHookBridgeSource } from '@/lib/hook-settings';
-import { buildStatuslineScriptContent } from '@/lib/statusline-script';
+import { buildStatuslineScriptSource } from '@/lib/statusline-script';
 
 const temporaryDirectories: string[] = [];
 
@@ -116,13 +116,13 @@ describe('status hook bridge', () => {
     vi.stubEnv('HOME', homeDir);
     vi.stubEnv('USERPROFILE', homeDir);
     const bridgeSource = getStatusHookBridgeSource();
-    const statuslineSource = buildStatuslineScriptContent();
+    const statuslineSource = buildStatuslineScriptSource();
 
     expect(bridgeSource).toContain(JSON.stringify(path.join(homeDir, '.agentmux')));
     expect(bridgeSource).toContain("'x-agentmux-token': token");
-    expect(statuslineSource).toContain(`PORT_FILE='${path.join(homeDir, '.agentmux', 'port')}'`);
-    expect(statuslineSource).toContain('-H "x-agentmux-token: ${TOKEN}"');
-    expect(statuslineSource).not.toContain('$HOME/.codexmux');
+    expect(statuslineSource).toContain(JSON.stringify(path.join(homeDir, '.agentmux')));
+    expect(statuslineSource).toContain("'x-agentmux-token': token");
+    expect(statuslineSource).not.toContain('.codexmux');
 
     const agentmuxDir = path.join(homeDir, '.agentmux');
     await fs.mkdir(agentmuxDir, { recursive: true });

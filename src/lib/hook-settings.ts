@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
-import { STATUSLINE_SCRIPT_PATH, buildStatuslineScriptContent } from '@/lib/statusline-script';
+import { STATUSLINE_SCRIPT_PATH, buildStatuslineScriptSource, shQuote } from '@/lib/statusline-script';
 import { STATUS_HOOK_BRIDGE_PATH } from '@/lib/agent-hooks';
 
 const log = createLogger('hooks');
@@ -93,7 +93,7 @@ export const buildHookSettings = () => ({
   hooks: {},
   statusLine: {
     type: 'command' as const,
-    command: `sh "${STATUSLINE_SCRIPT_PATH}"`,
+    command: `ELECTRON_RUN_AS_NODE=1 ${shQuote(process.execPath)} ${shQuote(STATUSLINE_SCRIPT_PATH)}`,
   },
 });
 
@@ -113,8 +113,7 @@ export const ensureHookSettings = async (port: number): Promise<void> => {
   const baseDir = getDataDir();
   const hooksFile = path.join(baseDir, 'hooks.json');
   const portFile = path.join(baseDir, 'port');
-  const statuslineScriptPath = path.join(baseDir, 'statusline.sh');
-  const statuslineScriptContent = buildStatuslineScriptContent(baseDir);
+  const statuslineScriptPath = path.join(baseDir, 'statusline.cjs');
 
   await fs.mkdir(baseDir, { recursive: true });
 
@@ -122,15 +121,7 @@ export const ensureHookSettings = async (port: number): Promise<void> => {
 
   await writeIfChanged(HOOK_BRIDGE, getStatusHookBridgeSource(baseDir), 0o700);
 
-  // Create statusline script
-  try {
-    const existing = await fs.readFile(statuslineScriptPath, 'utf-8');
-    if (existing !== statuslineScriptContent) {
-      await fs.writeFile(statuslineScriptPath, statuslineScriptContent, { mode: 0o755 });
-    }
-  } catch {
-    await fs.writeFile(statuslineScriptPath, statuslineScriptContent, { mode: 0o755 });
-  }
+  await writeIfChanged(statuslineScriptPath, buildStatuslineScriptSource(baseDir), 0o700);
 
   // Create hooks.json
   const settings = buildHookSettings();
