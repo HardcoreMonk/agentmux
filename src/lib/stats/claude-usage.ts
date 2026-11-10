@@ -1,3 +1,5 @@
+import { isClaudeUserPrompt } from '@/lib/providers/claude/user-prompt';
+
 export interface IClaudeUsage {
   model: string;
   input: number;
@@ -8,11 +10,19 @@ export interface IClaudeUsage {
   cacheCreation1h: number;
 }
 
-// Keys of API responses already counted. One set must span a whole computation: a response is
-// written as several lines with the same usage, and resumed or forked transcripts copy it to other files.
-export type TClaudeUsageSeen = Set<string>;
+// Keys already counted. One instance must span a whole computation: a response is written as several lines
+// with the same usage, and resumed or forked transcripts copy earlier lines into other files.
+export interface IClaudeSeen {
+  usage: Set<string>;
+  prompts: Set<string>;
+  toolUses: Set<string>;
+}
 
-export const createClaudeUsageSeen = (): TClaudeUsageSeen => new Set();
+export const createClaudeSeen = (): IClaudeSeen => ({
+  usage: new Set(),
+  prompts: new Set(),
+  toolUses: new Set(),
+});
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -22,21 +32,30 @@ const toCount = (value: unknown): number => {
   return Number.isFinite(count) ? count : 0;
 };
 
+const readString = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+// Lines without a key cannot be matched, so they are always counted.
+const isFirstSeen = (seen: Set<string>, key: string): boolean => {
+  if (!key) return true;
+  if (seen.has(key)) return false;
+  seen.add(key);
+  return true;
+};
+
+const responseKey = (entry: Record<string, unknown>, message: Record<string, unknown>): string =>
+  readString(message.id) || readString(entry.requestId);
+
 export const isCountableClaudeModel = (model: string): boolean => model !== '' && !model.startsWith('<');
 
-export const takeClaudeAssistantUsage = (entry: unknown, seen: TClaudeUsageSeen): IClaudeUsage | null => {
+export const takeClaudeUserPrompt = (entry: unknown, seen: IClaudeSeen): boolean =>
+  isClaudeUserPrompt(entry) && isRecord(entry) && isFirstSeen(seen.prompts, readString(entry.uuid));
+
+export const takeClaudeAssistantUsage = (entry: unknown, seen: IClaudeSeen): IClaudeUsage | null => {
   if (!isRecord(entry) || entry.type !== 'assistant' || !isRecord(entry.message)) return null;
   const { message } = entry;
-  const model = typeof message.model === 'string' ? message.model : '';
+  const model = readString(message.model);
   if (!isCountableClaudeModel(model) || !isRecord(message.usage)) return null;
-
-  const key = typeof message.id === 'string' && message.id
-    ? message.id
-    : typeof entry.requestId === 'string' ? entry.requestId : '';
-  if (key) {
-    if (seen.has(key)) return null;
-    seen.add(key);
-  }
+  if (!isFirstSeen(seen.usage, responseKey(entry, message))) return null;
 
   const { usage } = message;
   const cacheCreation = toCount(usage.cache_creation_input_tokens);
@@ -57,8 +76,16 @@ export const takeClaudeAssistantUsage = (entry: unknown, seen: TClaudeUsageSeen)
   };
 };
 
-export const countClaudeToolUses = (entry: Record<string, unknown>): number => {
+// A response's tool_use blocks sit on separate lines sharing one message id, so each block is keyed by the
+// response and its own tool_use id.
+export const takeClaudeToolUses = (entry: Record<string, unknown>, seen: IClaudeSeen): number => {
   const message = isRecord(entry.message) ? entry.message : null;
   if (!message || !Array.isArray(message.content)) return 0;
-  return message.content.filter((item) => isRecord(item) && item.type === 'tool_use').length;
+
+  const response = responseKey(entry, message);
+  return message.content.filter((item) => {
+    if (!isRecord(item) || item.type !== 'tool_use') return false;
+    const toolUseId = readString(item.id);
+    return isFirstSeen(seen.toolUses, toolUseId ? `${response}/${toolUseId}` : '');
+  }).length;
 };

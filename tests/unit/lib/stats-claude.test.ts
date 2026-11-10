@@ -26,8 +26,9 @@ const usage = (input: number, output: number, cacheRead: number, cache5m: number
   },
 });
 
-const userPrompt = (sessionId: string, timestamp: string, text: string) => ({
+const userPrompt = (sessionId: string, timestamp: string, text: string, uuid?: string) => ({
   type: 'user',
+  uuid,
   sessionId,
   cwd: CWD,
   timestamp,
@@ -79,12 +80,12 @@ const assistant = ({
 });
 
 // One API response written as three lines (thinking, text, tool_use) with identical usage.
-const splitResponse = (sessionId: string, date: string) => [
+const splitResponse = (sessionId: string, date: string, messageId = 'msg_A') => [
   assistant({
     sessionId,
     timestamp: `${date}T02:00:01.000Z`,
-    messageId: 'msg_A',
-    requestId: 'req_A',
+    messageId,
+    requestId: `req_${messageId}`,
     model: OPUS,
     tokens: usage(10, 20, 1000, 100, 200),
     content: [{ type: 'thinking', thinking: '' }],
@@ -92,8 +93,8 @@ const splitResponse = (sessionId: string, date: string) => [
   assistant({
     sessionId,
     timestamp: `${date}T02:00:02.000Z`,
-    messageId: 'msg_A',
-    requestId: 'req_A',
+    messageId,
+    requestId: `req_${messageId}`,
     model: OPUS,
     tokens: usage(10, 20, 1000, 100, 200),
     content: [{ type: 'text', text: 'Looking' }],
@@ -101,11 +102,11 @@ const splitResponse = (sessionId: string, date: string) => [
   assistant({
     sessionId,
     timestamp: `${date}T02:00:03.000Z`,
-    messageId: 'msg_A',
-    requestId: 'req_A',
+    messageId,
+    requestId: `req_${messageId}`,
     model: OPUS,
     tokens: usage(10, 20, 1000, 100, 200),
-    content: [{ type: 'tool_use', id: 'toolu_1', name: 'Read', input: {} }],
+    content: [{ type: 'tool_use', id: `toolu_${messageId}`, name: 'Read', input: {} }],
   }),
 ];
 
@@ -117,9 +118,13 @@ const writeTranscript = async (name: string, lines: unknown[], dir = PROJECT_DIR
   return filePath;
 };
 
-const readCacheFile = async (): Promise<{ version: number; days: Record<string, Record<string, unknown>> }> => {
+const statsDir = async (): Promise<string> => {
   const { getDataDir } = await import('@/lib/app-identity');
-  const content = await fs.readFile(path.join(getDataDir(), 'stats', 'cache.json'), 'utf-8');
+  return path.join(getDataDir(), 'stats');
+};
+
+const readCacheFile = async (): Promise<{ version: number; days: Record<string, Record<string, unknown>> }> => {
+  const content = await fs.readFile(path.join(await statsDir(), 'cache.json'), 'utf-8');
   return JSON.parse(content);
 };
 
@@ -377,6 +382,116 @@ describe('Claude Code stats parsing', () => {
     expect(file.version).toBe(5);
     expect(file.days).toEqual({ '2026-04-20': oldDay });
     expect(stats.totalMessages).toBe(7);
+  });
+
+  it('keeps v4 days that already hold Claude data unchanged', async () => {
+    const claudeTokens = { input: 10, output: 20, cacheRead: 1000, cacheCreation: 300, cacheCreation5m: 100, cacheCreation1h: 200 };
+    const codex24 = codexDay(3, 100, 'codex-24', '2026-04-24');
+    const withClaudeModel = { ...codex24, modelTokens: { ...codex24.modelTokens, [OPUS]: claudeTokens } };
+    const withClaudeSession = codexDay(2, 100, SESSION_B, '2026-04-25');
+    const plainDay = codexDay(1, 100, 'codex-26', '2026-04-26');
+    const snapshot = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+    const expectedModelDay = snapshot(withClaudeModel);
+    const expectedSessionDay = snapshot(withClaudeSession);
+    await writeV4Cache(
+      { '2026-04-24': withClaudeModel, '2026-04-25': withClaudeSession, '2026-04-26': plainDay },
+      '2026-04-27',
+    );
+    await writeTranscript(`${SESSION_A}.jsonl`, [
+      userPrompt(SESSION_A, '2026-04-24T02:00:00.000Z', 'Day one'),
+      ...splitResponse(SESSION_A, '2026-04-24', 'msg_day24'),
+      userPrompt(SESSION_A, '2026-04-26T02:00:00.000Z', 'Day three'),
+      ...splitResponse(SESSION_A, '2026-04-26', 'msg_day26'),
+    ]);
+    await writeTranscript(`${SESSION_B}.jsonl`, [
+      userPrompt(SESSION_B, '2026-04-25T02:00:00.000Z', 'Day two'),
+      ...splitResponse(SESSION_B, '2026-04-25', 'msg_day25'),
+    ]);
+
+    const { getStatsCache } = await import('@/lib/stats/stats-cache');
+    await getStatsCache();
+    const file = await readCacheFile();
+
+    expect(file.days['2026-04-24']).toEqual(expectedModelDay);
+    expect(file.days['2026-04-25']).toEqual(expectedSessionDay);
+    expect(file.days['2026-04-26']).toMatchObject({
+      messageCount: 2,
+      modelTokens: { [OPUS]: claudeTokens },
+    });
+  });
+
+  it('backs up the v4 cache once before migrating it', async () => {
+    await writeV4Cache({ '2026-04-20': codexDay(7, 500, 'codex-old', '2026-04-20') }, '2026-04-27');
+    const dir = await statsDir();
+    const original = await fs.readFile(path.join(dir, 'cache.json'), 'utf-8');
+
+    const first = await import('@/lib/stats/stats-cache');
+    await first.getStatsCache();
+    expect(await fs.readFile(path.join(dir, 'cache.v4.json'), 'utf-8')).toBe(original);
+    expect((await readCacheFile()).version).toBe(5);
+
+    // After a rollback the old build writes a less complete v4 cache; migrating it again keeps the first backup.
+    await writeV4Cache({}, '2026-04-27');
+    vi.resetModules();
+    const second = await import('@/lib/stats/stats-cache');
+    await second.getStatsCache();
+    expect(await fs.readFile(path.join(dir, 'cache.v4.json'), 'utf-8')).toBe(original);
+    expect((await readCacheFile()).version).toBe(5);
+  });
+
+  it('counts a prompt and a tool call copied into a second transcript once', async () => {
+    await writeTranscript(`${SESSION_A}.jsonl`, [
+      userPrompt(SESSION_A, '2026-04-27T02:00:00.000Z', 'Fix the build', 'line-prompt-1'),
+      ...splitResponse(SESSION_A, '2026-04-27'),
+    ]);
+    await writeTranscript(`${SESSION_B}.jsonl`, [
+      userPrompt(SESSION_B, '2026-04-27T02:00:00.000Z', 'Fix the build', 'line-prompt-1'),
+      ...splitResponse(SESSION_B, '2026-04-27'),
+      userPrompt(SESSION_B, '2026-04-27T03:00:00.000Z', 'Continue after fork', 'line-prompt-2'),
+    ]);
+
+    const { getStatsCache } = await import('@/lib/stats/stats-cache');
+    const { parseAllSessions } = await import('@/lib/stats/jsonl-parser');
+
+    const cache = await getStatsCache();
+    expect(cache.totalMessages).toBe(2);
+    expect(Object.values(cache.hourCounts).reduce((sum, count) => sum + count, 0)).toBe(2);
+    expect(cache.dailyActivity).toContainEqual({
+      date: '2026-04-27',
+      messageCount: 2,
+      sessionCount: 2,
+      toolCallCount: 1,
+    });
+
+    const sessions = await parseAllSessions('all');
+    expect(sessions.reduce((sum, s) => sum + s.messageCount, 0)).toBe(2);
+  });
+
+  it('counts parallel tool calls written on separate lines of one response', async () => {
+    const toolLine = (toolUseId: string, second: number) => assistant({
+      sessionId: SESSION_A,
+      timestamp: `2026-04-27T02:00:0${second}.000Z`,
+      messageId: 'msg_parallel',
+      requestId: 'req_parallel',
+      model: OPUS,
+      tokens: usage(1, 1, 0, 0, 0),
+      content: [{ type: 'tool_use', id: toolUseId, name: 'Read', input: {} }],
+    });
+    await writeTranscript(`${SESSION_A}.jsonl`, [
+      userPrompt(SESSION_A, '2026-04-27T02:00:00.000Z', 'Read both files', 'line-prompt-1'),
+      toolLine('toolu_left', 1),
+      toolLine('toolu_right', 2),
+    ]);
+
+    const { getStatsCache } = await import('@/lib/stats/stats-cache');
+    const cache = await getStatsCache();
+
+    expect(cache.dailyActivity).toContainEqual({
+      date: '2026-04-27',
+      messageCount: 1,
+      sessionCount: 1,
+      toolCallCount: 2,
+    });
   });
 
   it('leaves Claude model cost unestimated and out of the totals', async () => {

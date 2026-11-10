@@ -42,6 +42,31 @@ export const readStatsCache = async (): Promise<IStatsCache> => {
   }
 };
 
+// Spreads each priced model's all-time cost over the given days by that model's token share, so per-day
+// costs add up to the model totals. Null when none of the days has usage of a priced model.
+export const estimateCostForDays = (cache: IStatsCache, days: IStatsCacheDailyTokens[]): number | null => {
+  let cost: number | null = null;
+  for (const day of days) {
+    for (const [model, breakdown] of Object.entries(day.tokensByModel)) {
+      const usage = cache.modelUsage[model];
+      if (!usage) continue;
+      const allTimeTotal = usage.inputTokens + usage.outputTokens
+        + usage.cacheReadInputTokens + usage.cacheCreationInputTokens;
+      if (allTimeTotal <= 0) continue;
+      const allTimeCost = estimateCostFromUsage(
+        model, usage.inputTokens, usage.outputTokens,
+        usage.cacheReadInputTokens,
+        usage.cacheCreation5mInputTokens,
+        usage.cacheCreation1hInputTokens,
+      );
+      if (allTimeCost === null) continue;
+      const dayTotal = breakdown.input + breakdown.output + breakdown.cacheRead + breakdown.cacheCreation;
+      cost = (cost ?? 0) + allTimeCost * (dayTotal / allTimeTotal);
+    }
+  }
+  return cost;
+};
+
 export const buildOverview = (cache: IStatsCache, period: TPeriod): IOverviewResponse => {
   const filteredDaily = cache.dailyActivity.filter((d) => isDateStringWithinPeriod(d.date, period));
   const filteredTokens = cache.dailyModelTokens.filter((d) => isDateStringWithinPeriod(d.date, period));
@@ -143,38 +168,18 @@ export const buildOverview = (cache: IStatsCache, period: TPeriod): IOverviewRes
 
   const totalCost = Object.values(modelTokens).reduce((sum, m) => sum + (m.cost ?? 0), 0);
 
-  const estimateCostForDates = (dates: IStatsCacheDailyTokens[]): number => {
-    let cost = 0;
-    for (const day of dates) {
-      for (const [model, breakdown] of Object.entries(day.tokensByModel)) {
-        const usage = cache.modelUsage[model];
-        if (!usage) continue;
-        const allTimeTotal = usage.inputTokens + usage.outputTokens
-          + usage.cacheReadInputTokens + usage.cacheCreationInputTokens;
-        const dayTotal = breakdown.input + breakdown.output + breakdown.cacheRead + breakdown.cacheCreation;
-        if (allTimeTotal > 0) {
-          const allTimeCost = estimateCostFromUsage(
-            model, usage.inputTokens, usage.outputTokens,
-            usage.cacheReadInputTokens,
-            usage.cacheCreation5mInputTokens,
-            usage.cacheCreation1hInputTokens,
-          );
-          cost += (allTimeCost ?? 0) * (dayTotal / allTimeTotal);
-        }
-      }
-    }
-    return cost;
-  };
-
-  const todayCost = estimateCostForDates(
+  const todayCost = estimateCostForDays(
+    cache,
     cache.dailyModelTokens.filter((d) => d.date === today),
-  );
-  const thisMonthCost = estimateCostForDates(
+  ) ?? 0;
+  const thisMonthCost = estimateCostForDays(
+    cache,
     cache.dailyModelTokens.filter((d) => d.date >= startOfMonth),
-  );
-  const previousCost = estimateCostForDates(
+  ) ?? 0;
+  const previousCost = estimateCostForDays(
+    cache,
     getPreviousPeriodTokens(cache.dailyModelTokens, period),
-  );
+  ) ?? 0;
 
   return {
     totalSessions,

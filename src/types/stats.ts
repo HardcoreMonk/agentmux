@@ -189,7 +189,8 @@ export interface IDailyReportCacheResponse {
 export interface IDailyReportListItem {
   date: string;
   sessionCount: number;
-  cost: number;
+  /** Null when the day has no usage of a priced model. */
+  cost: number | null;
   report: IDailyReportDay | null;
 }
 

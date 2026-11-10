@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getStatsCache } from '@/lib/stats/stats-cache';
-import { buildOverview } from '@/lib/stats/stats-cache-parser';
+import { estimateCostForDays } from '@/lib/stats/stats-cache-parser';
 import { readAllCachedReports } from '@/lib/stats/daily-report-builder';
 import type { IDailyReportListResponse, IDailyReportListItem } from '@/types/stats';
 
@@ -18,21 +18,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     readAllCachedReports(),
   ]);
 
-  const overview = buildOverview(statsCache, 'all');
+  const tokensByDate = new Map(statsCache.dailyModelTokens.map((day) => [day.date, day]));
 
-  const totalAllTokens = overview.dailyTokens.reduce((s, t) => s + t.input + t.output + t.cacheRead + t.cacheCreation, 0);
-  const totalCost = Object.values(overview.modelTokens).reduce((s, m) => s + (m.cost ?? 0), 0);
-
-  const allDays: IDailyReportListItem[] = overview.dailyActivity
+  const allDays: IDailyReportListItem[] = statsCache.dailyActivity
     .filter((d) => d.sessionCount > 0)
     .map((d) => {
-      const tokenDay = overview.dailyTokens.find((t) => t.date === d.date);
-      const dayTokens = tokenDay ? tokenDay.input + tokenDay.output + tokenDay.cacheRead + tokenDay.cacheCreation : 0;
-      const cost = totalAllTokens > 0 ? totalCost * (dayTokens / totalAllTokens) : 0;
+      const tokenDay = tokensByDate.get(d.date);
       return {
         date: d.date,
         sessionCount: d.sessionCount,
-        cost,
+        cost: tokenDay ? estimateCostForDays(statsCache, [tokenDay]) : null,
         report: reportCache[d.date] ?? null,
       };
     })

@@ -14,7 +14,7 @@ import { WEEKDAY_LABELS, formatCostWithComma } from '@/components/features/stats
 interface IDayMeta {
   date: string;
   sessionCount: number;
-  cost: number;
+  cost: number | null;
 }
 
 interface IBatchActions {
@@ -161,7 +161,10 @@ const DailyReportSection = ({ days, cache, onCacheUpdate, batchActions, onBatchR
                   </>
                 )}
                 <span className="text-xs tabular-nums text-muted-foreground">
-                  {t('sessionCount', { count: day.sessionCount })} · {formatCostWithComma(day.cost)}
+                  {t('sessionCount', { count: day.sessionCount })} ·{' '}
+                  {day.cost === null ? (
+                    <span title={t('costUnavailable')} aria-label={t('costUnavailable')}>—</span>
+                  ) : formatCostWithComma(day.cost)}
                 </span>
               </div>
             </div>

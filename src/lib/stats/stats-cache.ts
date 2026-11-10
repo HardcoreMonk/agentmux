@@ -13,13 +13,13 @@ import {
   type IAgentJsonlFile,
 } from './agent-jsonl-files';
 import {
-  countClaudeToolUses,
-  createClaudeUsageSeen,
+  createClaudeSeen,
   takeClaudeAssistantUsage,
-  type TClaudeUsageSeen,
+  takeClaudeToolUses,
+  takeClaudeUserPrompt,
+  type IClaudeSeen,
 } from './claude-usage';
 import { getPerfNow, recordPerfCounter, recordPerfDuration } from '@/lib/perf-metrics';
-import { isClaudeUserPrompt } from '@/lib/providers/claude/user-prompt';
 import type {
   IStatsCache,
   IStatsCacheDailyActivity,
@@ -35,6 +35,7 @@ const CACHE_VERSION = 5;
 const CODEX_ONLY_CACHE_VERSION = 4;
 const CACHE_DIR = path.join(getDataDir(), 'stats');
 const CACHE_PATH = path.join(CACHE_DIR, 'cache.json');
+const CODEX_ONLY_CACHE_BACKUP_PATH = path.join(CACHE_DIR, 'cache.v4.json');
 const CONCURRENCY_LIMIT = 10;
 
 // --- Cache types ---
@@ -132,7 +133,7 @@ const parseCodexUsage = (raw: unknown): ICodexTokenUsage | null => {
 const parseDaysFromFile = async (
   file: IAgentJsonlFile,
   targetDates: Set<string>,
-  seenClaudeUsage: TClaudeUsageSeen,
+  claudeSeen: IClaudeSeen,
 ): Promise<Map<string, IStatsDailyData>> => {
   const days = new Map<string, IStatsDailyData>();
   const sessionsByDay = new Map<string, Map<string, { start: string; end: string; messages: number }>>();
@@ -248,7 +249,7 @@ const parseDaysFromFile = async (
 
         const day = ensureDay(days, sessionsByDay, date);
 
-        if (isClaudeUserPrompt(entry)) {
+        if (takeClaudeUserPrompt(entry, claudeSeen)) {
           const hour = String(new Date(timestamp).getHours());
           day.messageCount++;
           day.hourCounts[hour] = (day.hourCounts[hour] ?? 0) + 1;
@@ -257,9 +258,9 @@ const parseDaysFromFile = async (
         }
 
         if (type === 'assistant') {
-          day.toolCallCount += countClaudeToolUses(entry);
+          day.toolCallCount += takeClaudeToolUses(entry, claudeSeen);
 
-          const usage = takeClaudeAssistantUsage(entry, seenClaudeUsage);
+          const usage = takeClaudeAssistantUsage(entry, claudeSeen);
           if (usage) {
             if (!day.modelTokens[usage.model]) {
               day.modelTokens[usage.model] = emptyModelTokens();
@@ -367,6 +368,19 @@ const writeCache = async (cache: IStatsFileCache): Promise<void> => {
   await fs.writeFile(CACHE_PATH, JSON.stringify(cache), 'utf-8');
 };
 
+// A build from before v5 discards a v5 cache and rebuilds from source files, losing days whose files are
+// gone. Keep the first v4 file: a later v4, written after a rollback, is less complete.
+const backupCodexOnlyCache = async (): Promise<void> => {
+  try {
+    await fs.copyFile(CACHE_PATH, CODEX_ONLY_CACHE_BACKUP_PATH, fs.constants.COPYFILE_EXCL);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') return;
+    // Loaded lazily so the stats modules do not start the log transport on import.
+    const { createLogger } = await import('@/lib/logger');
+    createLogger('stats').warn({ err }, 'stats cache v4 backup failed');
+  }
+};
+
 // --- In-memory cache for hot path ---
 
 const MEMORY_TTL = 300_000;
@@ -390,6 +404,13 @@ const findFirstDate = async (): Promise<string | null> => findFirstDateIn(await 
 
 const findFirstClaudeDate = async (): Promise<string | null> => findFirstDateIn(await collectClaudeJsonlFiles());
 
+// Old v4 caches can still carry Claude usage from before Claude parsing was removed.
+const holdsClaudeData = (cached: IStatsDailyData, backfill: IStatsDailyData): boolean => {
+  const cachedSessionIds = new Set(cached.sessions.map((session) => session.id));
+  return backfill.sessions.some((session) => cachedSessionIds.has(session.id))
+    || Object.keys(cached.modelTokens).some((model) => model.startsWith('claude-'));
+};
+
 const addDateRange = (dates: Set<string>, from: string, to: string): void => {
   let d = dayjs(from);
   const end = dayjs(to);
@@ -402,14 +423,14 @@ const addDateRange = (dates: Set<string>, from: string, to: string): void => {
 const computeDays = async (
   allFiles: IAgentJsonlFile[],
   targetDates: Set<string>,
-  seenClaudeUsage: TClaudeUsageSeen,
+  claudeSeen: IClaudeSeen,
 ): Promise<Map<string, IStatsDailyData>> => {
   if (targetDates.size === 0) return new Map();
 
   const files = await filterAgentJsonlFilesByDates(allFiles, targetDates);
   recordPerfCounter('stats.cache.files_seen', allFiles.length);
   recordPerfCounter('stats.cache.files_selected', files.length);
-  const tasks = files.map((f) => () => parseDaysFromFile(f, targetDates, seenClaudeUsage));
+  const tasks = files.map((f) => () => parseDaysFromFile(f, targetDates, claudeSeen));
   const allResults = await runWithConcurrency(tasks, CONCURRENCY_LIMIT);
 
   const merged = new Map<string, IStatsDailyData>();
@@ -446,6 +467,7 @@ const buildStatsCacheFromFiles = async (): Promise<IStatsCache> => {
     addDateRange(missingDates, firstDate, yesterday);
   } else {
     if (cache.version === CODEX_ONLY_CACHE_VERSION) {
+      await backupCodexOnlyCache();
       cache.version = CACHE_VERSION;
       const firstClaudeDate = await findFirstClaudeDate();
       if (firstClaudeDate) addDateRange(claudeBackfillDates, firstClaudeDate, yesterday);
@@ -466,13 +488,13 @@ const buildStatsCacheFromFiles = async (): Promise<IStatsCache> => {
   for (const date of missingDates) claudeBackfillDates.delete(date);
 
   const allFiles = await collectAgentJsonlFiles();
-  const seenClaudeUsage = createClaudeUsageSeen();
-  const newDays = await computeDays(allFiles, missingDates, seenClaudeUsage);
+  const claudeSeen = createClaudeSeen();
+  const newDays = await computeDays(allFiles, missingDates, claudeSeen);
   // Backfilled days keep their cached Codex values; only the Claude usage is added to them.
   const claudeDays = await computeDays(
     allFiles.filter((file) => file.source === 'claude'),
     claudeBackfillDates,
-    seenClaudeUsage,
+    claudeSeen,
   );
 
   for (const [date, data] of newDays) {
@@ -482,10 +504,10 @@ const buildStatsCacheFromFiles = async (): Promise<IStatsCache> => {
 
   for (const [date, data] of claudeDays) {
     const cached = cache.days[date];
-    if (cached) {
-      mergeDailyData(cached, data);
-    } else {
+    if (!cached) {
       cache.days[date] = data;
+    } else if (!holdsClaudeData(cached, data)) {
+      mergeDailyData(cached, data);
     }
   }
 

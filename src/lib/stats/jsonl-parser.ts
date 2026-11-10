@@ -2,7 +2,6 @@ import { createReadStream } from 'fs';
 import readline from 'readline';
 import type { IProjectStats, ISessionStats, TPeriod } from '@/types/stats';
 import { getPerfNow, recordPerfCounter, recordPerfDuration } from '@/lib/perf-metrics';
-import { isClaudeUserPrompt } from '@/lib/providers/claude/user-prompt';
 import { isWithinPeriod } from './period-filter';
 import { shortenCwd } from './daily-report-builder';
 import {
@@ -12,7 +11,13 @@ import {
   type IAgentJsonlFile,
   type TAgentJsonlSource,
 } from './agent-jsonl-files';
-import { createClaudeUsageSeen, isCountableClaudeModel, takeClaudeAssistantUsage, type TClaudeUsageSeen } from './claude-usage';
+import {
+  createClaudeSeen,
+  isCountableClaudeModel,
+  takeClaudeAssistantUsage,
+  takeClaudeUserPrompt,
+  type IClaudeSeen,
+} from './claude-usage';
 import { dateStringsForPeriod } from './period-filter';
 
 const CONCURRENCY_LIMIT = 10;
@@ -52,7 +57,7 @@ const parseCodexUsage = (raw: unknown): ICodexTokenUsage | null => {
 const parseJsonlStream = async (
   file: IAgentJsonlFile,
   period: TPeriod,
-  seenClaudeUsage: TClaudeUsageSeen,
+  claudeSeen: IClaudeSeen,
 ): Promise<IRawSessionAgg[]> => {
   const sessions = new Map<string, IRawSessionAgg>();
   const filePath = file.filePath;
@@ -195,7 +200,7 @@ const parseJsonlStream = async (
         const agg = ensureSession(claudeSessionId, timestamp);
         if (!agg) continue;
 
-        if (isClaudeUserPrompt(entry)) {
+        if (takeClaudeUserPrompt(entry, claudeSeen)) {
           agg.messageCount++;
         }
 
@@ -204,7 +209,7 @@ const parseJsonlStream = async (
           const model = String(message?.model ?? '');
           if (isCountableClaudeModel(model)) agg.model = model;
 
-          const usage = takeClaudeAssistantUsage(entry, seenClaudeUsage);
+          const usage = takeClaudeAssistantUsage(entry, claudeSeen);
           if (usage) {
             agg.totalInputTokens += usage.input + usage.cacheRead + usage.cacheCreation;
             agg.totalOutputTokens += usage.output;
@@ -371,8 +376,8 @@ const parseSessionStatsForPeriod = async (period: TPeriod): Promise<ISessionStat
   const files = targetDates ? await filterAgentJsonlFilesByDates(collectedFiles, targetDates) : collectedFiles;
   if (files.length === 0) return [];
 
-  const seenClaudeUsage = createClaudeUsageSeen();
-  const tasks = files.map((f) => () => parseJsonlStream(f, period, seenClaudeUsage));
+  const claudeSeen = createClaudeSeen();
+  const tasks = files.map((f) => () => parseJsonlStream(f, period, claudeSeen));
   const allResults = await runWithConcurrency(tasks, CONCURRENCY_LIMIT);
   const sessions: ISessionStats[] = [];
 
