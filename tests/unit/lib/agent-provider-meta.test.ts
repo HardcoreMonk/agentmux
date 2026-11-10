@@ -19,8 +19,20 @@ describe('agent-provider-meta', () => {
     });
   });
 
+  it('describes Claude Code', () => {
+    expect(getAgentProviderMeta('claude')).toEqual({
+      panelType: 'claude',
+      label: 'Claude Code',
+      newTabCommand: 'claude-new',
+      restartCommands: ['/clear'],
+      exitCommand: '/exit',
+      interruptSequence: '\x1b',
+      keepTimelineOnSessionEnd: true,
+    });
+  });
+
   it('returns null for non-agent panels', () => {
-    for (const type of ['terminal', 'diff', 'web-browser', 'claude', undefined]) {
+    for (const type of ['terminal', 'diff', 'web-browser', 'future-agent', undefined]) {
       expect(getAgentProviderMeta(type)).toBeNull();
     }
   });

@@ -1,4 +1,4 @@
-import type { ILayoutData } from '@/types/terminal';
+import type { ILayoutData, TAgentPanelType } from '@/types/terminal';
 import type { IChunkReadResult, ISessionInfo, ISessionMeta, ITimelineAppendMessage, ITimelineErrorMessage, ITimelineInitMessage } from '@/types/timeline';
 import type { IMessageCountResult } from '@/lib/timeline-message-counts';
 import type { ICodexStateInput, IHookStateDecision, IHookStateInput, IStateDecision } from '@/lib/status-state-machine';
@@ -9,7 +9,7 @@ import type {
   IStatusUpdateSessionHistoryDismissedAtResult,
 } from '@/lib/runtime/status/session-history-actions';
 import type { IStatusSendWebPushInput, IStatusSendWebPushResult } from '@/lib/runtime/status/web-push-actions';
-import type { IClientTabStatusEntry, ILastEvent, IRateLimitsData, IStatusUpdateMessage, ITabStatusEntry, TEventName } from '@/types/status';
+import type { IClientTabStatusEntry, ILastEvent, IRateLimitsData, IStatusUpdateMessage, ITabStatusEntry, TEventName, TRateLimitsByProvider } from '@/types/status';
 import type { ISessionHistoryEntry } from '@/types/session-history';
 import type {
   ISavedSessionFilter,
@@ -398,7 +398,7 @@ export type TRuntimeStatusSendWebPushResult = IStatusSendWebPushResult;
 
 export interface IRuntimeStatusLiveSyncPayload {
   tabs: Record<string, IClientTabStatusEntry>;
-  rateLimits: IRateLimitsData | null;
+  rateLimits: TRateLimitsByProvider;
 }
 
 export type TRuntimeStatusLiveUpdatePayload = Omit<IStatusUpdateMessage, 'type'>;
@@ -419,6 +419,7 @@ export interface IRuntimeStatusErrorPayload {
 }
 
 export interface IRuntimeStatusRateLimitsUpdatePayload {
+  providerId: TAgentPanelType;
   data: IRateLimitsData;
 }
 
@@ -474,6 +475,9 @@ export interface IRuntimeStatusLiveHookEventInput {
   tmuxSession: string;
   event: string;
   notificationType?: string;
+  agentSessionId?: string;
+  transcriptPath?: string;
+  source?: string;
 }
 
 export interface IRuntimeStatusLiveClientEventInput {

@@ -68,6 +68,7 @@ import {
   FileArchive,
 } from 'lucide-react';
 import OpenAIIcon from '@/components/icons/openai-icon';
+import ClaudeIcon from '@/components/icons/claude-icon';
 
 type TProcessIconComponent = IconType | React.ComponentType<{ className?: string }>;
 
@@ -174,6 +175,7 @@ const PROCESS_ICON_MAP: Record<string, TProcessIconComponent> = {
   unzip: FileArchive,
   jest: SiJest,
   codex: OpenAIIcon,
+  claude: ClaudeIcon,
 };
 
 interface IProcessIconProps {

@@ -1,10 +1,11 @@
 import { checkTerminalProcess, sendKeys } from '@/lib/tmux';
-import { readLayoutFile, resolveLayoutFile } from '@/lib/layout-store';
+import { readLayoutFile, resolveLayoutFile, updateTabAgentSession } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { getProviderByPanelType } from '@/lib/providers';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { resolveTabRuntimeVersion } from '@/lib/runtime/terminal-mode';
 import { getCachedRuntimePreflight } from '@/lib/preflight';
+import type { TAgentPanelType } from '@/types/terminal';
 
 export type TAgentLaunchAction = 'launch' | 'resume';
 
@@ -18,7 +19,7 @@ export interface IAgentLaunchInput {
 
 export interface IAgentLaunchResult {
   ok: boolean;
-  code?: 'tab-not-found' | 'invalid-panel' | 'unsafe-process' | 'invalid-session' | 'codex-update-required';
+  code?: 'tab-not-found' | 'invalid-panel' | 'unsafe-process' | 'invalid-session' | 'agent-unavailable';
   processName?: string;
 }
 
@@ -35,8 +36,9 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
   }
 
   const preflight = await getCachedRuntimePreflight();
-  if (!preflight.agent.installed || preflight.agent.compatible === false) {
-    return { ok: false, code: 'codex-update-required' };
+  const agentStatus = preflight.agents[provider.id as TAgentPanelType];
+  if (!agentStatus?.installed || agentStatus.compatible === false) {
+    return { ok: false, code: 'agent-unavailable' };
   }
 
   if (resolveTabRuntimeVersion(tab) === 1) {
@@ -51,9 +53,17 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
     tabId: tab.id,
     sessionName: tab.sessionName,
   };
-  const command = input.action === 'resume' && input.sessionId
-    ? await provider.buildResumeCommand(input.sessionId, commandOptions)
-    : await provider.buildLaunchCommand(commandOptions);
+  let command: string;
+  if (input.action === 'resume' && input.sessionId) {
+    command = await provider.buildResumeCommand(input.sessionId, commandOptions);
+  } else if (input.action === 'launch' && provider.createLaunchSessionId) {
+    const sessionId = provider.createLaunchSessionId();
+    command = await provider.buildLaunchCommand({ ...commandOptions, sessionId });
+    // Drop the previous session's JSONL so status and timeline do not stay bound to it.
+    await updateTabAgentSession(tab.sessionName, provider, { sessionId, jsonlPath: null });
+  } else {
+    command = await provider.buildLaunchCommand(commandOptions);
+  }
 
   if (resolveTabRuntimeVersion(tab) === 2) {
     await getRuntimeSupervisor().writeTerminalSession({

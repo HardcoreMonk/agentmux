@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Plus, Terminal, Globe, GitCompareArrows } from 'lucide-react';
 import Spinner from '@/components/ui/spinner';
-import OpenAIIcon from '@/components/icons/openai-icon';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -10,6 +10,8 @@ import type { TPanelType } from '@/types/terminal';
 import useIsMobile from '@/hooks/use-is-mobile';
 import useIsMac from '@/hooks/use-is-mac';
 import { isAgentPanelType } from '@/lib/panel-type';
+import { AGENT_NEW_TAB_ITEMS } from '@/lib/agent-new-tab-items';
+import { AGENT_PROVIDER_META } from '@/lib/agent-provider-meta';
 
 interface IPaneNewTabMenuProps {
   paneId: string;
@@ -19,7 +21,7 @@ interface IPaneNewTabMenuProps {
 }
 
 const defaultKeyForPanelType = (panelType?: TPanelType): string => {
-  if (isAgentPanelType(panelType)) return 'codex-new';
+  if (isAgentPanelType(panelType)) return AGENT_PROVIDER_META[panelType].newTabCommand;
   switch (panelType) {
     case 'terminal': return 'terminal';
     case 'web-browser': return 'web-browser';
@@ -36,8 +38,15 @@ const PaneNewTabMenu = ({ paneId, isCreating, activePanelType, onCreateTab }: IP
   const isMobile = useIsMobile();
 
   const menuItems = useMemo(() => {
-    const all = [
-      { key: 'codex-new', type: 'codex' as const, icon: <OpenAIIcon className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Codex', startCodex: true },
+    const agentItems = AGENT_NEW_TAB_ITEMS.map((item) => ({
+      key: item.key,
+      type: item.type as TPanelType,
+      icon: <AgentProviderIcon panelType={item.type} className="h-3.5 w-3.5 text-muted-foreground" />,
+      label: item.label,
+      startAgent: true,
+    }));
+    const all: Array<{ key: string; type: TPanelType; icon: React.ReactNode; label: string; startAgent?: boolean }> = [
+      ...agentItems,
       { key: 'terminal', type: 'terminal' as const, icon: <Terminal className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Terminal' },
       { key: 'diff', type: 'diff' as const, icon: <GitCompareArrows className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Diff' },
       { key: 'web-browser', type: 'web-browser' as const, icon: <Globe className="h-3.5 w-3.5 text-muted-foreground" />, label: 'Web Browser' },
@@ -77,7 +86,7 @@ const PaneNewTabMenu = ({ paneId, isCreating, activePanelType, onCreateTab }: IP
 
   const handleSelect = (item: typeof menuItems[number]) => {
     setOpen(false);
-    if ('startCodex' in item && item.startCodex) {
+    if (item.startAgent) {
       onCreateTab(item.type, { startAgent: true });
     } else {
       onCreateTab(item.type);

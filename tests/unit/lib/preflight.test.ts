@@ -23,6 +23,7 @@ describe('preflight agent status', () => {
     const status: IRuntimePreflightResult = {
       ...readyBase,
       agent: { installed: true, version: '0.12.0' },
+      agents: { codex: { installed: true, version: '0.12.0' } },
     };
 
     expect(readRuntimeAgentStatus(status)).toEqual(status.agent);
@@ -33,6 +34,7 @@ describe('preflight agent status', () => {
     const status: IRuntimePreflightResult = {
       ...readyBase,
       agent: { installed: false, version: null },
+      agents: { codex: { installed: false, version: null } },
     };
 
     expect(readRuntimeAgentStatus(status)).toEqual(status.agent);
@@ -51,6 +53,7 @@ describe('preflight agent status', () => {
       },
       git: { installed: true, version: '2.44.0' },
       agent: { installed: true, version: '0.12.0' },
+      agents: { codex: { installed: true, version: '0.12.0' } },
     };
 
     expect(readRuntimeTerminalStatus(status)).toEqual(status.terminalRuntime);
@@ -70,6 +73,7 @@ describe('preflight agent status', () => {
       },
       git: { installed: true, version: '2.44.0' },
       agent: { installed: true, version: '0.12.0' },
+      agents: { codex: { installed: true, version: '0.12.0' } },
     };
 
     expect(isRuntimeOk(status)).toBe(false);

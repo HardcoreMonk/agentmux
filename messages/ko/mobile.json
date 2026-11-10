@@ -4,6 +4,7 @@
   "newTab": "새 탭",
   "closeTab": "탭 닫기",
   "closeTabConfirm": "''{name}'' 탭을 닫으시겠습니까?",
+  "panelModeMenu": "패널 모드: {mode}",
   "closeMenu": "메뉴 닫기",
   "switchTab": "{name} 탭으로 이동",
   "currentTab": "현재 탭: {name}",

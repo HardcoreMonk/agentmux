@@ -29,6 +29,8 @@ const makeProvider = (parseIncremental: IAgentProvider['parseIncremental']): IAg
     deferStopHookUntilJsonlIdle: true,
     reconcileStateFromJsonl: true,
     recoverPaneInput: true,
+    bindSessionFromHook: false,
+    leaveNeedsInputOnJsonlGrowth: false,
   },
   matchesProcess: () => true,
   isValidSessionId: (id: unknown): id is string => typeof id === 'string',

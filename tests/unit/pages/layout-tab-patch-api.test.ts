@@ -55,10 +55,10 @@ describe('layout tab PATCH panelType', () => {
     mocks.patchTab.mockResolvedValue({ ok: true });
   });
 
-  it('returns 409 for an agent panel on a runtime v2 tab without writing', async () => {
+  it.each(['codex', 'claude'])('returns 409 for the %s agent panel on a runtime v2 tab without writing', async (panelType) => {
     mocks.getLayout.mockResolvedValue(layoutWith(2));
     const response = createResponse();
-    await handler(createRequest({ panelType: 'codex' }), response.res);
+    await handler(createRequest({ panelType }), response.res);
     expect(response.statusCode).toBe(409);
     expect(response.body).toEqual({
       error: 'Agent panels are not supported on runtime v2 terminal tabs',

@@ -227,6 +227,13 @@ export const ACTIONS = {
     defaultKey: `${mod}+shift+c`,
     display: { mac: '⌘⇧C', other: 'Ctrl+Shift+C' },
   },
+  'view.mode_claude': {
+    id: 'view.mode_claude',
+    label: 'Switch to Claude Code mode',
+    category: 'view',
+    defaultKey: `${mod}+shift+l`,
+    display: { mac: '⌘⇧L', other: 'Ctrl+Shift+L' },
+  },
   'view.mode_diff': {
     id: 'view.mode_diff',
     label: 'Switch to Diff mode',

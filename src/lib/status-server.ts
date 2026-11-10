@@ -13,7 +13,10 @@ import type {
   TStatusServerMessage,
   IStatusSyncMessage,
   ISessionHistorySyncMessage,
+  IRateLimitsData,
+  IRateLimitsUpdateMessage,
 } from '@/types/status';
+import type { TAgentPanelType } from '@/types/terminal';
 
 const log = createLogger('status');
 
@@ -48,7 +51,7 @@ const toStatusServerMessage = (event: IRuntimeStatusLiveEvent): TStatusServerMes
     log.warn('runtime status live error: %s', event.payload.message);
   }
   if (event.type === 'status.rate-limits-update') {
-    return { type: 'rate-limits:update', data: event.payload.data };
+    return { type: 'rate-limits:update', providerId: event.payload.providerId, data: event.payload.data };
   }
   return null;
 };
@@ -65,8 +68,8 @@ const sendRuntimeStatusSync = (
   sync: IRuntimeStatusLiveSyncPayload,
 ): void => {
   sendJson(ws, { type: 'status:sync', tabs: sync.tabs } satisfies IStatusSyncMessage);
-  if (sync.rateLimits) {
-    sendJson(ws, { type: 'rate-limits:update', data: sync.rateLimits });
+  for (const [providerId, data] of Object.entries(sync.rateLimits) as [TAgentPanelType, IRateLimitsData][]) {
+    sendJson(ws, { type: 'rate-limits:update', providerId, data } satisfies IRateLimitsUpdateMessage);
   }
 };
 

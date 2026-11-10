@@ -3,6 +3,33 @@ import { describe, expect, it } from 'vitest';
 import { hasPermissionPrompt, parsePermissionOptions } from '@/lib/permission-prompt';
 
 describe('parsePermissionOptions', () => {
+  it('Claude 권한 화면의 agent 이름을 유지하고 command로 분류한다', () => {
+    const pane = [
+      ' Bash command',
+      '   rm -rf build',
+      ' Do you want to proceed?',
+      ' ❯ 1. Yes',
+      "   2. Yes, and don't ask again for rm commands in /tmp/x",
+      '   3. No, and tell Claude what to do differently (esc)',
+    ].join('\n');
+
+    const result = parsePermissionOptions(pane);
+
+    expect(result.options).toHaveLength(3);
+    expect(result.metadata.promptType).toBe('command');
+    expect(result.options[2]).toContain('Claude');
+  });
+
+  it('Claude 파일 편집 화면을 file로 분류한다', () => {
+    const pane = [
+      ' Do you want to make this edit to src/a.ts?',
+      ' ❯ 1. Yes',
+      '   2. No, and tell Claude what to do differently (esc)',
+    ].join('\n');
+
+    expect(parsePermissionOptions(pane).metadata.promptType).toBe('file');
+  });
+
   it('numbered Yes/No 프롬프트에서 포커스된 옵션을 인식한다', () => {
     const pane = [
       'Do you want to proceed?',

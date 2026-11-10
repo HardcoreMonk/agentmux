@@ -7,6 +7,6 @@ describe('hook settings', () => {
     const settings = buildHookSettings();
 
     expect(settings.hooks).toEqual({});
-    expect(settings.statusLine.command).toContain('statusline.sh');
+    expect(settings.statusLine.command).toContain('statusline.cjs');
   });
 });

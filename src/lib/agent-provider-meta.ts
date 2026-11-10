@@ -22,6 +22,15 @@ export const AGENT_PROVIDER_META: Readonly<Record<TAgentPanelType, IAgentProvide
     interruptSequence: '\x1b\x1b',
     keepTimelineOnSessionEnd: true,
   },
+  claude: {
+    panelType: 'claude',
+    label: 'Claude Code',
+    newTabCommand: 'claude-new',
+    restartCommands: ['/clear'],
+    exitCommand: '/exit',
+    interruptSequence: '\x1b',
+    keepTimelineOnSessionEnd: true,
+  },
 };
 
 export const getAgentProviderMeta = (panelType: unknown): IAgentProviderMeta | null =>

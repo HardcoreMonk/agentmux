@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { getWorkspaces } from '@/lib/workspace-store';
-import { readLayoutFile, resolveLayoutFile, collectAllTabs, updateTabCliStatus, parseSessionName, setLayoutReconciler } from '@/lib/layout-store';
+import { readLayoutFile, resolveLayoutFile, collectAllTabs, updateTabCliStatus, updateTabAgentSessionId, updateTabAgentJsonlPath, parseSessionName, setLayoutReconciler } from '@/lib/layout-store';
 import { getAllPanesInfo, getListeningPorts, SAFE_SHELLS, getSessionCwd, getSessionPanePid } from '@/lib/tmux';
 import { getChildPids } from '@/lib/session-detection';
 import {
@@ -13,7 +13,8 @@ import { mergeRateLimitsData, rateLimitsEqual } from '@/lib/codex-rate-limits';
 import { createLogger } from '@/lib/logger';
 import type { IPaneInfo } from '@/lib/tmux';
 import type { TCliState } from '@/types/timeline';
-import type { TTerminalStatus, ITabStatusEntry, IClientTabStatusEntry, IRateLimitsData } from '@/types/status';
+import type { TTerminalStatus, ITabStatusEntry, IClientTabStatusEntry, IRateLimitsData, TRateLimitsByProvider } from '@/types/status';
+import type { TAgentPanelType } from '@/types/terminal';
 import {
   addSessionHistoryEntry as addLegacySessionHistoryEntry,
   updateSessionHistoryDismissedAt as updateLegacySessionHistoryDismissedAt,
@@ -58,6 +59,7 @@ import { createStatusPaneRecoveryService } from '@/lib/status/pane-recovery-serv
 import { StatusPollService } from '@/lib/status/poll-service';
 import { StatusJsonlWatchService } from '@/lib/status/jsonl-watch-service';
 import { evaluateStatusHookEvent } from '@/lib/status/hook-event-service';
+import { decideHookSessionRebind, decideNeedsInputJsonlExit } from '@/lib/status/hook-session-binding';
 import { evaluateResolveUnknownStatus } from '@/lib/status/resolve-unknown-service';
 import { StatusStopRecheckService } from '@/lib/status/stop-recheck-service';
 import {
@@ -114,16 +116,6 @@ interface IReadTabMetadataResult extends IJsonlCheckResult {
   running: boolean;
   sessionId?: string | null;
 }
-
-const checkProviderJsonlIdle = async (
-  provider: IAgentProvider,
-  jsonlPath: string,
-  onRateLimits?: (data: IRateLimitsData) => void,
-): Promise<IJsonlCheckResult> => {
-  const { rateLimits, ...result } = await provider.readJsonlStatus(jsonlPath);
-  if (rateLimits) onRateLimits?.(rateLimits);
-  return result;
-};
 
 const parseJsonlStats = async (jsonlPath: string): Promise<IStatusJsonlStats> => {
   const empty: IStatusJsonlStats = { toolUsage: {}, touchedFiles: [], lastAssistantText: null, lastUserText: null, firstUserTs: null, lastAssistantTs: null, turnDurationMs: null };
@@ -215,7 +207,7 @@ export class StatusManager {
   private clients = new Set<WebSocket>();
   private initialized = false;
   private rateLimitsWatcher: ReturnType<typeof createRateLimitsWatcher> | null = null;
-  private lastRateLimits: IRateLimitsData | null = null;
+  private lastRateLimits: TRateLimitsByProvider = {};
   private compactStaleTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private reviewNotificationDedupe = createDedupeKeyStore();
   private sessionHistoryDedupe = createDedupeKeyStore();
@@ -275,17 +267,26 @@ export class StatusManager {
 
     if (this.options.enableRateLimits !== false) {
       this.rateLimitsWatcher = createRateLimitsWatcher((data) => {
-        this.publishRateLimits(data);
+        // RATE_LIMITS_FILE is written only by the Claude statusLine.
+        this.publishRateLimits('claude', data);
       });
       this.rateLimitsWatcher.start();
     }
   }
 
-  private publishRateLimits(data: IRateLimitsData): void {
-    const merged = mergeRateLimitsData(this.lastRateLimits, data);
-    if (rateLimitsEqual(this.lastRateLimits, merged)) return;
-    this.lastRateLimits = merged;
-    this.broadcast({ type: 'rate-limits:update', data: merged });
+  private async checkProviderJsonlIdle(provider: IAgentProvider, jsonlPath: string): Promise<IJsonlCheckResult> {
+    const { rateLimits, ...result } = await provider.readJsonlStatus(jsonlPath);
+    // File JSONL-reported limits under the provider that read them, not under a fixed provider.
+    if (rateLimits) this.publishRateLimits(provider.id as TAgentPanelType, rateLimits);
+    return result;
+  }
+
+  private publishRateLimits(providerId: TAgentPanelType, data: IRateLimitsData): void {
+    const previous = this.lastRateLimits[providerId] ?? null;
+    const merged = mergeRateLimitsData(previous, data);
+    if (rateLimitsEqual(previous, merged)) return;
+    this.lastRateLimits = { ...this.lastRateLimits, [providerId]: merged };
+    this.broadcast({ type: 'rate-limits:update', providerId, data: merged });
   }
 
   private async scanAll(): Promise<void> {
@@ -350,11 +351,7 @@ export class StatusManager {
         ? await provider.isAgentRunning(paneInfo.pid, childPids)
         : false;
       if (agentRunning && entry.jsonlPath) {
-        const { idle, stale, lastAssistantSnippet } = await checkProviderJsonlIdle(
-          provider,
-          entry.jsonlPath,
-          (data) => this.publishRateLimits(data),
-        );
+        const { idle, stale, lastAssistantSnippet } = await this.checkProviderJsonlIdle(provider, entry.jsonlPath);
         jsonl = { idle, stale, lastAssistantSnippet };
       }
     }
@@ -405,11 +402,7 @@ export class StatusManager {
       return { ...emptyJsonlCheckResult(), jsonlPath, running: true, sessionId };
     }
 
-    const result = await checkProviderJsonlIdle(
-      provider,
-      jsonlPath,
-      (data) => this.publishRateLimits(data),
-    );
+    const result = await this.checkProviderJsonlIdle(provider, jsonlPath);
     return { ...result, jsonlPath, running: true, sessionId };
   }
 
@@ -637,7 +630,7 @@ export class StatusManager {
     return result;
   }
 
-  getRateLimitsForClient(): IRateLimitsData | null {
+  getRateLimitsForClient(): TRateLimitsByProvider {
     return this.lastRateLimits;
   }
 
@@ -953,7 +946,12 @@ export class StatusManager {
     return undefined;
   }
 
-  updateTabFromHook(tmuxSession: string, event: string, notificationType?: string): void {
+  updateTabFromHook(
+    tmuxSession: string,
+    event: string,
+    options: { notificationType?: string; agentSessionId?: string; transcriptPath?: string; source?: string } = {},
+  ): void {
+    const { notificationType } = options;
     const tabId = this.findTabIdBySession(tmuxSession);
     if (!tabId) {
       hookLog.debug({ tmuxSession, event, notificationType }, 'no tabId for session');
@@ -966,6 +964,7 @@ export class StatusManager {
     }
 
     const provider = getProviderByPanelType(entry.panelType);
+    this.rebindSessionFromHook(tabId, entry, options);
     const hookEvent = evaluateStatusHookEvent({
       event,
       notificationType,
@@ -1027,6 +1026,49 @@ export class StatusManager {
     }
   }
 
+  private rebindSessionFromHook(
+    tabId: string,
+    entry: ITabStatusEntry,
+    options: { agentSessionId?: string; transcriptPath?: string },
+  ): void {
+    const provider = getProviderByPanelType(entry.panelType);
+    const decision = decideHookSessionRebind({
+      behavior: provider?.statusBehavior ?? null,
+      currentSessionId: entry.agentSessionId ?? null,
+      currentJsonlPath: entry.jsonlPath ?? null,
+      hookSessionId: options.agentSessionId,
+      transcriptPath: options.transcriptPath,
+    });
+    if (!provider || !decision.rebind) return;
+
+    entry.agentSessionId = decision.sessionId;
+    entry.jsonlPath = decision.jsonlPath;
+    this.stopJsonlWatch(tabId);
+    hookLog.debug({ tabId, agentSessionId: decision.sessionId }, 'rebinding tab to hook session');
+
+    const { tmuxSession } = entry;
+    updateTabAgentSessionId(tmuxSession, provider, decision.sessionId).catch(() => {});
+    void (async () => {
+      let jsonlPath = decision.jsonlPath;
+      if (!jsonlPath) {
+        const cwd = await getSessionCwd(tmuxSession);
+        jsonlPath = cwd ? await provider.resolveJsonlPath(decision.sessionId, cwd) : null;
+      }
+      const current = this.tabs.get(tabId);
+      if (!current || current.agentSessionId !== decision.sessionId) return;
+      current.jsonlPath = jsonlPath;
+      await updateTabAgentJsonlPath(tmuxSession, provider, jsonlPath).catch(() => {});
+      const keepWatching = shouldKeepStatusJsonlWatch({
+        cliState: current.cliState,
+        watchJsonlWhenBound: provider.statusBehavior.watchJsonlWhenBound,
+      });
+      if (jsonlPath && keepWatching) this.startJsonlWatch(tabId, jsonlPath);
+      this.broadcastUpdate(tabId, current);
+    })().catch((err) => {
+      hookLog.debug({ tabId, err }, 'hook session rebind failed');
+    });
+  }
+
   private recheckCodexStop(tabId: string, tmuxSession: string): void {
     this.stopRecheckService.scheduleCodexStopRecheck({ tabId, tmuxSession });
   }
@@ -1051,7 +1093,7 @@ export class StatusManager {
 
     const provider = getProviderByPanelType(entry.panelType);
     const check = provider
-      ? await checkProviderJsonlIdle(provider, jsonlPath, (data) => this.publishRateLimits(data))
+      ? await this.checkProviderJsonlIdle(provider, jsonlPath)
       : await checkJsonlIdle(jsonlPath);
     const { next, changed } = mergeStatusMetadata(entry, {
       currentAction: check.currentAction,
@@ -1131,8 +1173,10 @@ export class StatusManager {
 
   addClient(ws: WebSocket): void {
     this.clients.add(ws);
-    if (this.lastRateLimits && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'rate-limits:update', data: this.lastRateLimits }));
+    if (ws.readyState === WebSocket.OPEN) {
+      for (const [providerId, data] of Object.entries(this.lastRateLimits)) {
+        ws.send(JSON.stringify({ type: 'rate-limits:update', providerId, data }));
+      }
     }
   }
 
@@ -1193,7 +1237,9 @@ export class StatusManager {
       if (layout) {
         const tab = collectAllTabs(layout.root).find((t) => t.sessionName === tmuxSession);
         const provider = getProviderByPanelType(entry.panelType);
-        const tabAgentSessionId = tab ? normalizeSessionId(readAgentSessionId(tab)) : null;
+        const tabAgentSessionId = provider?.statusBehavior.bindSessionFromHook && entry.agentSessionId
+          ? entry.agentSessionId
+          : tab ? normalizeSessionId(readAgentSessionId(tab)) : null;
         if (provider && tabAgentSessionId) {
           const cwd = await getSessionCwd(tmuxSession);
           if (cwd) {
@@ -1233,11 +1279,7 @@ export class StatusManager {
       this.startJsonlWatch(tabId, jsonlPath);
     }
     if (provider?.statusBehavior.reconcileStateFromJsonl) {
-      const metadata = await checkProviderJsonlIdle(
-        provider,
-        jsonlPath,
-        (data) => this.publishRateLimits(data),
-      );
+      const metadata = await this.checkProviderJsonlIdle(provider, jsonlPath);
       this.mergeJsonlMetadata(entry, metadata);
       this.reconcileCodexState(tabId, entry, { ...metadata, jsonlPath, running: true });
       this.broadcastUpdate(tabId, entry);
@@ -1269,9 +1311,23 @@ export class StatusManager {
     }
 
     const check = provider
-      ? await checkProviderJsonlIdle(provider, jsonlPath, (data) => this.publishRateLimits(data))
+      ? await this.checkProviderJsonlIdle(provider, jsonlPath)
       : await checkJsonlIdle(jsonlPath);
     const { interrupted, lastEntryTs } = check;
+
+    const needsInputExit = decideNeedsInputJsonlExit({
+      behavior: statusBehavior,
+      cliState: entry.cliState,
+      needsInputSince: entry.lastEvent?.at ?? null,
+      lastEntryTs,
+      interrupted,
+    });
+    if (needsInputExit !== 'none') {
+      hookLog.debug({ tabId, lastEntryTs, to: needsInputExit }, 'left needs-input after JSONL growth');
+      this.applyCliState(tabId, entry, needsInputExit);
+      this.persistToLayout(entry);
+      this.broadcastUpdate(tabId, entry);
+    }
 
     if (lastEntryTs !== null && shouldEmitSyntheticJsonlInterrupt({
       currentState: entry.cliState,

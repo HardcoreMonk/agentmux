@@ -10,14 +10,16 @@ import {
 describe('panel-type', () => {
   it('treats every AGENT_PANEL_TYPES entry as an agent panel and nothing else', () => {
     for (const type of AGENT_PANEL_TYPES) expect(isAgentPanelType(type)).toBe(true);
-    for (const type of ['terminal', 'web-browser', 'diff', 'claude', '', null, undefined, 42]) {
+    expect(isAgentPanelType('claude')).toBe(true);
+    for (const type of ['terminal', 'web-browser', 'diff', 'future-agent', '', null, undefined, 42]) {
       expect(isAgentPanelType(type)).toBe(false);
     }
   });
 
   it('normalizes an unregistered agent type to undefined', () => {
-    expect(normalizePanelType('claude')).toBeUndefined();
+    expect(normalizePanelType('future-agent')).toBeUndefined();
     expect(normalizePanelType('codex')).toBe('codex');
+    expect(normalizePanelType('claude')).toBe('claude');
   });
 
   it('lists every panel type exactly once', () => {

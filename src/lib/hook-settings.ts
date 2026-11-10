@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { getDataDir } from '@/lib/app-identity';
 import { createLogger } from '@/lib/logger';
-import { STATUSLINE_SCRIPT_PATH, buildStatuslineScriptContent } from '@/lib/statusline-script';
+import { STATUSLINE_SCRIPT_PATH, buildStatuslineScriptSource, shQuote } from '@/lib/statusline-script';
 import { STATUS_HOOK_BRIDGE_PATH } from '@/lib/agent-hooks';
 
 const log = createLogger('hooks');
@@ -34,12 +34,35 @@ process.stdin.on('data', (chunk) => {
   received += Math.min(buffer.byteLength, remaining);
 });
 
+const FORWARDED_FIELDS = {
+  session_id: 'agentSessionId',
+  transcript_path: 'transcriptPath',
+  source: 'source',
+  notification_type: 'notificationType',
+};
+const MAX_FIELD_LENGTH = 512;
+
+const readForwardedFields = () => {
+  try {
+    const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    if (!input || typeof input !== 'object') return {};
+    const fields = {};
+    for (const [from, to] of Object.entries(FORWARDED_FIELDS)) {
+      const value = input[from];
+      if (typeof value === 'string' && value.length <= MAX_FIELD_LENGTH) fields[to] = value;
+    }
+    return fields;
+  } catch {
+    return {};
+  }
+};
+
 process.stdin.on('end', () => {
   try {
     const port = Number.parseInt(fs.readFileSync(path.join(baseDir, 'port'), 'utf8').trim(), 10);
     const token = fs.readFileSync(path.join(baseDir, 'cli-token'), 'utf8').trim();
     if (!Number.isInteger(port) || port < 1 || port > 65535 || !token) process.exit(0);
-    const body = JSON.stringify({ event, session, capability });
+    const body = JSON.stringify({ event, session, capability, ...readForwardedFields() });
     const request = http.request({
       host: '127.0.0.1',
       port,
@@ -70,7 +93,7 @@ export const buildHookSettings = () => ({
   hooks: {},
   statusLine: {
     type: 'command' as const,
-    command: `sh "${STATUSLINE_SCRIPT_PATH}"`,
+    command: `ELECTRON_RUN_AS_NODE=1 ${shQuote(process.execPath)} ${shQuote(STATUSLINE_SCRIPT_PATH)}`,
   },
 });
 
@@ -90,8 +113,7 @@ export const ensureHookSettings = async (port: number): Promise<void> => {
   const baseDir = getDataDir();
   const hooksFile = path.join(baseDir, 'hooks.json');
   const portFile = path.join(baseDir, 'port');
-  const statuslineScriptPath = path.join(baseDir, 'statusline.sh');
-  const statuslineScriptContent = buildStatuslineScriptContent(baseDir);
+  const statuslineScriptPath = path.join(baseDir, 'statusline.cjs');
 
   await fs.mkdir(baseDir, { recursive: true });
 
@@ -99,15 +121,7 @@ export const ensureHookSettings = async (port: number): Promise<void> => {
 
   await writeIfChanged(HOOK_BRIDGE, getStatusHookBridgeSource(baseDir), 0o700);
 
-  // Create statusline script
-  try {
-    const existing = await fs.readFile(statuslineScriptPath, 'utf-8');
-    if (existing !== statuslineScriptContent) {
-      await fs.writeFile(statuslineScriptPath, statuslineScriptContent, { mode: 0o755 });
-    }
-  } catch {
-    await fs.writeFile(statuslineScriptPath, statuslineScriptContent, { mode: 0o755 });
-  }
+  await writeIfChanged(statuslineScriptPath, buildStatuslineScriptSource(baseDir), 0o700);
 
   // Create hooks.json
   const settings = buildHookSettings();

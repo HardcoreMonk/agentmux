@@ -53,7 +53,7 @@ describe('Codex app-server fixture adapter', () => {
   });
 
   it('does not register the app-server adapter as a production provider yet', () => {
-    expect(listProviders().map((provider) => provider.id)).toEqual(['codex']);
+    expect(listProviders().map((provider) => provider.id)).toEqual(['codex', 'claude']);
   });
 
   it('normalizes fixture sessions, timeline entries, and status hints without raw payload leakage', async () => {

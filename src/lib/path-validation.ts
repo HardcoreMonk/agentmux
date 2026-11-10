@@ -25,6 +25,11 @@ export const getCodexSessionsDir = (homeDir = os.homedir()): string => {
   return pathApi.join(homeDir, '.codex', 'sessions');
 };
 
+export const getClaudeProjectsDir = (homeDir = os.homedir()): string => {
+  const pathApi = WINDOWS_ABSOLUTE_RE.test(homeDir) ? path.win32 : path;
+  return pathApi.join(homeDir, '.claude', 'projects');
+};
+
 export const isJsonlPathUnderRoots = (filePath: string, roots: readonly string[]): boolean =>
   roots.some((root) => {
     const pathApi = selectPathApi(filePath, root);

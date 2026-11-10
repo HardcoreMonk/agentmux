@@ -4,6 +4,7 @@
   "newTab": "New Tab",
   "closeTab": "Close Tab",
   "closeTabConfirm": "Close ''{name}'' tab?",
+  "panelModeMenu": "Panel mode: {mode}",
   "closeMenu": "Close menu",
   "switchTab": "Switch to {name} tab",
   "currentTab": "Current tab: {name}",

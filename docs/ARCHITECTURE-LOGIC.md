@@ -206,7 +206,7 @@ Terminal byte stream은 durable state가 아닙니다. Reconnect는 저장된 st
 
 Codex web input은 raw terminal key 입력과 분리해서 처리합니다. Client는 `MSG_WEB_STDIN` frame으로 app-originated input을 보내고, legacy terminal path는 tmux copy mode를 먼저 빠져나온 뒤 pty에 씁니다. Prompt 본문은 bracketed paste로 감싸고 Enter를 같은 frame에 포함하며, Codex CLI 확인 흐름을 위해 후속 Enter를 한 번 더 보냅니다.
 
-Agent launch/resume는 browser에서 command string을 조립하지 않습니다. Client intent를 받은 server가 workspace/pane/tab ownership, Codex panel, safe shell, minimum CLI version을 검증하고 provider command를 생성합니다. Runtime v2 내부 write는 subscriber가 없는 범용 stdin 우회로가 아니라 ready 상태의 exact terminal session에만 허용됩니다.
+Agent launch/resume는 browser에서 command string을 조립하지 않습니다. Client intent를 받은 server가 workspace/pane/tab ownership, agent panel, safe shell, provider별 preflight를 검증하고 provider command를 생성합니다. Claude Code 탭은 server가 session UUID를 먼저 탭에 기록하고 탭별 `--settings` 파일(`<data dir>/claude-tabs/<tabId>.json`)로 hook과 statusLine을 붙여 `claude --settings <file> --session-id <uuid>`로 띄웁니다(`TMUX.md` "Claude Code 실행과 hook 설정"). Runtime v2 내부 write는 subscriber가 없는 범용 stdin 우회로가 아니라 ready 상태의 exact terminal session에만 허용됩니다.
 
 ## Codex 세션 감지
 
@@ -221,6 +221,8 @@ Codex session mapping은 다음 source를 조합합니다.
 Process start time으로 현재 JSONL을 특정할 수 없는 long-lived Codex process는 tab의 prompt claim으로만 최신 same-cwd JSONL을 채택합니다. Prompt text, claim timestamp, JSONL user message timestamp, cwd가 맞고 같은 window 안의 중복 후보가 없을 때만 `agentSessionId`/`agentJsonlPath`를 갱신합니다. Claim 저장은 timeline refresh signal을 발행하고, 열린 legacy/runtime timeline socket은 짧은 재시도 창 안에서 같은 소유권 검증을 다시 실행합니다. 이 신호가 없으면 같은 cwd의 다른 tab session과 섞일 수 있으므로 최신 JSONL로 자동 전환하지 않습니다.
 
 Windows에서는 `/proc`, `pgrep`, `ps`, `lsof` 같은 POSIX primitive를 직접 호출하지 않고 process inspector adapter를 사용합니다.
+
+Claude Code session은 hook이 준 session id로 탭을 다시 묶는 것이 주 경로입니다. Polling 감지는 `~/.claude/sessions/<pid>.json`, process 인자, cwd transcript directory의 최신 JSONL 순으로 찾아 `/clear` 뒤 hook이 묶은 새 session을 옛 값으로 되돌리지 않습니다.
 
 ## 타임라인 로직
 
@@ -290,7 +292,9 @@ Storage Worker는 Approved Project Root와 Managed Project의 canonical path를 
 
 Codex hook event는 server provider가 만든 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override가 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출해 들어옵니다. Bridge는 CLI token과 tab/session/expiry capability를 loopback API에 전달하고 실패 시에도 Codex action을 막지 않습니다. User/project/managed/plugin hook은 native Codex layer discovery가 보존하며 agentmux가 사용자 TOML을 병합하지 않습니다.
 
-JSONL tail의 `token_count/rate_limits` observation은 작업 상태 scan과 같은 read에서 추출합니다. Window별 `observed_at`을 기준으로 newest merge/dedupe하고 reset 뒤 관찰이 없으면 `갱신 대기` 상태를 유지합니다.
+Claude Code hook event는 탭별 `--settings` 파일의 SessionStart, UserPromptSubmit, Notification, Stop, StopFailure, PreCompact, PostCompact hook이 같은 bridge를 호출해 들어옵니다. Bridge는 hook stdin에서 `session_id`, `transcript_path`, `source`, `notification_type`만 보내고, provider flag `bindSessionFromHook`이 켜진 Claude Code 탭은 새 session id(`/clear`, `/resume`, fork)로 status entry와 layout을 다시 묶습니다. 사용자 `~/.claude/` 설정은 읽기만 합니다. 자세한 규칙은 `STATUS.md` "Claude Code hook 상태 경로"에 있습니다.
+
+Rate limit은 provider별로 둡니다. Codex JSONL tail의 `token_count/rate_limits` observation은 작업 상태 scan과 같은 read에서 추출하고, Claude Code 값은 statusLine script가 보낸 `rate_limits`에서 받습니다. Window별 `observed_at`을 기준으로 newest merge/dedupe하고 reset 뒤 관찰이 없으면 `갱신 대기` 상태를 유지합니다.
 
 ## 성능과 진단
 

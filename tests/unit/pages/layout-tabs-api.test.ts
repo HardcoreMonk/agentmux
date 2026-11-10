@@ -222,6 +222,24 @@ describe('layout tab api runtime routing', () => {
     expect(mocks.launchAgentInTab).toHaveBeenCalledWith(expect.objectContaining({ action: 'launch', paneId: 'pane-a' }));
   });
 
+  it.each(['codex', 'claude'])('registers the %s panel type on the new status entry', async (panelType) => {
+    mocks.addTabToPane.mockResolvedValue({
+      id: 'tab-agent',
+      sessionName: 'pt-ws-a-pane-a-tab-agent',
+      name: '',
+      order: 1,
+      panelType,
+      runtimeVersion: 1,
+    });
+
+    await handler(createRequest({ cwd: '/repo', panelType }), createResponse().res);
+
+    expect(mocks.statusManager.registerTab).toHaveBeenCalledWith(
+      'tab-agent',
+      expect.objectContaining({ panelType }),
+    );
+  });
+
   it('still creates plain terminal tabs through runtime v2 in new-tabs mode', async () => {
     process.env.AGENTMUX_RUNTIME_TERMINAL_V2_MODE = 'new-tabs';
     const response = createResponse();
@@ -237,7 +255,7 @@ describe('layout tab api runtime routing', () => {
     vi.useFakeTimers();
     const response = createResponse();
 
-    await handler(createRequest({ cwd: '/repo', panelType: 'claude', startAgent: true }), response.res);
+    await handler(createRequest({ cwd: '/repo', panelType: 'future-agent', startAgent: true }), response.res);
     await vi.advanceTimersByTimeAsync(1_000);
     vi.useRealTimers();
 
@@ -262,7 +280,7 @@ describe('layout tab api runtime routing', () => {
   it('rejects resume with an unregistered panel type', async () => {
     const response = createResponse();
 
-    await handler(createRequest({ panelType: 'claude', resumeSessionId: 'abc' }), response.res);
+    await handler(createRequest({ panelType: 'future-agent', resumeSessionId: 'abc' }), response.res);
 
     expect(response.statusCode).toBe(400);
     expect(response.body).toEqual({ error: 'Unknown panel type for resume' });

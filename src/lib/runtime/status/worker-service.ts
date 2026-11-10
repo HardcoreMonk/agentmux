@@ -24,7 +24,7 @@ import {
   type IStatusWebPushActions,
 } from '@/lib/runtime/status/web-push-actions';
 import { StatusManager } from '@/lib/status-manager';
-import type { IClientTabStatusEntry, IStatusUpdateMessage, IStatusHookEventMessage, IRateLimitsUpdateMessage } from '@/types/status';
+import type { IClientTabStatusEntry, IStatusUpdateMessage, IStatusHookEventMessage, IRateLimitsUpdateMessage, TRateLimitsByProvider } from '@/types/status';
 import type { ISessionHistoryUpdateMessage } from '@/types/status';
 import { markDeviceHidden, markDeviceVisible } from '@/lib/push-subscriptions';
 
@@ -32,8 +32,12 @@ interface IStatusLiveManagerLike {
   init(): Promise<void>;
   shutdown(): void;
   getAllForClient(): Record<string, IClientTabStatusEntry>;
-  getRateLimitsForClient(): IRateLimitsUpdateMessage['data'] | null;
-  updateTabFromHook(tmuxSession: string, event: string, notificationType?: string): void;
+  getRateLimitsForClient(): TRateLimitsByProvider;
+  updateTabFromHook(
+    tmuxSession: string,
+    event: string,
+    options?: { notificationType?: string; agentSessionId?: string; transcriptPath?: string; source?: string },
+  ): void;
   dismissTab(tabId: string): boolean;
   ackNotificationInput(tabId: string, seq: number): boolean;
   notifyLastUserMessage(sessionName: string, message: string): boolean;
@@ -66,7 +70,7 @@ export const createStatusWorkerService = (options: ICreateStatusWorkerServiceOpt
         delivery: 'realtime',
         payload: {
           tabs: (event as { tabs: Record<string, IClientTabStatusEntry> }).tabs,
-          rateLimits: liveManager?.getRateLimitsForClient() ?? null,
+          rateLimits: liveManager?.getRateLimitsForClient() ?? {},
         },
       }));
       return;
@@ -109,7 +113,10 @@ export const createStatusWorkerService = (options: ICreateStatusWorkerServiceOpt
         target: 'supervisor',
         type: 'status.rate-limits-update',
         delivery: 'realtime',
-        payload: { data: (event as IRateLimitsUpdateMessage).data },
+        payload: {
+          providerId: (event as IRateLimitsUpdateMessage).providerId,
+          data: (event as IRateLimitsUpdateMessage).data,
+        },
       }));
     }
   };
@@ -177,12 +184,13 @@ export const createStatusWorkerService = (options: ICreateStatusWorkerServiceOpt
         if (command.type === 'status.live-request-sync') {
           return ok(command, {
             tabs: liveManager?.getAllForClient() ?? {},
-            rateLimits: liveManager?.getRateLimitsForClient() ?? null,
+            rateLimits: liveManager?.getRateLimitsForClient() ?? {},
           });
         }
         if (command.type === 'status.live-hook-event') {
           const input = parseRuntimeCommandPayload('status.live-hook-event', command.payload);
-          getLiveManager().updateTabFromHook(input.tmuxSession, input.event, input.notificationType);
+          const { tmuxSession, event, ...options } = input;
+          getLiveManager().updateTabFromHook(tmuxSession, event, options);
           return ok(command, { accepted: true });
         }
         if (command.type === 'status.live-client-event') {

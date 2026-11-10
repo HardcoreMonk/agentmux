@@ -17,7 +17,7 @@
 | 순서 | 프로젝트 | 상태 |
 | --- | --- | --- |
 | 1 | 이름 변경과 tmux 서버 분리 | 완료. PR #42/#43/#44 merge, live 전환, 재부팅 검증. npm 첫 배포만 보류 |
-| 2 | Claude Code provider → multi-agent(Claude Code + Codex 동시 실행, 일 나누기, 상호 리뷰) | brainstorming 중. 설계 문서 미작성 |
+| 2 | Claude Code provider → multi-agent(Claude Code + Codex 동시 실행, 일 나누기, 상호 리뷰) | 설계 1 진행 중. 단계 1 main merge·live 배포(`19a44ca8`). 단계 2는 Task 1만 main merge·live 배포(`47ea57e7`), Task 2~10은 branch `feat/claude-provider-phase2`에서 구현·전체 gate·격리 live smoke 완료, merge 전 |
 | 3 | 위임 자동화와 agent split | 2번 범위에 합쳐질 가능성이 높음. 2번 설계에서 결정 |
 
 ## 사용자 요구 (사용자 발언 기준)
@@ -219,6 +219,128 @@ skipped), `build` 모두 통과.
   끝났고 port 18122는 비었다. 기본 socket의 tmux session 목록과 `~/.codex/config.toml` checksum은 전후 같다.
   Codex session JSONL 1개는 사용자 `~/.codex/sessions`에 남는다(Codex 기본 동작).
 
+## Claude Code provider 단계 2 구현과 검증 (같은 날)
+
+- Plan: `docs/superpowers/plans/2026-11-10-claude-code-provider-phase2.md`. Plan review:
+  `docs/superpowers/reviews/2026-11-10-claude-code-provider-phase2-eng-review.md`(approve with changes, `01215b73`에 반영).
+- Branch `feat/claude-provider-phase2`(worktree `.worktrees/claude-provider-phase2`, base `19a44ca8`).
+- 작업 체계: 사용자 결정대로 Herdr pane의 agy(`builder`)가 task를 구현하고 Claude가 task마다 diff와 test로 검증한 뒤
+  독립 reviewer를 돌렸다. Task 1~3은 agy가 구현했다.
+- agy 사용량 한도: Task 4 도중 agy 안의 Claude Sonnet이 사용량 한도에 걸렸다(commit 전 부분 변경). 사용자가 agy를
+  Gemini 4 Argon High로 바꿨지만 이것도 한도에 걸렸다(재설정까지 약 124시간, agy의 Claude Sonnet은 약 4시간).
+  사용자는 agy 한도가 돌아올 때까지 Claude subagent가 구현하고, 돌아오면 남은 task를 agy에게 돌려주는 방식을
+  골랐다. Task 4는 Claude subagent가 agy의 부분 변경을 이어 마쳤고 Task 5~10도 Claude subagent가 맡았다(23:22까지
+  agy 한도 미복구).
+
+### Task 1 먼저 배포
+
+Task 1(모르는 panelType 읽기 정규화, status behavior IPC schema가 모르는 key를 버림, `e0b03c25`)만 main에 merge했다
+(`47ea57e7`). 이후 build에서 Claude 탭을 만든 뒤 되돌려도 layout 전체가 깨지지 않게 하려는 순서다. 사용자가 push(main CI
+`42813980564` 성공)와 `deploy:local`을 직접 실행했다: 21:18 KST, PID `2865470`, health commit `47ea57e7`, tmux 서버
+`43870`과 session 1개 유지, service log error 0.
+
+### Task별 결과
+
+| Task | Commit | 검토 |
+| --- | --- | --- |
+| 1 panelType 정규화, IPC 함정 | `e0b03c25` (main `47ea57e7`) | 3줄 변경, controller 확인으로 승인 |
+| 2 Hook 필드 전달, session 다시 묶기 | `2b5f2afd` | Approved |
+| 3 실행 명령, project directory, 감지 | `9fbdebc3` | Approved |
+| 4 탭 설정 파일, statusLine 대신 실행 | `28ae01c4`, 수정 `4a972a17` | 수정 1회: 무한 호출 방지를 환경 변수 표시와 realpath·별칭 비교로, POST 마감 시간 |
+| 5 Provider 등록, 실행 session id, 탭 정리 | `a369a91d`, 수정 `63055f0e` | 수정 1회: 다시 실행한 탭이 옛 JSONL에 묶이는 문제, 첫 prompt 전 session 재개 |
+| 6 Provider별 rate limit | `9e0b95e9` | Approved |
+| 7 Provider별 preflight, Claude 설치 명령 | `9aac47c4` | Approved |
+| 8 권한 요청 Claude 문구, folder trust | `5b59c790`, 수정 `b76f3a1b` | 수정 1회: trust 카드를 탭별로, 모바일 입력 영역을 가리지 않게 |
+| 9 새 탭 메뉴, 보기 전환, 단축키, 모바일 | `88110c80` | Approved |
+| 10 문서, gate, 격리 live smoke | 이 문서 commit | 아래 |
+
+### 전체 gate (2026-11-10 23:33~23:37 KST, worktree `88110c80` + 문서 변경)
+
+- `check:project-design` 통과.
+- `check:product-name`: 이번에 쓴 문서 줄이 `~/.codexmux`를 호환 표시 없이 적어 실패했다(`STATUS.md` 한 줄, 다시 실행에서
+  `FOLLOW-UP.md` 한 줄). `legacy`를 붙여 고친 뒤 통과(738 files).
+- `lint` error 0(경고 6개는 기존 `no-location-assign-relative-destination`), `tsc --noEmit` 통과.
+- `test`(임시 `TMUX_TMPDIR`): 302 files 통과·1 skipped, 1942 tests 통과·3 skipped. 이번 실행에서는 Codex session
+  test 불안정이 나오지 않았다.
+- `build` 통과.
+
+### 격리 Claude Code live smoke (23:39~23:47 KST)
+
+- 환경: 이 worktree production build(`node bin/agentmux.js`, health commit `88110c80`). 이 shell의 환경을 물려받지 않도록
+  `env -i`로 `HOME`(실제 값, Claude 로그인), `USER`, `LOGNAME`, `SHELL`, `LANG`, `TERM`, `PATH`만 넘기고 임시
+  `AGENTMUX_DATA_DIR`·`TMUX_TMPDIR`, `PORT=18122`, `AGENTMUX_RUNTIME_V2=1`과 live와 같은 mode 4개(storage
+  `default`, terminal `new-tabs`, timeline `default`, status `default`), `AGENTMUX_TMUX_SCOPE=off`를 더했다.
+  `INVOCATION_ID`는 없다. 그 밖에 `NO_UPDATE_NOTIFIER=1`, hook event를 server log에 남기려고 `LOG_LEVELS=hooks=debug`를
+  더했다. Claude Code `2.1.322`. Workspace directory는 이 worktree다.
+- 사용자 Claude 설정의 기본 권한 mode가 `auto`라 파일 쓰기가 확인 없이 승인될 수 있어, 임시 data dir 설정에
+  `claudePermissionMode: "manual"`을 넣었다(`--permission-mode manual`이 붙음).
+- Claude prompt는 2개를 썼다.
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 1 | 시작 전 sha256 | `~/.claude/settings.json` `98193cce…`, `~/.codex/config.toml` `7e823d6a…` |
+| 2 | 새 탭 API로 Claude 탭 | `pt-ws-PTQTCZ-pane--AXIRy-tab-wGwo7R`(`runtimeVersion: 1`). Process 인자 `claude --settings <임시 data dir>/claude-tabs/tab-wGwo7R.json --session-id 33e9b69f-… --permission-mode manual`. 설정 파일 `0600`, directory `0700`, hook 7개 모두 `async`, `timeout: 3`. Trust 화면도 hook 검토 화면도 뜨지 않았다. `SessionStart(startup)` hook으로 `inactive`→`idle` |
+| 3 | 짧은 prompt | "Reply with OK" → status WebSocket `busy`(23:40:35.090, `prompt-submit`) → `ready-for-review`(23:40:36.797, `stop`). Server log `received prompt-submit`, `processed prompt-submit idle→busy`, `received stop`, `processed stop busy→ready-for-review`. statusLine이 `rate-limits:update`(`providerId: claude`, 7일 창만 있음)를 보냈다 |
+| 4 | Timeline | `/api/timeline/entries`(`panelType=claude`)가 그 JSONL에서 5개 항목(user "Reply with OK", thinking, assistant "OK", turn-end 2개)을 돌려줬다 |
+| 5 | 권한 요청 | Write 요청 → `notification(permission_prompt)`(23:41:12.844) `busy`→`needs-input`. `permission-options`가 `1. Yes`, `2. Yes, and switch to accept edits …`, `3. No`와 `promptType: file`을 돌려줬다. 선택지가 화면에 있는 69초 동안 `needs-input`을 유지했다. 웹 카드와 같은 `POST /api/tmux/send-input`(`input: "3"`)이 `{"ok":true}`, Claude는 "User rejected write", 파일은 생기지 않았다. 23:42:21.672 `left needs-input after JSONL growth`로 `busy` |
+| 6 | `/clear` | `session-start`(`source: clear`)로 `busy`→`idle`, 탭 session id `33e9b69f-…`→`cb59229b-…`. `~/.claude/sessions/<pid>.json`은 새 id, process 인자는 옛 id 그대로. 50초 뒤(30초 poll 지난 뒤)에도 tab status API와 layout의 `agentSessionId`·`agentJsonlPath`가 새 값이고, timeline API가 새 JSONL의 항목(`/clear`)을 돌려줬다 |
+| 7 | statusLine | Worktree에 임시 `.claude/settings.local.json`(`printf phase2-statusline`)을 두고 `/exit` 뒤 `POST /api/agent/launch`(`resume`) → `claude --settings … --resume cb59229b-… --permission-mode manual`, 화면 하단에 `phase2-statusline`. `session-start`(`source: resume`). 확인 뒤 파일과 directory를 지웠다 |
+| 8 | Folder trust | 임시 directory에서 별도 tmux socket(임시 `TMUX_TMPDIR`)으로 `claude`만 실행. 화면은 "Accessing workspace:" 다음 줄 경로, "Quick safety check", `❯ No, exit`, `Yes, I trust this folder`. `matchTrustPrompt`가 `agent: claude`, 해당 경로, 선택지 2개, `selectedIndex: 0`으로 감지했고 Task 8 규칙은 고치지 않았다. 웹 카드 "종료" key(`1b`, Esc)를 보내자 Claude가 끝났다. `~/.claude.json`에 그 directory 항목이 없어 `hasTrustDialogAccepted`는 true가 아니다 |
+| 9 | 정리 | sha256 두 값 그대로. 임시 server(SIGINT), 임시 tmux server(`kill-server`), 임시 directory 4개를 지웠고 port 18122는 비었다. 기본 socket `tmux -L codexmux ls`(live session 1개)와 `tmux -L codexmux-runtime-v2 ls`(server 없음), service PID `2865470`이 전후 같다 |
+
+- 23:44:35의 `notification(idle_prompt)`는 상태를 바꾸지 않았다(`non-input notification`).
+- Claude session JSONL 2개는 사용자 `~/.claude/projects/` 아래에 남는다(Claude Code 기본 동작). `HOME`이 실제 값이라
+  사용자 hook(SessionStart, Stop, Notification)도 이 session에서 함께 돌았다(설계상 사용자 hook 유지).
+- 찾은 결함:
+  - 권한 요청에 "No"로 답하면 탭이 `busy`에 남는다. 위 5번 뒤 74초 동안 `busy`였고 `/clear`의 hook에서야 `idle`이 됐다.
+    Claude Code는 거절 뒤 `Stop` hook을 보내지 않고, JSONL 끝이 `[Request interrupted by user for tool use]` 다음
+    `system/turn_duration`이라 `jsonl-idle-scan`이 `idle: true, interrupted: false`를 돌려준다.
+    `decideNeedsInputJsonlExit`는 `idle`을 보지 않아 `busy`를 고르고, Claude는 `reconcileStateFromJsonl`이 꺼져 있어
+    `busy`에서 빠져나갈 경로가 없다. 웹 카드가 함께 보내는 `ack-notification`도 `busy`로만 바꾼다.
+  - `permission-options`가 줄바꿈된 Claude 선택지를 공백 없이 붙인다("file" + "commands" → "filecommands").
+    `permission-prompt.ts`의 soft-wrap 이어 붙이기(기존 코드)가 단어 중간 줄바꿈만 가정한다.
+  - 임시 server를 SIGINT로 끌 때 timeline worker가 부모 IPC에 `process.send`하다 처리되지 않은 `EPIPE`로 끝났다.
+    단계 2가 바꾸지 않은 worker 종료 경로다.
+  - Timeline이 한 turn에 `turn-end`를 2개 돌려준다. Claude Code가 `stop_hook_summary`와 `turn_duration`을 둘 다 쓰고
+    `session-parser.ts`가 둘 다 `turn-end`로 바꾼다. 화면 영향은 확인하지 않았다.
+
+## Claude Code provider 단계 2 최종 검토 수정과 live 재확인 (2026-11-11)
+
+Branch 전체 최종 검토가 merge 전 수정 2개와 작은 수정 3개를 냈고, 한 commit(`d5f3432a`)으로 고쳤다.
+
+- 중단된 turn: 권한 요청 "No", Esc, 웹 중지 버튼으로 끝난 turn은 `Stop` hook 없이 JSONL이
+  `[Request interrupted by user …]` 다음 `system/turn_duration`으로 끝난다. `jsonl-idle-scan`이 turn 종료 줄에서 바로
+  `interrupted: false`를 돌려줘 탭이 `busy`에 남았다. 이제 turn 종료 줄 앞의 마지막 대화 줄(sidechain, `isMeta` 제외)이
+  interrupt 표시면 `interrupted: true`라 `needs-input` 출구와 JSONL 합성 interrupt가 모두 `idle`로 간다. 정상 turn은 그대로.
+- 모바일 탭 이름: 440px 미만에서 보기 전환 버튼 4개를 현재 보기 아이콘의 44px 버튼 하나로 접고, 누르면 Terminal, Codex,
+  Claude Code, Diff 행(각 44px, 아이콘과 label)이 있는 popover가 열린다. 360px terminal 탭에서 이름 폭이 약 0px에서 약
+  140px로 늘어난다(계산값, browser로는 보지 않음).
+- JSONL에서 읽은 rate limit을 그 provider id로 발행(전에는 항상 `codex`). Hook `transcriptPath`는 탭 provider의
+  `jsonlRoots()`로만 검사하고 provider가 없으면 버린다. `providers.test.ts` test 이름 수정.
+- Gate: 관련 test RED→GREEN, `tsc --noEmit` 통과, `lint` error 0(기존 경고 6개), 전체 test(임시 `TMUX_TMPDIR`) 303 files
+  통과·1 skipped, 1956 tests 통과·3 skipped(Codex session test 불안정은 나오지 않음), `check:project-design`,
+  `check:product-name`, `build` 통과.
+
+### 격리 live 재확인 (00:18~00:25 KST)
+
+- 환경은 Task 10 smoke와 같다: 이 worktree production build(health commit `d5f3432a`), `env -i` 허용 목록, 임시
+  `AGENTMUX_DATA_DIR`·`TMUX_TMPDIR`, `PORT=18122`(시작 전 비어 있음), `AGENTMUX_RUNTIME_V2=1`과 live mode 4개,
+  `AGENTMUX_TMUX_SCOPE=off`, `INVOCATION_ID` 없음, `NO_UPDATE_NOTIFIER=1`, `LOG_LEVELS=hooks=debug`, 임시 설정
+  `claudePermissionMode: "manual"`. Workspace directory는 이 worktree(trust 화면 없음). Claude Code `2.1.322`.
+- Claude prompt는 3개를 썼다. 상태는 status WebSocket 기록, hook은 임시 data dir의 server log로 확인했다.
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 1 | Terminal에서 "No" | Write 요청 → `notification(permission_prompt)`로 `needs-input`(00:21:47.150). 화면에서 `3. No`를 확인하고 tmux `send-keys 3`(00:21:56.950). JSONL에 `tool_result(is_error)`(56.959), `[Request interrupted by user for tool use]`(56.961), `turn_duration`(56.964). Server log `left needs-input after JSONL growth` `to: idle`, `lastEntryTs`는 `turn_duration` 시각. Status WebSocket `idle` 00:21:57.206(입력 뒤 0.26초), 30초 poll 뒤에도 `idle`. 파일은 생기지 않았다. 통과 |
+| 2 | 웹 경로 "No" | 두 번째 Write 요청 → `needs-input`(00:22:46.936, seq 5). 웹 카드와 같은 순서로 cookie를 붙인 `POST /api/tmux/send-input {"input":"3"}`(200, 00:22:54.994) 뒤 `status:ack-notification`(seq 5). `ack: needs-input→busy`(54.996) → `synthetic interrupt from JSONL`(`lastEntryTs` = `turn_duration` 54.995) → `processed interrupt busy→idle`(seq 6). Status WebSocket `busy` 00:22:54.997, `idle` 00:22:55.225(입력 뒤 0.23초). 파일은 생기지 않았다. 통과 |
+| 3 | 정상 turn | "Reply with OK" → `busy`(00:23:37.481, `prompt-submit` seq 7) → `ready-for-review`(00:23:38.103, `stop` seq 8), 화면 `● OK`. JSONL 끝은 assistant `end_turn`, `stop_hook_summary`, `turn_duration`. 27초 뒤 tab status API도 `ready-for-review`. 통과 |
+| 4 | 정리와 불변 조건 | 상태 watcher, 임시 server(SIGINT, worker 5개 함께 종료), 임시 tmux server(`kill-server`, Claude process 종료)를 멈췄고 port 18122는 비었다. 임시 data dir와 tmux dir를 지웠다. 전후 sha256(`~/.claude/settings.json` `98193cce…`, `~/.codex/config.toml` `7e823d6a…`), 기본 socket `tmux -L codexmux ls`(live session 1개), `tmux -L codexmux-runtime-v2 ls`(server 없음), service PID `2865470`이 같다 |
+
+- Server log에 warn·error 줄이 없었고, 이번 종료에서는 timeline worker `EPIPE`가 나오지 않았다.
+- Claude Code `2.1.322`가 JSONL에 `api-request-blob`, `api-request` 줄을 새로 쓴다. 상태 검사는 이 종류를 대화 줄로 보지
+  않아 결과에 영향이 없었다.
+- Claude session JSONL 1개가 사용자 `~/.claude/projects/` 아래에 남는다(Claude Code 기본 동작).
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -230,27 +352,25 @@ skipped), `build` 모두 통과.
   확인: test 1819 통과(3 skip), tsc, lint error 0, 문서 gate 통과. 사용자 선택으로 main에 로컬 merge(`19a44ca8`), 사용자가
   직접 push(main CI `42805309103` 성공)와 `deploy:local`(20:27 KST, PID `2553990`, health commit `19a44ca8`, tmux 서버
   `43870` 유지, log error 0)을 실행했다. Auto mode가 main push와 production deploy를 막아 사용자가 `!` 명령으로 실행했다.
-- 설계 1 단계 2: 계획 작성(`docs/superpowers/plans/2026-11-10-claude-code-provider-phase2.md`, branch
-  `feat/claude-provider-phase2`), plan-eng-review 진행 중.
+- 설계 1 단계 2: plan-eng-review 반영(`01215b73`). Task 1은 main merge(`47ea57e7`)와 live 배포(21:18 KST, PID
+  `2865470`)를 마쳤다. Task 2~9 implement와 task별 code-review를 마쳤고, Task 10에서 문서, 전체 gate, 격리 Claude Code
+  live smoke(9개 확인 통과, 결함 4개 기록)를 마쳤다. Branch 최종 code-review 수정(`d5f3432a`, 권한 요청 "No" 뒤 `busy`
+  고정과 모바일 탭 이름 폭 포함)과 격리 live 재확인(3개 통과)을 마쳤다. PR, main merge, live 배포 전.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-단계 2 plan-eng-review를 반영하고 사용자 계획 검토를 받은 뒤, agy에게 Task 1부터 맡기고 Claude가 task마다 검증한다. Live 배포는 사용자 확인 뒤에
-한다. 이어서 단계 2(Claude provider core) 계획을 단계 1 interface 기준으로 쓴다. 단계 3~4 계획도 앞 단계가 merge된
-뒤 쓴다.
+단계 2 branch 최종 검토 수정(`d5f3432a`)과 live 재확인 결과를 확인한 뒤 PR을 만들고 main CI 통과 뒤 merge한다. Live 배포는 사용자 확인 뒤에 한다(rollback 때는 Claude 탭을 먼저
+닫는다). agy 한도가 돌아오면 남은 구현을 agy에게 돌려준다. 단계 3~4 계획은 앞 단계가 merge된 뒤 쓴다.
 
 ## Follow-Up Tasks
 
 - 작업 체계(사용자: "단계 2부터 이전처럼 \"agy 구현, Claude 감시·검증\" 체계"): 단계 2부터 구현은 Herdr pane의
   agy(`builder`)가 맡고 Claude는 계획, 감시, 검증을 맡는다. 단계 1은 Claude subagent(subagent-driven)로 구현했다.
   agy의 cwd가 live checkout이므로 agy에게는 `.worktrees/` 아래 worktree에서만 작업하도록 지시한다.
-- 단계 2 계획에 넣을 것(단계 1 최종 검토에서 넘김):
-  - `'claude'`를 더하기 전, storage v2 layout 읽기 경로와 IPC reply 검증(`z.enum(PANEL_TYPES)`)이 모르는 panelType
-    때문에 layout 전체를 거절하지 않도록 읽는 쪽 정규화 또는 rollback 절차.
-  - Status side-effect IPC로 보내는 지점에 2-key `statusBehavior`만 고르는 helper(4-key 객체가 strict schema에서
-    runtime 실패하는 함정 방지).
+- 단계 1 최종 검토에서 넘긴 항목: panelType 읽기 정규화와 `statusBehavior` IPC 함정은 단계 2 Task 1(`e0b03c25`)에서
+  처리했다. 남은 것:
   - Diff 탭의 send-to-agent 대상: 지금은 항상 기본 agent(Codex)다. 탭의 마지막 agent 종류를 정할 출처가 필요하다.
   - 정리: `JSONL_EXTENDED_TAIL_SIZE` 중복(`status/jsonl-check.ts`, `status-manager.ts`), `exitCommand` fallback
     중복(`resolveAgentProviderMeta` helper).
@@ -264,9 +384,25 @@ skipped), `build` 모두 통과.
   - 추정: hook 정의 hash가 실행마다 달라져 검토 화면이 매번 뜬다. 검토를 수락하면 사용자 `~/.codex/config.toml`에 기록되므로
     아직 직접 확인하지 않았다. 확인은 임시 `CODEX_HOME`에서 한다.
   - 고칠 방향(안): capability를 hook 명령 인자가 아니라 실행 명령 앞의 환경 변수로 넘기고, bridge가 그 값을 읽게 해 hook
-    명령을 모든 탭·실행에서 같게 만든다. 그러면 한 번 검토로 끝나는지 확인한다. Claude Code는 `--settings` hook에 검토 화면이
-    있는지 단계 2 Task 10 live smoke에서 확인한다.
+    명령을 모든 탭·실행에서 같게 만든다. 그러면 한 번 검토로 끝나는지 확인한다.
+  - Claude Code `2.1.322`는 `--settings`로 붙인 hook에 검토 화면을 띄우지 않았다(단계 2 Task 10 live smoke).
 - 이번 격리 실행에서 `--sandbox read-only`인 Codex의 shell 쓰기가 막히지 않았다. Codex 쪽 동작 확인 필요.
+- 단계 2 live smoke에서 찾은 결함(위 "격리 Claude Code live smoke") 중 남은 것: 줄바꿈된 선택지 공백 누락, server
+  종료 때 timeline worker `EPIPE`, 한 turn의 `turn-end` 2개. 권한 요청 "No" 뒤 `busy`에 남던 결함은 branch 최종 검토
+  수정(2026-11-11)에서 고쳤다(중단된 turn은 JSONL interrupt 표시로 `idle`).
+- 단계 2 task 검토에서 넘긴 정리 항목은 `docs/FOLLOW-UP.md` "Claude Code provider 단계 2 후속"에 있다. 모바일 360px
+  폭 탭 이름은 최종 검토 수정(2026-11-11)에서 고쳤다(440px 미만에서 보기 전환을 메뉴 버튼 하나로 접음). 사용자 결정이
+  필요한 것:
+  - 전체 suite 부하에서 Codex session test 두 개(`codex-session-detection`, `session-list`)가 가끔 실패하고 단독으로는
+    통과한다. 안정화 필요.
+  - `tests/unit/lib/layout-store.test.ts`가 실제 data dir 아래 `ws-layout-store-*` directory를 만든다. 이전 실행이 남긴 4개가
+    legacy 실제 경로 `~/.codexmux/workspaces`에 있고 live data dir라 지우지 않았다. Test 격리와 정리는 사용자가 정한다.
+  - `vitest.config.ts`가 실행마다 `/tmp/agentmux-vitest-tmux-*` directory를 만들고 지우지 않는다(2026-11-11 기준 123개).
+    Subagent의 삭제는 auto mode가 막아 Claude가 대신 지우지 않았다. 정리(`rm -rf /tmp/agentmux-vitest-tmux-*`)는 사용자가
+    실행하고, 설정이 test 종료 때 지우도록 고친다.
+- 다음 Claude live 확인 때 볼 미검증 항목(단계 2 최종 검토): 병렬 tool 호출에서 자동 승인된 tool 결과가 권한 요청 뒤에
+  기록될 때 needs-input이 잘못 풀리는지, 웹 trust 카드 경로(xterm buffer → 카드 → stdin)의 browser 확인, 모바일 보기 전환
+  메뉴의 browser 확인(440px 미만), AskUserQuestion·plan 승인이 `permission_prompt` 알림을 보내는지.
 - Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
 - 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.

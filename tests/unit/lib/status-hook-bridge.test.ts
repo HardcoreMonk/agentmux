@@ -6,7 +6,7 @@ import path from 'path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getDataDir } from '@/lib/app-identity';
 import { getStatusHookBridgeSource } from '@/lib/hook-settings';
-import { buildStatuslineScriptContent } from '@/lib/statusline-script';
+import { buildStatuslineScriptSource } from '@/lib/statusline-script';
 
 const temporaryDirectories: string[] = [];
 
@@ -116,13 +116,13 @@ describe('status hook bridge', () => {
     vi.stubEnv('HOME', homeDir);
     vi.stubEnv('USERPROFILE', homeDir);
     const bridgeSource = getStatusHookBridgeSource();
-    const statuslineSource = buildStatuslineScriptContent();
+    const statuslineSource = buildStatuslineScriptSource();
 
     expect(bridgeSource).toContain(JSON.stringify(path.join(homeDir, '.agentmux')));
     expect(bridgeSource).toContain("'x-agentmux-token': token");
-    expect(statuslineSource).toContain(`PORT_FILE='${path.join(homeDir, '.agentmux', 'port')}'`);
-    expect(statuslineSource).toContain('-H "x-agentmux-token: ${TOKEN}"');
-    expect(statuslineSource).not.toContain('$HOME/.codexmux');
+    expect(statuslineSource).toContain(JSON.stringify(path.join(homeDir, '.agentmux')));
+    expect(statuslineSource).toContain("'x-agentmux-token': token");
+    expect(statuslineSource).not.toContain(JSON.stringify(path.join(homeDir, '.codexmux')));
 
     const agentmuxDir = path.join(homeDir, '.agentmux');
     await fs.mkdir(agentmuxDir, { recursive: true });
@@ -172,6 +172,102 @@ describe('status hook bridge', () => {
       }),
       token: 'token-fresh',
       url: '/api/status/hook',
+    });
+  });
+
+  it('forwards only the allow-listed stdin fields under renamed keys', async () => {
+    const homeDir = await makeHome('legacy');
+    const dataDir = path.join(homeDir, '.codexmux');
+    const received = new Promise<string>((resolve) => {
+      const server = http.createServer((request, response) => {
+        const chunks: Buffer[] = [];
+        request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        request.on('end', () => {
+          response.end();
+          server.close();
+          resolve(Buffer.concat(chunks).toString('utf-8'));
+        });
+      });
+      server.listen(0, '127.0.0.1', async () => {
+        const address = server.address();
+        if (!address || typeof address === 'string') throw new Error('hook test port missing');
+        await fs.writeFile(path.join(dataDir, 'port'), String(address.port));
+        await fs.writeFile(path.join(dataDir, 'cli-token'), 'token-a');
+      });
+    });
+    while (true) {
+      try {
+        await fs.access(path.join(dataDir, 'port'));
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+
+    const sessionId = '00000000-0000-4000-8000-000000000001';
+    const transcriptPath = `/home/test/.claude/projects/x/${sessionId}.jsonl`;
+    await runBridge({
+      homeDir,
+      input: JSON.stringify({
+        session_id: sessionId,
+        transcript_path: transcriptPath,
+        source: 'clear',
+        notification_type: 'permission_prompt',
+        prompt: 'secret',
+        tool_input: { command: 'secret' },
+      }),
+    });
+
+    expect(JSON.parse(await received)).toEqual({
+      event: 'stop',
+      session: 'session-a',
+      capability: 'capability-a',
+      agentSessionId: sessionId,
+      transcriptPath,
+      source: 'clear',
+      notificationType: 'permission_prompt',
+    });
+  });
+
+  it('drops oversized and non-string stdin fields', async () => {
+    const homeDir = await makeHome('legacy');
+    const dataDir = path.join(homeDir, '.codexmux');
+    const received = new Promise<string>((resolve) => {
+      const server = http.createServer((request, response) => {
+        const chunks: Buffer[] = [];
+        request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        request.on('end', () => {
+          response.end();
+          server.close();
+          resolve(Buffer.concat(chunks).toString('utf-8'));
+        });
+      });
+      server.listen(0, '127.0.0.1', async () => {
+        const address = server.address();
+        if (!address || typeof address === 'string') throw new Error('hook test port missing');
+        await fs.writeFile(path.join(dataDir, 'port'), String(address.port));
+        await fs.writeFile(path.join(dataDir, 'cli-token'), 'token-a');
+      });
+    });
+    while (true) {
+      try {
+        await fs.access(path.join(dataDir, 'port'));
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    }
+
+    await runBridge({
+      homeDir,
+      input: JSON.stringify({ session_id: 'x'.repeat(513), transcript_path: 7, source: 'startup' }),
+    });
+
+    expect(JSON.parse(await received)).toEqual({
+      event: 'stop',
+      session: 'session-a',
+      capability: 'capability-a',
+      source: 'startup',
     });
   });
 

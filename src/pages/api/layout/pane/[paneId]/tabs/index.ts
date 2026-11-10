@@ -105,6 +105,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         workspaceId: wsId,
         tabName: tab.name,
         tmuxSession: tab.sessionName,
+        ...(tab.panelType ? { panelType: tab.panelType } : {}),
         lastEvent: null,
         eventSeq: 0,
       } as const;

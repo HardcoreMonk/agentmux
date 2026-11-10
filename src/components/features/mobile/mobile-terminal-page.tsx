@@ -12,6 +12,7 @@ import type { TPanelType } from '@/types/terminal';
 import MobileTabHeader from '@/components/features/mobile/mobile-tab-header';
 import MobileSurfaceView from '@/components/features/mobile/mobile-surface-view';
 import MobileNewTabDialog from '@/components/features/mobile/mobile-new-tab-dialog';
+import { findAgentNewTabItemByCommand } from '@/lib/agent-new-tab-items';
 import { formatTabTitle } from '@/lib/tab-title';
 import { dismissTab } from '@/hooks/use-agent-status';
 import useTabStore from '@/hooks/use-tab-store';
@@ -163,7 +164,7 @@ const MobileTerminalPage = () => {
 
   const handleCreateTab = useCallback(async (panelType?: TPanelType, options?: { command?: string }) => {
     if (!currentPane) return;
-    const startAgent = options?.command === 'codex-new';
+    const startAgent = !!findAgentNewTabItemByCommand(options?.command);
     const newTab = await layout.createTabInPane(currentPane.id, panelType, undefined, startAgent);
     if (newTab) {
       useTabStore.getState().initTab(newTab.id, { panelType, workspaceId: activeWorkspaceId ?? '' });

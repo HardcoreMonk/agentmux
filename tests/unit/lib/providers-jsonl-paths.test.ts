@@ -15,8 +15,9 @@ describe('isAllowedAgentJsonlPath', () => {
     expect(isAllowedAgentJsonlPath('/home/test/.codex/sessions', homeDir)).toBe(false);
   });
 
-  it('rejects Claude roots before the Claude provider is registered', () => {
-    expect(isAllowedAgentJsonlPath('/home/test/.claude/projects/x/a.jsonl', homeDir)).toBe(false);
+  it('allows JSONL files under the Claude projects root', () => {
+    expect(isAllowedAgentJsonlPath('/home/test/.claude/projects/x/a.jsonl', homeDir)).toBe(true);
+    expect(isAllowedAgentJsonlPath('/home/test/.claude/settings.jsonl', homeDir)).toBe(false);
   });
 
   it('exposes the Codex JSONL root', () => {

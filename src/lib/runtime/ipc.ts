@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
-import { PANEL_TYPES } from '@/lib/panel-type';
+import { AGENT_PANEL_TYPES, PANEL_TYPES } from '@/lib/panel-type';
 import { runtimeSessionNameSchema } from '@/lib/runtime/session-name';
 import {
   sessionIdSchema,
@@ -629,9 +629,10 @@ const statusRateLimitsDataSchema = z.object({
   five_hour: statusRateLimitWindowSchema.nullable(),
   seven_day: statusRateLimitWindowSchema.nullable(),
 }).strict();
+const statusRateLimitsProviderSchema = z.enum(AGENT_PANEL_TYPES);
 const statusLiveSyncPayloadSchema = z.object({
   tabs: z.record(z.string(), statusClientTabStatusEntrySchema),
-  rateLimits: statusRateLimitsDataSchema.nullable(),
+  rateLimits: z.partialRecord(statusRateLimitsProviderSchema, statusRateLimitsDataSchema),
 }).strict();
 const statusLiveUpdatePayloadSchema = statusClientTabStatusEntrySchema
   .omit({ cliState: true, workspaceId: true, tabName: true })
@@ -655,6 +656,7 @@ const statusErrorEventPayloadSchema = z.object({
   message: z.string().min(1),
 }).strict();
 const statusRateLimitsEventPayloadSchema = z.object({
+  providerId: statusRateLimitsProviderSchema,
   data: statusRateLimitsDataSchema,
 }).strict();
 const statusLiveStartResultSchema = z.object({
@@ -667,6 +669,9 @@ const statusLiveHookEventPayloadSchema = z.object({
   tmuxSession: z.string().min(1),
   event: z.string().min(1),
   notificationType: z.string().optional(),
+  agentSessionId: z.string().optional(),
+  transcriptPath: z.string().optional(),
+  source: z.string().optional(),
 }).strict();
 const statusLiveClientEventPayloadSchema = z.object({
   eventType: statusClientEventTypeSchema,

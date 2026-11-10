@@ -584,6 +584,18 @@ export const updateTabAgentSessionId = (
     return true;
   });
 
+export const updateTabAgentSession = (
+  sessionName: string,
+  provider: IAgentProvider,
+  { sessionId, jsonlPath }: { sessionId: string | null; jsonlPath: string | null },
+): Promise<void> =>
+  mutateTab(sessionName, (tab) => {
+    if (provider.readSessionId(tab) === sessionId && provider.readJsonlPath(tab) === jsonlPath) return false;
+    provider.writeSessionId(tab, sessionId);
+    provider.writeJsonlPath(tab, jsonlPath);
+    return true;
+  });
+
 export const updateTabAgentSummary = (
   sessionName: string,
   provider: IAgentProvider,

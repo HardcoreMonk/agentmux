@@ -1,12 +1,13 @@
 # Codex 작업 상태 감지
 
-이 문서는 agentmux가 Codex tab의 상태를 판단하고 UI, notification, timeline에 전달하는 기준을 정리합니다.
+이 문서는 agentmux가 agent tab(Codex, Claude Code)의 상태를 판단하고 UI, notification, timeline에 전달하는 기준을
+정리합니다. Claude Code 탭은 hook이 주 경로이며 아래 "Claude Code hook 상태 경로"를 따릅니다.
 
 ## 흐름
 
 ```text
 terminal runtime / process inspector
-  + Codex JSONL
+  + agent JSONL (Codex, Claude Code)
   + live pane capture
   + hook/client event
   v
@@ -67,13 +68,13 @@ Desktop workspace 목록과 mobile navigation sheet의 각 workspace는 기존 �
 | 대표 문구 | 기준 |
 | --- | --- |
 | 상태 확인 중 | status WebSocket 연결 전/끊김 또는 현재 연결의 첫 전체 sync 이전 |
-| 입력 대기 | Codex 탭 중 `needs-input` 존재 |
-| 작업 중 | 입력 대기가 없고 Codex 탭 중 `busy` 존재 |
-| 확인 필요 | 위 상태가 없고 Codex 탭 중 `ready-for-review` 존재 |
-| 상태 미확인 | 위 상태가 없고 Codex 탭 중 `unknown` 또는 알려진 layout 탭의 상태 누락 존재 |
-| 작업 없음 | 동기화 후 Codex 탭이 없거나 모두 `idle`/`inactive` 등 비활성 상태 |
+| 입력 대기 | agent 탭(Codex, Claude Code) 중 `needs-input` 존재 |
+| 작업 중 | 입력 대기가 없고 agent 탭 중 `busy` 존재 |
+| 확인 필요 | 위 상태가 없고 agent 탭 중 `ready-for-review` 존재 |
+| 상태 미확인 | 위 상태가 없고 agent 탭 중 `unknown` 또는 알려진 layout 탭의 상태 누락 존재 |
+| 작업 없음 | 동기화 후 agent 탭이 없거나 모두 `idle`/`inactive` 등 비활성 상태 |
 
-이 문구는 현재 Codex 작업의 projection입니다. 과거 대화 유무나 일반 terminal의
+이 문구는 현재 agent 작업의 projection입니다. 과거 대화 유무나 일반 terminal의
 server/running 상태, browser와 diff panel을 작업으로 세지 않습니다. 복수 상태가
 섞이면 표의 순서로 대표 문구를 고르고 기존 탭별 아이콘도 함께 유지합니다.
 
@@ -94,9 +95,93 @@ User/project/managed/plugin hook은 Codex native layer discovery에 맡깁니다
 
 `Stop` event는 terminal session name과 sequence를 포함해 client에 전달됩니다. Matching tab의 Git generation만 증가시키고 active tab은 즉시 cache를 우회해 갱신하며 inactive tab은 선택될 때 한 번 갱신합니다. 같은 sequence는 중복 invalidation하지 않습니다. 두 Git hook은 consumed generation을 session별로 보존하므로 같은 hook instance가 tab을 전환해도 다른 session의 낮은 generation을 이미 처리한 값으로 오인하지 않습니다.
 
+## Claude Code hook 상태 경로
+
+Claude Code 탭은 agentmux가 띄우는 명령의 `--settings <탭 설정 파일>` 하나로 hook과 statusLine을 붙입니다.
+사용자 `~/.claude/settings.json`, project `.claude/` 파일, `~/.claude.json`은 읽기만 하고 쓰지 않습니다. 사용자가
+원래 쓰던 hook은 Claude Code가 모든 설정 단계를 합쳐 그대로 실행합니다. agentmux 밖에서 실행한 Claude Code에는
+agentmux hook이 붙지 않습니다.
+
+- 탭 설정 파일은 `<data dir>/claude-tabs/<tabId>.json`(파일 `0600`, directory `0700`)입니다. 실행·재개할 때마다 새
+  HMAC capability로 다시 쓰고, 탭을 닫으면 provider `cleanupTab`이 지웁니다.
+- 모든 hook은 `async: true`, `timeout: 3`이며 `ELECTRON_RUN_AS_NODE=1 <node> status-hook.cjs <event> <session>
+  <capability>`를 실행합니다. Codex와 같은 bridge와 capability 형식을 씁니다.
+
+| Claude hook | Bridge event | 상태 처리 |
+| --- | --- | --- |
+| `SessionStart` (matcher `startup\|resume\|clear\|fork`) | `session-start` | `idle`. Session id가 바뀌었으면 아래 규칙으로 탭을 다시 묶음 |
+| `UserPromptSubmit` | `prompt-submit` | `busy` |
+| `Notification` | `notification` | `notification_type`이 `permission_prompt`(또는 `worker_permission_prompt`)일 때만 `needs-input`. 다른 종류는 무시 |
+| `Stop`, `StopFailure` | `stop` | 바로 `ready-for-review`. JSONL idle 확인으로 미루지 않음 |
+| `PreCompact`, `PostCompact` | `pre-compact`, `post-compact` | 작업 상태는 두고 `compactingSince`만 켜고 끔 |
+
+`SessionStart(compact)`는 작업 도중에 오므로 matcher에서 뺐습니다. Claude Code 탭은 `reconcileStateFromJsonl`이
+꺼져 있어 JSONL tail로 `cliState`를 만들지 않습니다. `readJsonlStatus`는 provider 공통 `checkJsonlIdle`이고 rate
+limit은 statusLine에서 받습니다.
+
+`needs-input`은 웹 카드 응답이면 기존 `status:ack-notification` 경로로, terminal에서 직접 응답하면
+`leaveNeedsInputOnJsonlGrowth` 규칙으로 풉니다. 기준 시각은 `needs-input`으로 바뀐 hook 시각이고, JSONL의 대화
+줄(assistant, user, turn 종료 system 줄)만 셉니다. Progress, attachment, hook 줄과 `isMeta` user 줄은 세지 않습니다.
+
+중단된 turn은 `idle`로 끝납니다. 권한 요청을 "No"로 거절하거나 Esc(웹 중지 버튼은 `\x1b`를 보냄)로 멈추면 Claude
+Code는 `Stop` hook을 보내지 않고, JSONL은 `user tool_result(is_error)` → `[Request interrupted by user for tool use]`
+(또는 `[Request interrupted by user]`) → `system/turn_duration` 순서로 끝납니다. `jsonl-idle-scan`은 turn 종료 system
+줄 앞의 마지막 대화 줄(sidechain 줄과 `isMeta` user 줄은 건너뜀)이 이 interrupt 표시면 `interrupted: true`를
+돌려줍니다. 그래서 terminal에서 거절하면 `needs-input`에서 바로 `idle`로, 웹 카드로 거절해 `ack-notification`이 먼저
+`busy`로 바꿨으면 JSONL 합성 interrupt(`shouldEmitSyntheticJsonlInterrupt`)로 `idle`로 갑니다. 이 경로에서는 `Stop`
+hook을 기다리지 않습니다. Assistant 답으로 끝난 정상 turn은 `interrupted: false`라 `Stop` hook → `ready-for-review`가
+그대로입니다.
+
+### Session 다시 묶기
+
+새 탭은 agentmux가 UUID를 만들어 탭의 `agentSessionId`에 먼저 기록한 뒤 `claude --settings <탭 설정 파일>
+--session-id <uuid>`로 띄웁니다. 재개는 transcript가 있으면 `--resume <uuid>`이고, 없으면(Claude Code는 첫 prompt
+전에는 JSONL을 만들지 않음) 같은 id로 `--session-id`를 다시 씁니다.
+
+Hook API는 bridge가 보낸 필드를 탭 provider 기준으로 검사합니다. `agentSessionId`는 UUID, `transcriptPath`는
+탭 provider의 `jsonlRoots()`(Claude Code는 `~/.claude/projects`) 아래, `source`는
+`startup|resume|clear|compact|fork`일 때만 씁니다. `decideHookSessionRebind`는 `bindSessionFromHook`이 켜진
+provider에서 hook session id가 탭의 값과 다르거나, 같은 id라도 transcript 경로가 다를 때(같은 id로 다시 실행한 경우)
+다시 묶습니다. 다시 묶을 때 status entry의 session id와 JSONL 경로를 바꾸고, 옛
+JSONL watch를 멈추고, layout의 `agentSessionId`/`agentJsonlPath`를 갱신합니다. Transcript 경로가 없으면 tmux cwd에서
+계산합니다. `/clear`, `/resume`, fork가 이 경로로 들어옵니다.
+
+Polling 감지는 다음 순서로 session을 찾으므로 hook이 묶은 새 session을 옛 값으로 되돌리지 않습니다.
+
+1. pane process tree에서 `claude` process를 찾습니다.
+2. `~/.claude/sessions/<pid>.json`의 `sessionId`. 형식이 문서화되지 않은 파일이라 읽기 실패나 필드 누락은 정상
+   경우로 다루고 다음 단서로 넘어갑니다. `/clear` 뒤 바뀌는 단서는 이 파일뿐입니다.
+3. Process 인자의 `--session-id`/`--resume`. `/clear` 뒤에도 처음 값이 남습니다.
+4. cwd의 transcript directory `~/.claude/projects/<project>`에서 process 시작 뒤 바뀐 최신 JSONL. `<project>`는
+   cwd의 영숫자 외 문자를 `-`로 바꾼 이름입니다.
+
+`~/.claude/sessions` directory watch와 10초 liveness poll이 바뀐 결과만 알립니다.
+
+### statusLine과 rate limit
+
+탭 설정의 statusLine은 `<data dir>/statusline.cjs`(Node script, `ELECTRON_RUN_AS_NODE=1`)입니다. 이전
+`statusline.sh`는 더 만들지 않지만 기존 설치에는 남아 있을 수 있습니다.
+
+- Script는 stdin(최대 64KiB)을 `/api/status/statusline`에 1초 안에 보내고 실패는 무시합니다.
+- 사용자 원래 statusLine 명령을 project `.claude/settings.local.json`, project `.claude/settings.json`,
+  `~/.claude/settings.json` 순으로 찾아 같은 stdin으로 `sh -c` 실행하고, exit 0이면 출력(최대 16KiB, 1.5초)을
+  그대로 표시합니다. 명령이 없으면 빈 출력입니다.
+- 사용자 명령은 새 session(`setsid`)에서 돌아 제어 terminal이 없습니다. `/dev/tty`를 여는 명령(terminal 폭을
+  `/dev/tty`로 재는 script 등)은 Claude Code가 직접 실행할 때와 다르게 동작할 수 있습니다.
+- 무한 호출 방지: 사용자 명령 실행 때 `AGENTMUX_STATUSLINE_ACTIVE=1`을 넣어 다시 불린 script는 바로 끝나고, 명령
+  문자열에 agentmux 자기 script 경로(data dir, `~/.agentmux`, legacy `~/.codexmux`와 그 realpath의
+  `statusline.cjs`, `statusline.sh`)가 있으면 실행하지 않습니다.
+- Server는 `rate_limits`가 있으면 `<data dir>/rate-limits.json`에 쓰고, watcher가 이 파일을 `claude` provider rate
+  limit으로 발행합니다. Context 사용량, 비용, model은 session stats로 timeline에 보냅니다.
+
 ## Rate-limit 관찰
 
-StatusManager는 기존 256KiB JSONL tail을 한 번 읽어 작업 상태와 `event_msg/token_count/rate_limits`를 함께 투영합니다. 현재 top-level `rate_limits`와 legacy `payload.rate_limits`를 모두 읽으며, 별도 session directory scan이나 원본 파일 write는 하지 않습니다.
+Rate limit은 provider별로 따로 둡니다. Codex는 JSONL에서, Claude Code는 위 statusLine 경로에서 받습니다. JSONL에서
+읽은 rate limit은 그 JSONL을 읽은 provider의 id로 발행합니다. `rate-limits:update` event와 Runtime v2 live sync
+payload가 `providerId`를 함께 보냅니다. Client store는 `byProvider`로 보관하고 sidebar와 mobile sheet는 값이 있는
+provider마다 한 줄씩 표시합니다.
+
+Codex 쪽에서 StatusManager는 기존 256KiB JSONL tail을 한 번 읽어 작업 상태와 `event_msg/token_count/rate_limits`를 함께 투영합니다. 현재 top-level `rate_limits`와 legacy `payload.rate_limits`를 모두 읽으며, 별도 session directory scan이나 원본 파일 write는 하지 않습니다.
 
 - key 이름과 무관하게 300분은 5시간, 10080분은 7일 window로 정규화합니다. `window_minutes`가 없는 legacy record만 primary/secondary 순서를 fallback으로 사용합니다.
 - `used_percent`와 `used_percentage`, absolute/relative reset을 모두 받아들입니다.
@@ -139,7 +224,7 @@ Status update event는 summary projection입니다.
 
 - workspace id
 - tab id/name
-- Codex session id
+- agent session id
 - `cliState`
 - `currentAction`
 - sanitized last assistant/user summary
@@ -177,13 +262,13 @@ Web input은 claim 저장 뒤 timeline refresh signal을 발행합니다. 이미
 
 ## 클라이언트 필드
 
-UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agentSummary` 같은 field 이름을 유지합니다. 의미는 Codex provider session metadata입니다. `lastUserMessageAt`은 Web input이 보낸 prompt claim 시각이며, timeline이 같은 cwd의 최신 JSONL을 이 tab 소유로 볼 수 있는지 검증할 때만 사용합니다.
+UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agentSummary` 같은 field 이름을 유지합니다. 의미는 탭 provider(Codex, Claude Code)의 session metadata입니다. `lastUserMessageAt`은 Web input이 보낸 prompt claim 시각이며, timeline이 같은 cwd의 최신 JSONL을 이 tab 소유로 볼 수 있는지 검증할 때만 사용합니다.
 
 이 field의 의미나 shape를 바꾸면 `ADR.md`와 이 문서를 함께 갱신합니다.
 
 ## Provider Registry
 
-현재 등록 provider는 Codex 하나입니다. 새 provider를 추가하려면 registry contract를 먼저 통과해야 합니다.
+현재 등록 provider는 Codex(`codex`)와 Claude Code(`claude`)입니다. 새 provider를 추가하려면 registry contract를 먼저 통과해야 합니다.
 
 - provider id는 lowercase id 형식이어야 합니다.
 - display name은 비어 있으면 안 됩니다.
@@ -196,24 +281,32 @@ UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agent
 2026-11-10 Claude Code provider 단계 1에서 status 경로의 Codex 전용 분기(`provider.id === 'codex'`,
 `providerId !== 'codex'`)를 모두 provider status 동작 flag로 바꿨습니다. 기존 두 flag에
 `reconcileStateFromJsonl`과 `recoverPaneInput`을 더했습니다. Generic status policy와 service는 provider id
-문자열로 Codex 동작을 추론하지 않고 flag를 입력으로 받습니다. Codex는 네 flag가 모두 `true`이고, flag가
-`true`일 때 각 지점의 호출 순서와 결과는 바꾸기 전과 같습니다.
+문자열로 Codex 동작을 추론하지 않고 flag를 입력으로 받습니다. Codex는 단계 1의 네 flag가 `true`이고 단계 2에서
+더한 두 flag(`bindSessionFromHook`, `leaveNeedsInputOnJsonlGrowth`)는 `false`입니다. Flag가 `true`일 때 각 지점의
+호출 순서와 결과는 바꾸기 전과 같습니다. Claude Code는 반대로 단계 1의 네 flag가 `false`, 새 두 flag가 `true`입니다.
 
-| Flag | `true`일 때 동작 | 쓰는 곳 | Codex |
-| --- | --- | --- | --- |
-| `watchJsonlWhenBound` | JSONL path가 tab에 묶인 동안 idle/ready 상태에서도 JSONL watcher를 유지합니다 | `status-manager.ts` poll·resolve 경로, `jsonl-reconciliation-service.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `status-side-effect-policy.ts` | `true` |
-| `deferStopHookUntilJsonlIdle` | stop hook을 바로 `ready-for-review`로 처리하지 않고 JSONL idle 확인 뒤 상태를 갱신합니다 | hook reducer(`status-state-machine.ts`). `hook-event-service.ts`가 전달합니다 | `true` |
-| `reconcileStateFromJsonl` | JSONL 상태 읽기 결과로 `cliState`를 맞춥니다(`reduceCodexState` 경로). 꺼져 있으면 초기 상태 보정과 cwd 최신 JSONL 채택 판단도 하지 않습니다 | `status-manager.ts` reconcile, `poll-tab-reconciliation.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `timeline/resume-session-service.ts` | `true` |
-| `recoverPaneInput` | 중단된 prompt나 남은 입력을 pane capture로 확인해 복구합니다 | `status-manager.ts` JSONL 변경 처리, `poll-recovery-service.ts`, `pane-recovery-service.ts`, `scan-tab-bootstrap.ts` | `true` |
+| Flag | `true`일 때 동작 | 쓰는 곳 | Codex | Claude Code |
+| --- | --- | --- | --- | --- |
+| `watchJsonlWhenBound` | JSONL path가 tab에 묶인 동안 idle/ready 상태에서도 JSONL watcher를 유지합니다 | `status-manager.ts` poll·resolve 경로, `jsonl-reconciliation-service.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `status-side-effect-policy.ts` | `true` | `false` |
+| `deferStopHookUntilJsonlIdle` | stop hook을 바로 `ready-for-review`로 처리하지 않고 JSONL idle 확인 뒤 상태를 갱신합니다 | hook reducer(`status-state-machine.ts`). `hook-event-service.ts`가 전달합니다 | `true` | `false` |
+| `reconcileStateFromJsonl` | JSONL 상태 읽기 결과로 `cliState`를 맞춥니다(`reduceCodexState` 경로). 꺼져 있으면 초기 상태 보정과 cwd 최신 JSONL 채택 판단도 하지 않습니다 | `status-manager.ts` reconcile, `poll-tab-reconciliation.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `timeline/resume-session-service.ts` | `true` | `false` |
+| `recoverPaneInput` | 중단된 prompt나 남은 입력을 pane capture로 확인해 복구합니다 | `status-manager.ts` JSONL 변경 처리, `poll-recovery-service.ts`, `pane-recovery-service.ts`, `scan-tab-bootstrap.ts` | `true` | `false` |
+| `bindSessionFromHook` | hook stdin의 `session_id`가 tab의 `agentSessionId`와 다르면 session과 JSONL 경로를 새 값으로 다시 묶고 JSONL watch를 새 경로로 옮깁니다(`/clear`, resume 등) | `status-manager.ts` `updateTabFromHook`, `status/hook-session-binding.ts` | `false` | `true` |
+| `leaveNeedsInputOnJsonlGrowth` | `needs-input`에서 JSONL이 `needs-input` 전환 시각보다 늦은 entry를 쓰면 terminal에서 직접 응답한 것으로 보고 `busy`(JSONL 검사가 interrupted면 `idle`)로 바꿉니다. Synthetic interrupt 검사보다 먼저 판단합니다 | `status-manager.ts` JSONL 변경 처리, `status/hook-session-binding.ts` | `false` | `true` |
 
 - JSONL 상태는 provider의 `readJsonlStatus(jsonlPath)`로 읽습니다. Codex 구현은 기존
   `checkCodexJsonlState` 경로와 rate-limit 관찰을 그대로 씁니다. Provider 공통 tail 검사(`checkJsonlIdle`)와
   cache 삭제(`clearJsonlCheckCache`)는 `src/lib/status/jsonl-check.ts`에 있습니다.
-- JSONL 경로 허용 root는 provider의 `jsonlRoots()`를 모은 `isAllowedAgentJsonlPath`가 판정합니다.
-- Runtime v2 status IPC의 `statusBehavior` wire schema(`runtime/ipc.ts`)는 바꾸지 않았습니다. Worker로는
-  여전히 `watchJsonlWhenBound`와 `deferStopHookUntilJsonlIdle` 두 key만 보내고, hook reducer와 side-effect
+- JSONL 경로 허용 root는 provider의 `jsonlRoots()`를 모은 `isAllowedAgentJsonlPath`가 판정합니다. Hook의
+  `transcriptPath`만은 탭 provider 하나의 `jsonlRoots()`로 검사합니다(Claude Code 탭이 Codex transcript를 묶지 않도록).
+- Runtime v2 status IPC의 `statusBehavior` wire schema(`runtime/ipc.ts`)는 바꾸지 않았습니다(새 두 flag도 보내지
+  않습니다). Worker로는 여전히 `watchJsonlWhenBound`와 `deferStopHookUntilJsonlIdle` 두 key만 보내고, hook reducer와 side-effect
   policy는 이 두 key만 받는 `TAgentHookStatusBehavior`를 입력으로 씁니다.
 - Pane 입력 복구가 꺼진 provider에서 복구 결과의 reason은 `not-supported`입니다(이전 `not-codex`).
+
+Hook bridge는 stdin의 `session_id`, `transcript_path`, `source`, `notification_type`만(문자열, 512자 이하) 골라
+`agentSessionId`, `transcriptPath`, `source`, `notificationType`으로 보냅니다. `hook.ts`가 탭의 provider 기준으로
+검증하고 통과하지 못한 필드는 버린 뒤 이벤트는 처리합니다.
 
 Codex 전용 JSONL parsing(`checkCodexJsonlState`, `reduceCodexState`)과 pane prompt 판정은 여전히 Codex
 adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 legacy tmux adapter로 만들므로
@@ -244,3 +337,10 @@ adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 lega
 | `src/lib/process-inspector*.ts` | process inspector adapter |
 | `src/lib/windows-process-inspector.ts` | Windows process inspector |
 | `src/workers/status-worker.ts` | 런타임 v2 status worker |
+| `src/lib/providers/claude/index.ts` | Claude Code provider 등록과 status 동작 flag |
+| `src/lib/providers/claude/tab-settings.ts` | 탭별 `--settings` 파일(hook, statusLine) 생성과 삭제 |
+| `src/lib/providers/claude/session-detection.ts` | Claude process·session 감지와 transcript 경로 계산 |
+| `src/lib/claude-command.ts` | Claude 실행·재개 명령 |
+| `src/lib/status/hook-session-binding.ts` | hook session 다시 묶기와 `needs-input` 해제 판단 |
+| `src/lib/statusline-script.ts` | `statusline.cjs` 생성(사용자 statusLine 대신 실행) |
+| `src/lib/trust-prompt-detector.ts` | Folder trust 화면 감지와 응답 key |

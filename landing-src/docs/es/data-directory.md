@@ -18,7 +18,8 @@ agentmux의 영속 상태는 `~/.agentmux/` 아래에 저장됩니다. Codex CLI
 ├── workspaces/{wsId}/message-history.json
 ├── hooks.json
 ├── status-hook.sh
-├── statusline.sh
+├── statusline.cjs
+├── claude-tabs/{tabId}.json
 ├── rate-limits.json
 ├── session-history.json
 ├── session-index.json

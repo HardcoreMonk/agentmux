@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import dayjs from 'dayjs';
 import useRateLimitsStore from '@/hooks/use-rate-limits-store';
-import type { IRateLimitWindow } from '@/types/status';
+import type { IRateLimitsData, IRateLimitWindow } from '@/types/status';
+import type { TAgentPanelType } from '@/types/terminal';
+import { AGENT_PANEL_TYPES } from '@/lib/panel-type';
+import { AGENT_PROVIDER_META } from '@/lib/agent-provider-meta';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
 import { getRateLimitWindowView, type TRateLimitPeriod } from '@/lib/rate-limit-view';
 import {
   Tooltip,
@@ -94,24 +98,41 @@ const LimitBar = ({ label, window }: { label: TRateLimitPeriod; window: IRateLim
   );
 };
 
+const ProviderRateLimits = ({ providerId, data }: { providerId: TAgentPanelType; data: IRateLimitsData }) => (
+  <div className="space-y-1" data-provider={providerId}>
+    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+      <AgentProviderIcon panelType={providerId} className="h-2.5 w-2.5 shrink-0" />
+      <span>{AGENT_PROVIDER_META[providerId].label}</span>
+    </div>
+    {data.five_hour && <LimitBar label="5h" window={data.five_hour} />}
+    {data.seven_day && <LimitBar label="7d" window={data.seven_day} />}
+  </div>
+);
+
 const SidebarRateLimits = () => {
-  const data = useRateLimitsStore((s) => s.data);
+  const byProvider = useRateLimitsStore((s) => s.byProvider);
   const [, setTick] = useState(0);
 
+  const entries = AGENT_PANEL_TYPES.flatMap((providerId) => {
+    const data = byProvider[providerId];
+    return data && (data.five_hour || data.seven_day) ? [{ providerId, data }] : [];
+  });
+  const hasData = entries.length > 0;
+
   useEffect(() => {
-    if (!data) return;
+    if (!hasData) return;
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
     return () => clearInterval(id);
-  }, [data]);
+  }, [hasData]);
 
-  if (!data) return null;
-  if (!data.five_hour && !data.seven_day) return null;
+  if (!hasData) return null;
 
   return (
     <TooltipProvider delay={200}>
-      <div className="space-y-1 px-3 py-1.5">
-        {data.five_hour && <LimitBar label="5h" window={data.five_hour} />}
-        {data.seven_day && <LimitBar label="7d" window={data.seven_day} />}
+      <div className="space-y-1.5 px-3 py-1.5">
+        {entries.map(({ providerId, data }) => (
+          <ProviderRateLimits key={providerId} providerId={providerId} data={data} />
+        ))}
       </div>
     </TooltipProvider>
   );

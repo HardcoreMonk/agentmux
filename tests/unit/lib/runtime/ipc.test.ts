@@ -26,7 +26,7 @@ describe('runtime ipc', () => {
           eventSeq: 1,
         },
       },
-      rateLimits: null,
+      rateLimits: {},
     });
     const layoutReply = (panelType: string) => ({
       root: {
@@ -292,7 +292,7 @@ describe('runtime ipc', () => {
           eventSeq: 2,
         },
       },
-      rateLimits: null,
+      rateLimits: {},
     })).toEqual({
       tabs: {
         'tab-a': {
@@ -305,7 +305,7 @@ describe('runtime ipc', () => {
           eventSeq: 2,
         },
       },
-      rateLimits: null,
+      rateLimits: {},
     });
 
     expect(parseRuntimeEventPayload('status.update', {
@@ -366,12 +366,14 @@ describe('runtime ipc', () => {
     });
 
     expect(parseRuntimeEventPayload('status.rate-limits-update', {
+      providerId: 'claude',
       data: {
         ts: 10,
         five_hour: { used_percentage: 50, resets_at: 20 },
         seven_day: null,
       },
     })).toEqual({
+      providerId: 'claude',
       data: {
         ts: 10,
         five_hour: { used_percentage: 50, resets_at: 20 },
@@ -500,8 +502,8 @@ describe('runtime ipc', () => {
     expect(parseRuntimeCommandPayload('status.live-request-sync', {})).toEqual({});
     expect(parseRuntimeReplyPayload('status.live-request-sync', {
       tabs: {},
-      rateLimits: null,
-    })).toEqual({ tabs: {}, rateLimits: null });
+      rateLimits: {},
+    })).toEqual({ tabs: {}, rateLimits: {} });
     expect(parseRuntimeCommandPayload('status.live-hook-event', {
       tmuxSession: 'pt-ws-a-pane-b-tab-c',
       event: 'notification',
@@ -510,6 +512,19 @@ describe('runtime ipc', () => {
       tmuxSession: 'pt-ws-a-pane-b-tab-c',
       event: 'notification',
       notificationType: 'permission_prompt',
+    });
+    expect(parseRuntimeCommandPayload('status.live-hook-event', {
+      tmuxSession: 'pt-ws-a-pane-b-tab-c',
+      event: 'session-start',
+      agentSessionId: 'sid-1',
+      transcriptPath: '/home/test/.claude/projects/x/sid-1.jsonl',
+      source: 'clear',
+    })).toEqual({
+      tmuxSession: 'pt-ws-a-pane-b-tab-c',
+      event: 'session-start',
+      agentSessionId: 'sid-1',
+      transcriptPath: '/home/test/.claude/projects/x/sid-1.jsonl',
+      source: 'clear',
     });
     expect(parseRuntimeCommandPayload('status.live-client-event', {
       eventType: 'ack-notification',

@@ -316,7 +316,19 @@ const useTerminal = ({ theme, fontSize = DEFAULT_FONT_SIZE, onInput, onResize, o
     }
   }, [fontSize]);
 
-  return { terminalRef, write, clear, reset, fit, focus, isReady };
+  // 현재 화면(하단 viewport)의 텍스트. trust prompt 같은 화면 감지에 쓴다.
+  const getBufferText = useCallback((): string => {
+    const terminal = terminalInstance.current;
+    if (!terminal) return '';
+    const buffer = terminal.buffer.active;
+    const lines: string[] = [];
+    for (let i = buffer.baseY; i < buffer.baseY + terminal.rows; i++) {
+      lines.push(buffer.getLine(i)?.translateToString(true) ?? '');
+    }
+    return lines.join('\n');
+  }, []);
+
+  return { terminalRef, write, clear, reset, fit, focus, isReady, getBufferText };
 };
 
 export default useTerminal;
