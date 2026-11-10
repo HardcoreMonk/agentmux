@@ -10,7 +10,9 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-10-claude-code-provider-design.md` (3절 "공통 agent 기반 (B)", "단계와 배포" 3번, 인수 기준 5·7·8·9)
 
-**Base:** main `f46890ba`(단계 2 merge). 작업 branch `feat/claude-provider-phase3`, worktree `/data/projects/agentcode-zone/agentmux/.worktrees/claude-provider-phase3`.
+**Base:** main `d1accfc6`(단계 2 merge `f46890ba` + timeline worker hotfix #48). 작업 branch `feat/claude-provider-phase3`, worktree `/data/projects/agentcode-zone/agentmux/.worktrees/claude-provider-phase3`.
+
+**Plan review:** `docs/superpowers/reviews/2026-11-11-claude-code-provider-phase3-eng-review.md` (approve with changes → 반영 완료). Hotfix #48이 `worker-service`의 두 `observeFile` 호출을 `observeCatalogFile`(거절을 삼킴)로 바꿨다. Catalog가 거절하는 경로가 와도 timeline worker는 죽지 않는다.
 
 ## 단계 3 범위
 
@@ -47,6 +49,8 @@
 3. Claude transcript에서 같은 assistant 응답이 여러 줄로 기록돼도 token이 한 번만 세어진다 → Task 5 `stats-claude.test.ts`.
 4. 작업 중(busy·needs-input)인 Codex 탭을 CLAUDE 보기로 바꾸려 하면 막히고, 화면 전환 상태와 보낼 입력이 남지 않는다 → Task 6 `use-layout-panel-type.test.ts`.
 5. Claude만 설치된 호스트에서 onboarding이 Codex 설치를 요구하지 않고 끝난다 → Task 9 `onboarding-preflight.test.ts`.
+6. `~/.claude/projects`가 없는 Codex 전용 호스트에서 Session Explorer가 계속 검색된다(catalog `ready`) → Task 3 `timeline-catalog-service.test.ts`.
+7. Codex 탭에서 Claude 세션을 재개하면 Claude 명령이 나가고 탭이 그 Claude session에 묶인다(Codex rollout을 계속 보지 않는다) → Task 2 `agent-launch-service.test.ts`.
 
 ---
 
@@ -54,16 +58,22 @@
 
 **Files:**
 - Modify: `src/types/timeline.ts:455` (`ISessionMeta`), `src/lib/session-list.ts`, `src/lib/runtime/ipc.ts:76-84,373` (`timelineSessionMetaSchema`, list payload), `src/lib/runtime/contracts.ts:142-150`, `src/lib/runtime/timeline/worker-service.ts:173`, `src/pages/api/timeline/sessions.ts`, `src/pages/api/v2/timeline/sessions.ts`
-- Create: `src/lib/providers/claude/session-list.ts`
-- Test: `tests/unit/lib/session-list.test.ts`, `tests/unit/lib/claude-session-list.test.ts`(create), `tests/unit/pages/timeline-sessions.test.ts`, `tests/unit/lib/runtime/timeline-worker-service.test.ts`, `tests/unit/lib/runtime/ipc.test.ts`
+- Create: `src/lib/providers/claude/session-list.ts`, `src/lib/providers/claude/user-prompt.ts`
+- Test: `tests/unit/lib/session-list.test.ts`, `tests/unit/lib/claude-session-list.test.ts`(create), `tests/unit/lib/claude-user-prompt.test.ts`(create), `tests/unit/pages/timeline-sessions.test.ts`, `tests/unit/lib/runtime/timeline-worker-service.test.ts`, `tests/unit/lib/runtime/ipc.test.ts`
 
 **Interfaces:**
 - Produces:
+  - `src/lib/providers/claude/user-prompt.ts`(Task 5도 쓴다):
+    - `export const isClaudeUserPrompt = (record: unknown): boolean`
+      - `type === 'user'`이고 `isMeta`·`isSidechain`이 true가 아니다.
+      - `message.content`가 비지 않은 문자열이거나, 배열 안에 `tool_result`가 아닌 text 조각이 있다(`timeline-message-counts.ts`의 `isRealLegacyUserMessage`와 같은 기준).
+      - 텍스트가 명령 래퍼(`<command-name>`, `<command-message>`, `<command-args>`, `<local-command-stdout>`, `<local-command-caveat>`)로 시작하면 제외한다.
+    - `export const extractClaudeUserPromptText = (record: unknown): string | null` — 위 조건을 만족하면 text 조각을 이어 붙여 돌려준다.
   - `ISessionMeta`에 `providerId?: TAgentPanelType` 추가. Codex 항목은 `'codex'`, Claude 항목은 `'claude'`.
   - `timelineSessionMetaSchema`에 `providerId`와 기존 `relationship`(지금 v2 경로에서 빠지는 필드)을 더한다.
   - `src/lib/providers/claude/session-list.ts`: `export const listClaudeSessionsForCwd = (cwd: string, homeDir?: string): Promise<ISessionMeta[]>`
     - `<home>/.claude/projects/<toClaudeProjectName(cwd)>/*.jsonl`(파일 이름이 UUID인 것만, `agent-*`·하위 directory 제외)을 읽는다.
-    - 항목: `sessionId`(파일 이름), `startedAt`(첫 timestamp), `lastActivityAt`(파일 mtime과 마지막 timestamp 중 늦은 것), `firstMessage`(첫 user 텍스트, `isMeta`·명령 래퍼 제외, 200자), `turnCount`(user 텍스트 줄 수), `cwd`, `jsonlPath`, `providerId: 'claude'`.
+    - 항목: `sessionId`(파일 이름), `startedAt`(첫 timestamp), `lastActivityAt`(파일 mtime과 마지막 timestamp 중 늦은 것), `firstMessage`(`extractClaudeUserPromptText`의 첫 값, 200자), `turnCount`(`isClaudeUserPrompt` 줄 수), `cwd`, `jsonlPath`, `providerId: 'claude'`.
     - 큰 파일은 앞 64 KB와 뒤 64 KB만 읽는다. 결과는 파일 mtime·size 기준으로 메모한다(`globalThis` guard).
   - `listSessionPage(tmuxSession, cwdHint, panelType, { offset, limit, providers? })`:
     - `providers` 기본은 `['codex', 'claude']`.
@@ -74,8 +84,9 @@
   - API(`/api/timeline/sessions`, `/api/v2/timeline/sessions`)와 IPC list payload는 optional `providers`(쉼표 구분, `AGENT_PANEL_TYPES` 값만)를 받는다.
 
 - [ ] **Step 1: Write the failing tests**
+  - `claude-user-prompt.test.ts`: 문자열 prompt와 text 조각 prompt는 true다. `tool_result`만 있는 줄, `isMeta`, `isSidechain`, `<command-name>`·`<local-command-stdout>`으로 시작하는 줄, assistant 줄은 false다.
   - `claude-session-list.test.ts`(임시 HOME):
-    - cwd `/tmp/p`의 project dir에 transcript 2개 → 두 항목, 최신순, `firstMessage`와 `turnCount`가 맞다.
+    - cwd `/tmp/p`의 project dir에 transcript 2개 → 두 항목, 최신순, `firstMessage`와 `turnCount`가 맞다. `tool_result` 줄과 명령 래퍼 줄은 `turnCount`에 들어가지 않는다.
     - `agent-x.jsonl`과 UUID가 아닌 이름은 제외된다.
     - 다른 cwd의 transcript는 나오지 않는다.
   - `session-list.test.ts`:
@@ -95,28 +106,55 @@
 ### Task 2: 지난 세션 목록 화면 — provider 표시, filter, 다른 provider 세션 재개
 
 **Files:**
-- Modify: `src/hooks/use-session-list.ts`, `src/components/features/workspace/session-list-view.tsx`, `src/components/features/workspace/session-list-item.tsx`, `src/components/features/workspace/agent-panel.tsx:138,185-201`, `src/components/features/mobile/mobile-agent-panel.tsx:156,205-221`, `src/lib/agent-launch-client.ts`, `messages/{ko,en}/session.json`
-- Test: `tests/unit/hooks/use-session-list.test.ts`(있으면 확장, 없으면 생성), `tests/unit/components/session-list-item.test.ts`(create), `tests/unit/lib/session-list-rendering.test.ts`
+- Modify: `src/hooks/use-session-list.ts`, `src/components/features/workspace/session-list-view.tsx`, `src/components/features/workspace/session-list-item.tsx`, `src/components/features/workspace/agent-panel.tsx:138,185-201`, `src/components/features/mobile/mobile-agent-panel.tsx:156,205-221`, `src/lib/agent-launch-client.ts`, `src/lib/agent-launch-service.ts`, `src/pages/api/agent/launch.ts`, `src/hooks/use-layout.ts`, `messages/{ko,en}/session.json`
+- Create: `src/lib/session-select-action.ts`(순수 함수)
+- Test: `tests/unit/lib/agent-launch-service.test.ts`, `tests/unit/lib/session-select-action.test.ts`(create), `tests/unit/components/session-list-item.test.ts`(create), `tests/unit/lib/session-list-rendering.test.ts`
 
 **Interfaces:**
 - Consumes: Task 1 `ISessionMeta.providerId`, API `providers` query
 - Produces:
-  - `useSessionList({ …, providers?: TAgentPanelType[] })`: reset key에 providers를 넣는다.
+  - 서버에서 탭 종류를 바꾸고 재개한다. Client PATCH와 실행 요청이 경쟁하지 않게 하기 위해서다.
+    - `IAgentLaunchInput.panelType?: TAgentPanelType`. `/api/agent/launch` body도 optional `panelType`을 받는다. Agent 종류가 아니면 400이다.
+    - `launchAgentInTab` 순서:
+      1. 대상 provider = `panelType ?? tab.panelType`
+      2. 대상 provider로 `sessionId` 검사(`invalid-session`)
+      3. preflight 검사(`agent-unavailable`)
+      4. v1 탭이면 `checkTerminalProcess`가 안전해야 한다(`unsafe-process`, 409). 실행 중인 agent가 있으면 여기서 막힌다.
+      5. `panelType`이 탭 값과 다르면:
+         - v2 탭은 `runtime-v2-agent-unsupported`(409)로 거절한다.
+         - v1 탭은 `patchTab(workspaceId, paneId, tabId, { panelType })`로 저장한다.
+      6. `resume`이면 `updateTabAgentSession(tab.sessionName, provider, { sessionId, jsonlPath: null })`로 session을 먼저 연결한다. 같은 provider 재개도 그렇게 한다(새 탭 resume·WS resume과 같은 규칙).
+      7. 명령을 보낸다.
+    - 1~4 중 하나라도 실패하면 탭 종류와 session은 바뀌지 않는다.
+    - `IAgentLaunchResult.code`에 `'runtime-v2-agent-unsupported'`를 더한다.
+  - `requestAgentLaunch` input에 `panelType?`을 더한다.
+  - `useLayoutStore.applyTabPanelTypeLocal(paneId, tabId, panelType)`: PATCH 없이 local layout과 `useTabStore.setPanelType`만 맞춘다(서버가 이미 저장했다).
+  - `src/lib/session-select-action.ts`:
+    - `export const decideSessionSelectAction = (input: { tabPanelType: TPanelType; itemProviderId: TAgentPanelType; agentProcess: boolean }): 'open' | 'resume-other-provider' | 'blocked-running'`
+      - 같은 provider면 `'open'`(지금 동작: `openJsonlSession` 또는 `sendResume`)
+      - 다른 provider이고 `agentProcess`가 true면 `'blocked-running'`
+      - 그 밖에는 `'resume-other-provider'`
+    - `export const buildSessionListQuery = (input: { …지금 query 값…, providers?: TAgentPanelType[] }): URLSearchParams`. `providers`는 쉼표로 이어 붙인다.
+  - `useSessionList({ …, providers?: TAgentPanelType[] })`: reset key에 providers를 넣고 `buildSessionListQuery`를 쓴다.
   - 목록 위 filter: "전체 / Codex / Claude Code"(segmented, 44px, icon + label). 기본 "전체". 선택은 탭별 `localStorage`에 기억한다(try/catch).
   - 항목에 provider icon + 짧은 label을 둔다(`AgentProviderIcon`, `AGENT_PROVIDER_META[id].label`).
   - 항목 선택:
-    - 항목 provider == 탭 panelType: 지금 동작(`openJsonlSession` 또는 `sendResume`)
-    - 다르면:
-      1. `updateTabPanelType(paneId, tabId, item.providerId)`가 허용될 때만(Task 6의 반환값 `true`) 진행한다.
-      2. `requestAgentLaunch({ workspaceId, paneId, tabId, action: 'resume', sessionId })`(서버 실행 API)를 부른다.
-      3. `setSessionView(tabId, 'check')`
-    - Task 6 전에는 `updateTabPanelType`이 `void`이므로, 이 task는 PATCH 성공 여부를 직접 확인하는 작은 helper(`switchTabToProvider`)로 구현하고 Task 6에서 반환값으로 바꾼다.
-  - 실행 중인 agent가 있는 탭(agentProcess true)에서는 다른 provider 세션 선택을 막고 toast를 보인다(`session.switchWhileRunning`, `{agent}`).
+    - `'open'`: 지금 동작
+    - `'blocked-running'`: toast `session.switchWhileRunning`(`{agent}` = 탭의 현재 provider label)
+    - `'resume-other-provider'`:
+      1. `requestAgentLaunch({ workspaceId, paneId, tabId, action: 'resume', sessionId, panelType: item.providerId })`
+      2. 성공하면 `applyTabPanelTypeLocal(paneId, tabId, item.providerId)` 후 `setSessionView(tabId, 'check')`
+      3. 실패하면 toast `session.resumeFailed`를 보이고 탭은 그대로 둔다.
 
 - [ ] **Step 1: Write the failing tests**
-  - `session-list-item.test.ts`: Claude 항목에 Claude icon과 "Claude Code" label이 보인다.
-  - Hook test: providers를 바꾸면 목록을 다시 읽고 query에 `providers=claude`가 들어간다.
-  - 선택 helper test: 다른 provider 항목이면 panel type 변경 → 실행 API(resume, 같은 sessionId) 순서로 불린다. 실행 중 탭이면 둘 다 불리지 않고 toast가 뜬다.
+  - `agent-launch-service.test.ts`(layout-store·tmux·preflight mock):
+    - Codex v1 탭에 `panelType: 'claude'` resume → `patchTab` → `updateTabAgentSession('claude' provider, { sessionId, jsonlPath: null })` → `sendKeys` 순서다. 보낸 명령은 Claude resume 명령이다.
+    - 같은 provider resume도 `updateTabAgentSession`을 먼저 부른다.
+    - v2 탭 + 다른 `panelType` → `runtime-v2-agent-unsupported`이고 `patchTab`·`sendKeys`가 없다.
+    - unsafe process → `unsafe-process`이고 `patchTab`이 없다.
+    - Claude provider로 잘못된 session id → `invalid-session`이고 `patchTab`이 없다.
+  - `session-select-action.test.ts`: 세 결과 각각, `buildSessionListQuery`에 `providers=claude`가 들어가고 값이 없으면 key가 없다.
+  - `session-list-item.test.ts`(`renderToStaticMarkup`): Claude 항목에 Claude icon과 "Claude Code" label이 보인다.
 - [ ] **Step 2: Run** → FAIL
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** + tsc + lint → PASS
@@ -127,7 +165,7 @@
 ### Task 3: Session Catalog 서버 — provider column과 Claude projector
 
 **Files:**
-- Modify: `src/lib/session-catalog/schema.ts:22-89`, `contracts.ts:16-54,101,137`, `index-repository.ts:45-69,150-212,272`, `query-service.ts:63-76`, `indexer.ts:73`, `src/lib/runtime/timeline/catalog-service.ts:24-188`, `src/workers/timeline-worker.ts:15`, `src/lib/runtime/timeline/worker-service.ts:295`
+- Modify: `src/lib/session-catalog/schema.ts:22-89`, `contracts.ts:16-54,101,137`, `index-repository.ts:45-69,150-212,272`, `query-service.ts:63-76`, `indexer.ts:73`, `src/lib/runtime/timeline/catalog-service.ts:24-188`, `src/workers/timeline-worker.ts:15`
 - Create: `src/lib/session-catalog/claude-jsonl-projector.ts`
 - Test: `tests/unit/lib/session-catalog/{schema,contracts,indexer,index-repository,jsonl-projector,query-service}.test.ts`, `tests/unit/lib/session-catalog/claude-jsonl-projector.test.ts`(create), `tests/unit/lib/runtime/timeline-catalog-service.test.ts`
 
@@ -145,6 +183,7 @@
   - Catalog service는 root 여러 개를 받는다.
     - 기본 `[{ root: ~/.codex/sessions, provider: 'codex' }, { root: ~/.claude/projects, provider: 'claude' }]`
     - `observeFile`과 `rebuild`는 파일의 root로 projector를 고른다. Claude root에서는 `agent-*`·subagent 하위 directory를 제외한다.
+    - 없는 root(`realpath`가 `ENOENT`)는 빈 root로 건너뛴다. 그 때문에 `state`가 `degraded`가 되지 않는다. Root 밖 경로 거절(`catalog-path-forbidden`)은 지금처럼 남긴다.
     - `readEntries`는 저장된 `provider`로 `getProvider(provider).readEntriesBefore`를 부른다. 호출자가 넘기는 panelType은 쓰지 않는다.
 - [ ] **Step 1: Write the failing tests**
   - Schema: provider column 없는 옛 DB 파일(test에서 옛 SQL로 생성)을 열면 column이 생기고 기존 행이 `'codex'`이다. 두 번 열어도 오류가 없다.
@@ -152,6 +191,7 @@
   - Catalog service:
     - Claude root 파일 `observeFile`이 거절되지 않고 provider `'claude'`로 들어간다.
     - 두 root 밖 경로는 지금처럼 거절된다.
+    - Claude root가 없는 임시 HOME에서 Codex `observeFile`과 `rebuild` 뒤 `health().state === 'ready'`이고 검색이 된다.
     - `readEntries`가 Claude 세션에 Claude provider를 쓴다.
   - Repository/query: `providers: ['claude']` 검색이 Claude만 돌려준다.
 - [ ] **Step 2: Run** → FAIL
@@ -186,14 +226,21 @@
 ### Task 5: 통계와 일일 리포트
 
 **Files:**
-- Modify: `src/lib/stats/agent-jsonl-files.ts`, `src/lib/stats/jsonl-parser.ts:48-208,247`, `src/lib/stats/stats-cache.ts:24,121,162-283,491-565`, `src/lib/stats/history-parser.ts:37-44`, `src/lib/stats/daily-report-builder.ts:68-328`, `src/types/stats.ts`, `src/lib/model-tokens.ts:9,60,117`, `src/components/features/stats/token-section.tsx:27-147`, `src/components/features/stats/uptime-section.tsx:240`, `messages/{ko,en}/stats.json`
+- Modify: `src/lib/stats/agent-jsonl-files.ts`, `src/lib/stats/jsonl-parser.ts:48-208,247`, `src/lib/stats/stats-cache.ts:24,121,162-283,361,447-458,491-565`, `src/lib/stats/history-parser.ts:37-44`, `src/lib/stats/daily-report-builder.ts:68-328`, `src/types/stats.ts`, `src/lib/model-tokens.ts:9,60,117`, `src/components/features/stats/token-section.tsx:27-147`, `src/components/features/stats/uptime-section.tsx:240`, `messages/{ko,en}/stats.json`
 - Test: `tests/unit/lib/stats-claude.test.ts`(create), `tests/unit/lib/stats-codex.test.ts`, `tests/unit/lib/stats-agent-jsonl-files.test.ts`, `tests/unit/lib/daily-report-builder.test.ts`, `tests/unit/lib/model-tokens.test.ts`
 
 **Interfaces:**
+- Consumes: Task 1 `isClaudeUserPrompt`, `extractClaudeUserPromptText`
 - Produces:
   - `TAgentJsonlSource = 'codex' | 'claude'`. `collectAgentJsonlFiles()`는 `~/.claude/projects/*/<uuid>.jsonl`도 모은다(`agent-*`, subagent 하위 directory 제외, `project`는 cwd basename). 날짜 filter는 Claude 파일에 mtime·첫 timestamp 기준을 쓴다.
   - Claude usage는 `message.id`(없으면 `requestId`)로 중복을 지운 뒤 model별 input·output·cache read·cache creation(5m/1h)을 센다. `jsonl-parser`와 `stats-cache` 두 곳에 같은 dedupe helper를 쓴다(`src/lib/stats/claude-usage.ts`).
-  - `ISessionStats`에 `provider`를 더한다. `CACHE_VERSION`을 올려 옛 cache를 다시 계산한다.
+    - Dedupe set은 한 번의 계산 전체(모든 파일)에 하나다. 파일마다 새로 만들지 않는다. 같은 `message.id`가 여러 파일에 나온다.
+  - Claude 메시지 수와 시간대 수는 Task 1의 `isClaudeUserPrompt` 줄만 user 메시지로 센다. `jsonl-parser`·`stats-cache`·`history-parser`가 같은 함수를 쓴다.
+  - `ISessionStats`에 `provider`를 더한다.
+  - Cache는 버리지 않고 옮긴다(옛 날짜 중에는 원본 파일이 없어 다시 계산할 수 없는 날이 있다).
+    - `CACHE_VERSION = 5`. `readCache`는 v4도 받는다.
+    - v4를 읽으면 `days`는 그대로 두고 version을 5로 바꾼다. 가장 이른 Claude transcript 날짜(`findFirstClaudeDate()`)부터 어제까지를 다시 계산할 날짜에 넣는다. Claude transcript가 없으면 다시 계산하지 않는다.
+    - 다시 계산한 날의 원본 파일이 하나도 없으면 cache에 있던 그날 값을 지우지 않고 남긴다.
   - 비용:
     - `MODEL_PRICING`에 없는 model은 `cost: null`이다. 합계는 값이 있는 것만 더한다.
     - 화면은 `null`이면 `—`를 보인다.
@@ -202,7 +249,11 @@
   - `history-parser`에 Claude user 텍스트 추출을 더한다(`isMeta`·명령 래퍼 제외).
   - 일일 리포트:
     - 입력은 두 provider 세션을 모두 쓴다.
-    - 생성기 선택: runtime preflight에서 `agents.codex`가 사용 가능하면 지금 `codex exec` 경로, 아니면 `agents.claude`가 사용 가능할 때 `claude -p --output-format text`(prompt는 stdin, cwd·timeout·maxBuffer·PATH는 Codex 경로와 같음).
+    - 생성기 선택: runtime preflight에서 `agents.codex`가 사용 가능하면 지금 `codex exec` 경로, 아니면 `agents.claude`가 사용 가능할 때 Claude 경로.
+    - Claude 경로 인자는 정확히 `['-p', '--output-format', 'text', '--no-session-persistence', '--restricted', '--tools', '', '--strict-mcp-config', '--disable-slash-commands']`이다(Claude Code 2.1.322 `--help`로 확인).
+      - transcript를 남기지 않고, tool을 모두 끄고, user·project·local settings(hook, `permissions.defaultMode` 포함)와 MCP를 읽지 않는다. Codex 경로의 `--ephemeral --sandbox read-only`에 해당한다.
+      - `--bare`는 쓰지 않는다. OAuth를 읽지 않아 구독 로그인이 안 된다.
+      - prompt는 stdin으로 넣는다. cwd는 매번 새로 만든 빈 임시 directory(`fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-report-'))`)이고, 끝나면 `finally`에서 지운다. timeout·maxBuffer·PATH는 Codex 경로와 같다.
     - 둘 다 없으면 지금과 같은 오류 모양으로 실패한다.
     - `SUMMARY_PROMPT`는 "coding agent session history"로 중립화한다.
   - `stats.noRecentActivity` 문구는 provider 중립이다.
@@ -210,12 +261,15 @@
 - [ ] **Step 1: Write the failing tests**
   - `stats-claude.test.ts`(임시 HOME):
     - 같은 `message.id` assistant 줄 3개 → token 한 번만 센다.
+    - 같은 `message.id`가 두 파일에 있어도 한 번만 센다.
+    - user 줄 5개 중 `tool_result` 2개·`isMeta` 1개 → 메시지 수 2다.
     - model별 합계와 cache 5m/1h 분리가 맞다.
     - session stats에 `provider: 'claude'`가 있다.
+    - Cache 이전: 원본 파일이 없는 날을 가진 v4 cache 파일 → 계산 뒤 그날 값이 그대로 있고 version이 5다. Claude transcript가 있는 날은 Claude 값이 더해진다.
   - `stats-agent-jsonl-files.test.ts`: Claude 파일 수집, `agent-*` 제외, 날짜 filter.
   - `model-tokens.test.ts`: Claude model 비용 `null`, 표시 이름.
   - `daily-report-builder.test.ts`:
-    - Codex 없음 + Claude 있음 → `claude` 명령과 `-p` 인자로 실행된다(execFile mock).
+    - Codex 없음 + Claude 있음 → `claude` 명령이 위 인자 배열 그대로(`toEqual`) 실행되고, cwd가 `agentmux-report-` 임시 directory이며 실행 뒤 그 directory가 없다(execFile mock).
     - Codex 있음 → 지금 인자 그대로다.
 - [ ] **Step 2: Run** → FAIL
 - [ ] **Step 3: Implement**
@@ -227,9 +281,9 @@
 ### Task 6: Agent 전환 잠금과 보기 제안
 
 **Files:**
-- Modify: `src/hooks/use-layout.ts:116,599-633`, `src/components/features/workspace/pane-container.tsx:330-370,651-660`, `src/components/features/mobile/mobile-surface-view.tsx:196-230,446-450`, `src/components/features/workspace/content-header.tsx:94-101`, `src/hooks/use-keyboard-shortcuts.ts:141-155`, `src/pages/api/check-agent.ts:30-37`, `messages/{ko,en}/terminal.json`
-- Create: `src/components/features/workspace/agent-view-prompt.tsx`
-- Test: `tests/unit/hooks/use-layout-panel-type.test.ts`, `tests/unit/pages/check-agent-api.test.ts`(create), `tests/unit/components/agent-view-prompt.test.ts`(create)
+- Modify: `src/hooks/use-layout.ts:116,599-633`, `src/components/features/workspace/pane-container.tsx:330-370,651-660`, `src/components/features/mobile/mobile-surface-view.tsx:76,196-230,446-450`, `src/components/features/mobile/mobile-terminal-page.tsx:156-159,288`, `src/components/features/workspace/content-header.tsx:94-101`, `src/hooks/use-keyboard-shortcuts.ts:141-155`, `src/pages/api/check-agent.ts:30-37`, `messages/{ko,en}/terminal.json`
+- Create: `src/components/features/workspace/agent-view-prompt.tsx`, `src/lib/agent-view-prompt-state.ts`(순수 함수)
+- Test: `tests/unit/hooks/use-layout-panel-type.test.ts`, `tests/unit/pages/check-agent-api.test.ts`(create), `tests/unit/lib/agent-view-prompt-state.test.ts`(create)
 
 **Interfaces:**
 - Produces:
@@ -237,14 +291,19 @@
     - 막는 경우는 둘이다. 단계 1의 v2 guard와 새 전환 잠금이다.
     - 전환 잠금: 현재 탭 panelType이 agent 종류이고, 목표가 다른 agent 종류이고, `useTabStore.getState().tabs[tabId].cliState`가 `busy` 또는 `needs-input`일 때 막는다.
     - 막을 때는 toast `terminal.agentSwitchLocked`(`{agent}` = 현재 provider label)를 띄운다.
-  - `pane-container`, `mobile-surface-view`의 `handleSwitchPanelType`·`handleSendToAgent`:
+  - `pane-container`, `mobile-surface-view`, `mobile-terminal-page`의 `handleSwitchPanelType`·`handleSendToAgent`:
     - 반환값이 `false`이면 전환 표시(`setIsPanelTransitioning`)와 보낼 입력(`pendingAgentInputRef`)을 되돌린다.
-    - Task 2의 `switchTabToProvider`도 이 반환값을 쓴다.
+    - `onUpdateTabPanelType` prop type을 `=> boolean`으로 바꾼다(`mobile-surface-view.tsx:76`, `mobile-terminal-page.tsx:288`).
+    - Task 2의 다른 provider 재개는 서버가 탭 종류를 바꾸므로 이 함수를 쓰지 않는다.
   - `/api/check-agent` 응답에 `providerPanelType: TAgentPanelType | null`을 더한다(`detectAnyActiveSession`의 provider).
+  - `src/lib/agent-view-prompt-state.ts`:
+    - `export const shouldOfferAgentView = (input: { runtimeVersion?: number; panelType: TPanelType; providerPanelType: TAgentPanelType | null; dismissed: boolean }): boolean` — v1이고, 탭이 `'terminal'`이고, provider가 있고, 닫지 않았을 때만 true다.
+    - `export const createAgentViewPromptRegistry = () => ({ isDismissed(tabId, provider): boolean; dismiss(tabId, provider): void })` — 메모리 Set. Module 공유 instance는 `globalThis` guard.
+    - `export const acceptAgentViewPrompt = (deps: { updateTabPanelType: (…) => boolean; setSessionView: (tabId, view) => void }, input: { paneId; tabId; providerPanelType }): boolean` — 전환이 허용될 때만 `setSessionView(tabId, 'timeline')`을 부른다.
   - 보기 제안(`AgentViewPrompt`):
-    - Terminal 탭(v1, `runtimeVersion !== 2`)에서 check-agent가 agent 실행을 알리면 띄운다. 탭+provider당 한 번이고, 닫으면 다시 띄우지 않는다(메모리 Set).
+    - Terminal 탭(v1, `runtimeVersion !== 2`)에서 check-agent가 agent 실행을 알리면 `shouldOfferAgentView`로 판단해 띄운다. 탭+provider당 한 번이고, 닫으면 registry에 남겨 다시 띄우지 않는다.
     - 문구 `terminal.switchToAgentView`(`{agent}`)와 "보기 전환"/"닫기" 버튼을 둔다(44px).
-    - 수락하면 `updateTabPanelType(…, providerPanelType)` 후 `setSessionView(tabId, 'timeline')`. agent를 다시 시작하지 않는다(timeline 연결이 실행 중 session에 묶는다).
+    - 수락하면 `acceptAgentViewPrompt`를 부른다. agent를 다시 시작하지 않는다(timeline 연결이 실행 중 session에 묶는다).
     - 데스크톱은 pane 아래쪽 카드, 모바일은 agent 화면 흐름 안에 둔다(입력·복구 UI를 가리지 않음).
     - 모바일도 title 변경 때 `setCurrentProcess`를 부른다.
 
@@ -255,10 +314,10 @@
     - busy Codex 탭 → `'terminal'`은 허용한다(잠금은 다른 agent로 갈 때만).
     - v2 탭 guard는 그대로다.
   - `check-agent-api.test.ts`: Claude 실행 감지 시 `providerPanelType: 'claude'`가 들어간다.
-  - `agent-view-prompt.test.ts`:
-    - 수락하면 전환과 timeline 보기가 일어난다.
-    - 닫은 뒤 같은 탭+provider로는 다시 뜨지 않는다.
-    - v2 탭에서는 그리지 않는다.
+  - `agent-view-prompt-state.test.ts`(jsdom 없음, 순수 함수):
+    - `acceptAgentViewPrompt`: `updateTabPanelType`이 true면 `setSessionView(tabId, 'timeline')`이 불리고, false면 불리지 않는다.
+    - Registry: `dismiss` 뒤 같은 탭+provider는 `isDismissed === true`, 다른 provider는 false다.
+    - `shouldOfferAgentView`: v2 탭, `'codex'` 탭, provider `null`, 닫은 경우는 false다.
 - [ ] **Step 2: Run** → FAIL
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** + tsc + lint → PASS
@@ -269,22 +328,37 @@
 ### Task 7: 시작 진행 표시와 시작 화면 카드
 
 **Files:**
-- Create: `src/components/features/workspace/agent-boot-view.tsx`
+- Create: `src/components/features/workspace/agent-boot-view.tsx`, `src/lib/agent-boot-display.ts`(순수 함수)
 - Modify: `src/components/features/workspace/agent-panel.tsx:175,217-246`, `src/components/features/mobile/mobile-agent-panel.tsx:183-256`, `src/components/features/workspace/pane-container.tsx:423-435,915-934`, `src/components/features/mobile/mobile-surface-view.tsx:266-279,553-557`, `src/lib/session-list-rendering.ts:25-27`, `messages/{ko,en}/timeline.json`
-- Test: `tests/unit/components/agent-boot-view.test.ts`(create), `tests/unit/lib/session-list-rendering.test.ts`
+- Test: `tests/unit/lib/agent-boot-display.test.ts`(create), `tests/unit/components/agent-boot-view.test.ts`(create, `renderToStaticMarkup`), `tests/unit/lib/session-list-rendering.test.ts`
 
 **Interfaces:**
 - Produces:
-  - `AgentBootView({ panelType, phase, bypass?, trust?, onCheckTerminal })`
-    - `phase`: `'starting'`(명령 보냄) → `'waiting-session'`(process 감지, session 대기)
-    - 단계 표시는 2줄 이하이고 provider label을 쓴다.
-    - loading 중에도 높이가 바뀌지 않는다(DESIGN.md).
-  - 시작 화면 카드가 진행 표시를 **대체**한다.
-    - bypass 선택지가 오면 `BypassPromptCard`, trust prompt가 감지되면 `TrustPromptCard`를 진행 표시 자리에 그린다.
-    - 이를 위해 trust detector 결과를 `AgentPanel`·`MobileAgentPanel`에 props(`trustPrompt`, `onTrustResponse`)로 넘긴다. 단계 2에서 panel 아래에 따로 그리던 카드는 지운다.
-  - 실패 시: 60초가 지나도 session이 없으면 "terminal 보기" 회복 action을 보인다(지금 `checkTerminal` link 유지).
+  - 주의: `use-tab-store.ts:125-127`은 `agentProcess`가 true가 되는 순간 보기를 `check`에서 `timeline`으로 바꾼다. Claude trust 화면은 그 뒤에도 떠 있다. 그래서 trust 카드는 단계 2 위치(`pane-container.tsx:930-934`, 모바일 `mobile-surface-view.tsx:553-557`, 보기 밖)에 **그대로 둔다**. 지우지 않는다.
+  - `src/lib/agent-boot-display.ts`:
+    - `export type TAgentBootDisplay = 'trust' | 'bypass' | 'starting' | 'waiting-session' | 'recover' | null`
+    - `export const resolveAgentBootDisplay = (input: { view: TSessionView; agentProcess: boolean | null; hasEntries: boolean; trustPrompt: boolean; bypassPrompt: boolean; elapsedMs: number }): TAgentBootDisplay`
+      1. `trustPrompt`면 `'trust'`(진행 표시를 숨긴다. 카드는 단계 2 위치에서 그린다)
+      2. `view === 'check'`이고 `bypassPrompt`면 `'bypass'`
+      3. `elapsedMs >= 60_000`이고 `!hasEntries`면 `'recover'`
+      4. `view === 'check'`면 `'starting'`
+      5. `view === 'timeline'`이고 `agentProcess === true`이고 `!hasEntries`면 `'waiting-session'`
+      6. 그 밖에는 `null`
+  - `AgentBootView({ panelType, display, onCheckTerminal })`
+    - `'starting'`·`'waiting-session'`: 단계 표시 2줄 이하, provider label을 쓴다. Loading 중에도 높이가 바뀌지 않는다(DESIGN.md).
+    - `'recover'`: "terminal 보기" 회복 action(지금 `checkTerminal` link 유지)
+    - `'trust'`·`'bypass'`·`null`: 진행 표시를 그리지 않는다. `'bypass'`는 지금처럼 check 보기의 `BypassPromptCard`가 그린다.
+  - `check` 보기와 빈 timeline(`'waiting-session'`) 둘 다 `AgentBootView`를 쓴다.
 
-- [ ] **Step 1: Write the failing tests** — `check` 보기에서 trust prompt가 있으면 trust 카드만 보이고 진행 표시는 없다. bypass 선택지가 있으면 bypass 카드다. 둘 다 없으면 진행 표시에 provider label이 있다.
+- [ ] **Step 1: Write the failing tests**
+  - `agent-boot-display.test.ts`:
+    - `view: 'timeline'`, `agentProcess: true`, `trustPrompt: true` → `'trust'`(process가 감지된 뒤에도 카드가 남는다)
+    - `view: 'check'`, bypass 있음 → `'bypass'`
+    - `view: 'check'`, prompt 없음 → `'starting'`
+    - `view: 'timeline'`, `agentProcess: true`, entry 없음 → `'waiting-session'`
+    - 60초 경과, entry 없음 → `'recover'`
+    - entry 있음 → `null`
+  - `agent-boot-view.test.ts`: `'starting'`에 provider label이 있고, `'trust'`면 빈 출력이다.
 - [ ] **Step 2: Run** → FAIL
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** + tsc + lint → PASS
@@ -383,7 +457,7 @@
 
 - [ ] **Step 1: Update docs** — 위 기능, 단계 3 판단, 남은 항목을 적는다.
 - [ ] **Step 2: Full gates** — `corepack pnpm check:project-design && corepack pnpm check:product-name && corepack pnpm lint && corepack pnpm exec tsc --noEmit && TMUX_TMPDIR=$(mktemp -d) corepack pnpm test && corepack pnpm build`
-- [ ] **Step 3: 격리 browser·live 확인** (단계 2 Task 10과 같은 안전 규칙, Claude prompt 3개 이하)
+- [ ] **Step 3: 격리 browser·live 확인** (단계 2 Task 10과 같은 안전 규칙, Claude prompt 4개 이하)
   - 서버 조건: 이 worktree의 production build, 임시 `AGENTMUX_DATA_DIR`·`TMUX_TMPDIR`, port 18122, live와 같은 Runtime v2 mode, `AGENTMUX_TMUX_SCOPE=off`, `INVOCATION_ID` 해제, `env -i` allowlist
   - Playwright(`corepack pnpm exec playwright`, chromium)로 아래를 확인하고 screenshot을 report에 남긴다(repo에 commit하지 않음).
     1. 360px 폭 모바일 헤더(보기 전환 메뉴, 탭 이름이 보임)
@@ -391,12 +465,16 @@
     3. 세션 목록 provider filter와 항목 label
     4. Session Explorer provider filter
     5. 설정의 Claude tab
-  - 실제 Claude(prompt 3개 이하)로 아래를 확인한다.
+  - 실제 Claude(prompt 4개 이하)로 아래를 확인한다.
     1. Claude 탭에서 짧은 prompt
     2. 그 세션이 Codex 탭의 지난 세션 목록에 Claude label로 보이고, 선택하면 탭이 CLAUDE 보기로 바뀌며 재개된다.
+       - 절차: 새 Codex 탭은 Codex를 자동으로 시작하고, Task 2는 agent가 실행 중이면 다른 provider 선택을 막는다. 그래서 먼저 그 탭의 Codex를 끝낸다(TERMINAL 보기에서 `/exit`, shell prompt 확인). 그 뒤 CODEX 보기의 지난 세션 목록에서 Claude 항목을 고른다.
+       - 확인: 재개 뒤 탭의 `agentSessionId`가 고른 Claude session id이고, timeline이 그 transcript를 보인다(Codex rollout이 아니다).
     3. busy 중 CODEX 전환이 막힌다.
     4. Terminal(v1) 탭에서 직접 `claude`를 실행하면 보기 제안이 뜨고, 수락하면 다시 시작하지 않고 timeline이 보인다.
+       - 절차: live와 같은 `new-tabs` mode에서는 새 Terminal 탭이 v2라 제안이 뜨지 않는다. v1 Terminal 탭은 agent 탭(v1)을 만든 뒤 agent를 끝내고 TERMINAL 보기로 바꿔서 얻는다. 그 탭에서 `claude`를 실행한다.
     5. 통계에 Claude model token이 보이고 비용 칸은 `—`다.
+    6. 일일 리포트 Claude fallback 1회: Codex를 사용할 수 없다고 둔 preflight로 builder를 직접 한 번 부른다(node script, 격리 data dir). 출력이 비어 있지 않고, 실행 전후 `~/.claude/projects/` 아래 파일 목록이 같다(`--no-session-persistence` 확인).
   - 전후로 `~/.claude/settings.json`·`~/.codex/config.toml` sha256, 기본 `TMUX_TMPDIR`의 live tmux session 목록, service PID가 같다. trust 확인은 수락하지 않는다.
-- [ ] **Step 4: Record** 결과를 handoff에 기록한다.
+- [ ] **Step 4: Record** 결과를 handoff에 기록한다. Live `new-tabs` mode에서는 새 Terminal 탭에 보기 제안이 뜨지 않는다는 한계를 handoff와 `docs/FOLLOW-UP.md`에 적는다(Runtime v2 agent 탭 지원 후속과 묶음).
 - [ ] **Step 5: Commit** — `docs: record the shared agent UI and its browser and live checks`
