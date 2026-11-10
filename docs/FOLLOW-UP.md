@@ -301,7 +301,8 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | Uptime disk cache | 지난 날의 Codex 전용 값이 window가 지날 때까지 남음 |
 | 일일 리포트 fallback smoke | Preflight가 알려진 install path에서 Codex를 찾아 PATH만으로 fallback 경로를 강제할 수 없음. 생성기 test 전용 override를 두면 smoke로 확인 가능(지금은 정확한 `claude -p` 인자 배열을 단위 test가, 실제 호출을 손 실행 1회가 확인) |
 | Smoke tooling 메모 | 격리 `TMUX_TMPDIR`는 짧은 경로여야 함(긴 경로는 108바이트 Unix socket 한도로 tmux `new-session` 실패). Setup POST는 같은 origin의 `Origin` header 필요 |
-| 통계 cache v5 확인 | 배포 뒤 첫 통계 요청에서 `cache.v4.json` 백업과 v5 이동, Claude token 표시를 live에서 확인 |
+| 통계 cache v5 확인 | 배포 뒤 첫 통계 요청에서 `cache.v4.json` 백업과 v5 이동, Claude token 표시를 live에서 확인. rollback 때는 service를 멈추고 `cache.v4.json`을 `cache.json`으로 복사한 뒤 이전 build를 시작한다(이전 build는 v5를 버리고 원본이 없는 날짜를 잃는다) |
+| Codex 지난 세션 목록 확인 | 배포 뒤 live Codex 탭의 지난 세션 목록 개수와 순서가 배포 전과 같은지 확인(격리 확인에서는 Codex index 첫 scan 중이라 Codex 항목을 보지 못함) |
 | 문서 외 미검증 | Claude 직접 실행 뒤 timeline 연결, 일일 리포트의 실제 Claude 생성 경로(생성기 전체) |
 
 ## Codex lifecycle 기준

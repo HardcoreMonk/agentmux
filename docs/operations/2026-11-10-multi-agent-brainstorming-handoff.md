@@ -412,7 +412,10 @@ claude-* model이 있는 날은 건너뜀, v4 한 번 백업), 비용은 추정�
 
 단계 3은 `feat/claude-provider-phase3`(`8e2dc0e2`)에 구현과 검증을 마쳤다. 다음은 branch 전체 최종 code-review, 수정이 있으면
 반영, PR → CI → merge다. Main push와 `deploy:local`은 사용자가 직접 실행한다(auto mode가 막는다). 배포 뒤 live 통계 cache
-v4→v5 이동(`cache.v4.json` 백업, Claude token 표시)을 확인한다. 배포 때 rollback이 필요하면 Claude 탭을 먼저 닫는다.
+v4→v5 이동(`cache.v4.json` 백업, Claude token 표시)과 live Codex 탭의 지난 세션 목록 개수·순서가 배포 전과 같은지 확인한다.
+배포 때 rollback이 필요하면 Claude 탭을 먼저 닫는다. 통계 cache가 이미 v5로 바뀌었다면 service를 멈추고
+`cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json`으로 v4를 되돌린 뒤 이전 build를 시작한다(이전 build는 v5를
+버리고 원본 파일로 다시 계산해 원본이 없는 날짜를 잃는다).
 단계 4(위임 안내, `permissions.allow`, CLI 변경)는 단계 3이 merge된 뒤 계획을 쓴다.
 
 ## Follow-Up Tasks
