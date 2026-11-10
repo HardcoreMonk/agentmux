@@ -4,10 +4,7 @@ import { useTranslations } from 'next-intl';
 import Spinner from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import SessionListItem from '@/components/features/workspace/session-list-item';
-import AgentProviderIcon from '@/components/icons/agent-provider-icon';
-import { AGENT_PANEL_TYPES } from '@/lib/panel-type';
-import { AGENT_PROVIDER_META } from '@/lib/agent-provider-meta';
-import { cn } from '@/lib/utils';
+import AgentProviderFilter from '@/components/features/workspace/agent-provider-filter';
 import type { TSessionProviderFilter } from '@/hooks/use-session-provider-filter';
 import type { ISessionMeta } from '@/types/timeline';
 
@@ -62,8 +59,6 @@ const SessionListError = ({
   </div>
 );
 
-const PROVIDER_FILTERS: readonly TSessionProviderFilter[] = ['all', ...AGENT_PANEL_TYPES];
-
 const SessionProviderFilter = ({
   value,
   onChange,
@@ -73,30 +68,13 @@ const SessionProviderFilter = ({
 }) => {
   const t = useTranslations('session');
   return (
-    <div role="group" aria-label={t('providerFilter.label')} className="flex gap-1 border-b px-4 py-2">
-      {PROVIDER_FILTERS.map((option) => {
-        const selected = value === option;
-        return (
-          <button
-            key={option}
-            type="button"
-            aria-pressed={selected}
-            data-filter={option}
-            onClick={() => onChange(option)}
-            className={cn(
-              'inline-flex min-h-11 min-w-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 text-sm [word-break:keep-all] transition-colors',
-              'hover:bg-agent-active/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
-              selected
-                ? 'border-agent-active bg-agent-active/10 font-medium text-foreground'
-                : 'border-border text-muted-foreground',
-            )}
-          >
-            {option !== 'all' && <AgentProviderIcon panelType={option} className="h-3.5 w-3.5 shrink-0" />}
-            {option === 'all' ? t('providerFilter.all') : AGENT_PROVIDER_META[option].label}
-          </button>
-        );
-      })}
-    </div>
+    <AgentProviderFilter
+      value={value}
+      onChange={onChange}
+      ariaLabel={t('providerFilter.label')}
+      allLabel={t('providerFilter.all')}
+      className="border-b px-4 py-2"
+    />
   );
 };
 

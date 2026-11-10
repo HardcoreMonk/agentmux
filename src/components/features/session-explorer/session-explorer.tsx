@@ -20,6 +20,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import AgentProviderIcon from '@/components/icons/agent-provider-icon';
+import AgentProviderFilter from '@/components/features/workspace/agent-provider-filter';
 import { AGENT_PANEL_TYPES } from '@/lib/panel-type';
 import { AGENT_PROVIDER_META, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { cn } from '@/lib/utils';
@@ -70,8 +71,6 @@ const splitList = (value: string): string[] | undefined => {
   const values = [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
   return values.length > 0 ? values : undefined;
 };
-
-const PROVIDER_FILTERS = ['all', ...AGENT_PANEL_TYPES] as const;
 
 // A single provider selects it; none or both means no provider filter.
 const providerFilterValue = (providers?: TAgentPanelType[]): TSearchForm['provider'] =>
@@ -215,33 +214,17 @@ const SessionExplorer = ({
           name="provider"
           control={form.control}
           render={({ field }) => (
-            <div role="group" aria-label={t('providerFilter.label')} className="flex gap-1 md:col-span-12">
-              {PROVIDER_FILTERS.map((option) => {
-                const selected = field.value === option;
-                return (
-                  <button
-                    key={option}
-                    type="button"
-                    aria-pressed={selected}
-                    data-filter={option}
-                    onClick={() => {
-                      field.onChange(option);
-                      void submit();
-                    }}
-                    className={cn(
-                      'inline-flex min-h-11 min-w-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 text-sm [word-break:keep-all] transition-colors md:max-w-40',
-                      'hover:bg-agent-active/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
-                      selected
-                        ? 'border-agent-active bg-agent-active/10 font-medium text-foreground'
-                        : 'border-border text-muted-foreground',
-                    )}
-                  >
-                    {option !== 'all' && <AgentProviderIcon panelType={option} className="h-3.5 w-3.5 shrink-0" />}
-                    {option === 'all' ? t('providerFilter.all') : AGENT_PROVIDER_META[option].label}
-                  </button>
-                );
-              })}
-            </div>
+            <AgentProviderFilter
+              value={field.value}
+              onChange={(option) => {
+                field.onChange(option);
+                void submit();
+              }}
+              ariaLabel={t('providerFilter.label')}
+              allLabel={t('providerFilter.all')}
+              className="md:col-span-12"
+              buttonClassName="md:max-w-40"
+            />
           )}
         />
         <Input {...form.register('dateFrom')} type="date" aria-label={t('dateFrom')} className="min-h-11 md:col-span-2" />
