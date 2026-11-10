@@ -4,17 +4,20 @@ import type { TCliState } from '@/types/timeline';
 export const decideHookSessionRebind = ({
   behavior,
   currentSessionId,
+  currentJsonlPath = null,
   hookSessionId,
   transcriptPath,
 }: {
   behavior: IAgentProviderStatusBehavior | null;
   currentSessionId: string | null;
+  currentJsonlPath?: string | null;
   hookSessionId?: string;
   transcriptPath?: string;
 }): { rebind: false } | { rebind: true; sessionId: string; jsonlPath: string | null } => {
-  if (!behavior?.bindSessionFromHook || !hookSessionId || hookSessionId === currentSessionId) {
-    return { rebind: false };
-  }
+  if (!behavior?.bindSessionFromHook || !hookSessionId) return { rebind: false };
+  const sameSession = hookSessionId === currentSessionId;
+  // A relaunch keeps the id but may still point at an older transcript; follow the hook's.
+  if (sameSession && (!transcriptPath || transcriptPath === currentJsonlPath)) return { rebind: false };
   return { rebind: true, sessionId: hookSessionId, jsonlPath: transcriptPath ?? null };
 };
 

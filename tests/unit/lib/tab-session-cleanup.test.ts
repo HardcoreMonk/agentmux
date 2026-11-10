@@ -99,15 +99,29 @@ describe('tab session cleanup', () => {
     expect(mocks.removeClaudeTabSettings).toHaveBeenCalledWith('tab-claude');
   });
 
-  it('does not touch Claude settings for Codex tabs', async () => {
+  it.each(['terminal', 'codex', undefined] as const)(
+    'removes Claude settings even when the tab now shows %s',
+    async (panelType) => {
+      await cleanupTabSession({
+        id: 'tab-switched',
+        sessionName: 'pt-ws-a-pane-b-tab-switched',
+        panelType,
+        runtimeVersion: 1,
+      });
+
+      expect(mocks.killSession).toHaveBeenCalledWith('pt-ws-a-pane-b-tab-switched');
+      expect(mocks.removeClaudeTabSettings).toHaveBeenCalledWith('tab-switched');
+    },
+  );
+
+  it('removes Claude settings for web browser tabs without killing a session', async () => {
     await cleanupTabSession({
-      id: 'tab-codex',
-      sessionName: 'pt-ws-a-pane-b-tab-codex',
-      panelType: 'codex',
-      runtimeVersion: 1,
+      id: 'tab-web',
+      sessionName: 'pt-ws-a-pane-b-tab-web',
+      panelType: 'web-browser',
     });
 
-    expect(mocks.killSession).toHaveBeenCalledWith('pt-ws-a-pane-b-tab-codex');
-    expect(mocks.removeClaudeTabSettings).not.toHaveBeenCalled();
+    expect(mocks.killSession).not.toHaveBeenCalled();
+    expect(mocks.removeClaudeTabSettings).toHaveBeenCalledWith('tab-web');
   });
 });

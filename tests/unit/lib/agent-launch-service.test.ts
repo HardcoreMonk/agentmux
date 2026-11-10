@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   buildResumeCommand: vi.fn(),
   writeTerminalSession: vi.fn(),
   getCachedRuntimePreflight: vi.fn(),
-  updateTabAgentSessionId: vi.fn(),
+  updateTabAgentSession: vi.fn(),
   buildClaudeLaunchCommand: vi.fn(),
   createLaunchSessionId: vi.fn(),
 }));
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/lib/layout-store', () => ({
   readLayoutFile: mocks.readLayoutFile,
   resolveLayoutFile: (workspaceId: string) => `/layout/${workspaceId}.json`,
-  updateTabAgentSessionId: mocks.updateTabAgentSessionId,
+  updateTabAgentSession: mocks.updateTabAgentSession,
 }));
 vi.mock('@/lib/tmux', () => ({
   checkTerminalProcess: mocks.checkTerminalProcess,
@@ -79,7 +79,7 @@ describe('launchAgentInTab', () => {
     });
     mocks.checkTerminalProcess.mockResolvedValue({ isSafe: true, processName: 'bash' });
     mocks.buildLaunchCommand.mockResolvedValue('codex -c hooks');
-    mocks.updateTabAgentSessionId.mockResolvedValue(undefined);
+    mocks.updateTabAgentSession.mockResolvedValue(undefined);
     mocks.createLaunchSessionId.mockReturnValue('session-claude-1');
     mocks.buildClaudeLaunchCommand.mockImplementation(async (options: { sessionId?: string }) =>
       `claude --session-id ${options.sessionId}`);
@@ -99,10 +99,10 @@ describe('launchAgentInTab', () => {
       sessionName: 'pt-ws-a-pane-a-tab-a',
     });
     expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'codex -c hooks');
-    expect(mocks.updateTabAgentSessionId).not.toHaveBeenCalled();
+    expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
   });
 
-  it('stores the assigned Claude session id before sending the launch command', async () => {
+  it('builds, then stores the assigned Claude session id, then sends the launch command', async () => {
     mocks.readLayoutFile.mockResolvedValue(layout(1, 'claude'));
     await expect(launchAgentInTab({
       workspaceId: 'ws-a',
@@ -111,10 +111,10 @@ describe('launchAgentInTab', () => {
       action: 'launch',
     })).resolves.toEqual({ ok: true });
 
-    expect(mocks.updateTabAgentSessionId).toHaveBeenCalledWith(
+    expect(mocks.updateTabAgentSession).toHaveBeenCalledWith(
       'pt-ws-a-pane-a-tab-a',
       claudeTestProvider,
-      'session-claude-1',
+      { sessionId: 'session-claude-1', jsonlPath: null },
     );
     expect(mocks.buildClaudeLaunchCommand).toHaveBeenCalledWith({
       workspaceId: 'ws-a',
@@ -123,9 +123,24 @@ describe('launchAgentInTab', () => {
       sessionId: 'session-claude-1',
     });
     expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'claude --session-id session-claude-1');
-    const storedAt = mocks.updateTabAgentSessionId.mock.invocationCallOrder[0];
-    expect(storedAt).toBeLessThan(mocks.buildClaudeLaunchCommand.mock.invocationCallOrder[0]);
+    const builtAt = mocks.buildClaudeLaunchCommand.mock.invocationCallOrder[0];
+    const storedAt = mocks.updateTabAgentSession.mock.invocationCallOrder[0];
+    expect(builtAt).toBeLessThan(storedAt);
     expect(storedAt).toBeLessThan(mocks.sendKeys.mock.invocationCallOrder[0]);
+  });
+
+  it('stores nothing and sends nothing when building the Claude command fails', async () => {
+    mocks.readLayoutFile.mockResolvedValue(layout(1, 'claude'));
+    mocks.buildClaudeLaunchCommand.mockRejectedValue(new Error('settings write failed'));
+
+    await expect(launchAgentInTab({
+      workspaceId: 'ws-a',
+      paneId: 'pane-a',
+      tabId: 'tab-a',
+      action: 'launch',
+    })).rejects.toThrow('settings write failed');
+    expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
+    expect(mocks.sendKeys).not.toHaveBeenCalled();
   });
 
   it('does not assign a new Claude session id when resuming', async () => {
@@ -140,7 +155,7 @@ describe('launchAgentInTab', () => {
     })).resolves.toEqual({ ok: true });
 
     expect(mocks.createLaunchSessionId).not.toHaveBeenCalled();
-    expect(mocks.updateTabAgentSessionId).not.toHaveBeenCalled();
+    expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
     expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'claude --resume session-old');
   });
 

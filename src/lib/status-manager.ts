@@ -1043,6 +1043,7 @@ export class StatusManager {
     const decision = decideHookSessionRebind({
       behavior: provider?.statusBehavior ?? null,
       currentSessionId: entry.agentSessionId ?? null,
+      currentJsonlPath: entry.jsonlPath ?? null,
       hookSessionId: options.agentSessionId,
       transcriptPath: options.transcriptPath,
     });

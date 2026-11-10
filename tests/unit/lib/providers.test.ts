@@ -358,7 +358,11 @@ describe('claude provider', () => {
     await expect(fs.stat(path.join(dataDir, 'claude-tabs', 'tab-claude.json'))).rejects.toThrow();
   });
 
-  it('resumes with per-tab settings', async () => {
+  it('resumes a session that has a transcript with per-tab settings', async () => {
+    const projectDir = path.join(home, '.claude', 'projects', '-work-other-project');
+    await fs.mkdir(projectDir, { recursive: true });
+    await fs.writeFile(path.join(projectDir, `${sessionId}.jsonl`), '{}\n');
+
     const command = await claudeProvider.buildResumeCommand(sessionId, {
       tabId: 'tab-claude',
       sessionName: 'pt-ws-a-pane-a-tab-claude',
@@ -367,8 +371,37 @@ describe('claude provider', () => {
     const settingsPath = path.join(dataDir, 'claude-tabs', 'tab-claude.json');
     expect(command).toContain(`--settings '${settingsPath}'`);
     expect(command).toContain(`--resume ${sessionId}`);
+    expect(command).not.toContain('--session-id');
     await expect(fs.stat(settingsPath)).resolves.toBeTruthy();
     await expect(claudeProvider.buildResumeCommand(sessionId, {})).rejects.toThrow();
+  });
+
+  it('starts the same session id fresh when no transcript exists yet', async () => {
+    await fs.mkdir(path.join(home, '.claude', 'projects', '-work-other-project'), { recursive: true });
+    await fs.writeFile(
+      path.join(home, '.claude', 'projects', '-work-other-project', '11111111-2222-4333-8444-555555555555.jsonl'),
+      '{}\n',
+    );
+
+    const command = await claudeProvider.buildResumeCommand(sessionId, {
+      tabId: 'tab-claude',
+      sessionName: 'pt-ws-a-pane-a-tab-claude',
+    });
+
+    const settingsPath = path.join(dataDir, 'claude-tabs', 'tab-claude.json');
+    expect(command).toContain(`--settings '${settingsPath}'`);
+    expect(command).toContain(`--session-id ${sessionId}`);
+    expect(command).not.toContain('--resume');
+    await expect(fs.stat(settingsPath)).resolves.toBeTruthy();
+  });
+
+  it('starts fresh when the Claude projects directory does not exist', async () => {
+    const command = await claudeProvider.buildResumeCommand(sessionId, {
+      tabId: 'tab-claude',
+      sessionName: 'pt-ws-a-pane-a-tab-claude',
+    });
+
+    expect(command).toContain(`--session-id ${sessionId}`);
   });
 
   it('creates a valid session id per launch and removes tab settings on cleanup', async () => {

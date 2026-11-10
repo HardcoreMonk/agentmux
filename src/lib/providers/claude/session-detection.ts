@@ -79,6 +79,25 @@ export const resolveClaudeJsonlPath = async (
   return null;
 };
 
+export const findClaudeTranscriptById = async (
+  sessionId: string,
+  homeDir?: string,
+): Promise<string | null> => {
+  if (!isValidClaudeSessionId(sessionId)) return null;
+  const projectsDir = getClaudeProjectsDir(homeDir ?? os.homedir());
+  let entries: string[];
+  try {
+    entries = await fs.readdir(projectsDir);
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
+    const candidate = path.join(projectsDir, entry, `${sessionId}.jsonl`);
+    if (await fileExists(candidate)) return candidate;
+  }
+  return null;
+};
+
 const collectProcessTree = async (panePid: number, preloadedChildPids?: number[]): Promise<number[]> => {
   const direct = preloadedChildPids ?? await getChildPids(panePid);
   const descendants = (await Promise.all(direct.map(getDescendantPids))).flat();

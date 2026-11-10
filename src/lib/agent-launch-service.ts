@@ -1,5 +1,5 @@
 import { checkTerminalProcess, sendKeys } from '@/lib/tmux';
-import { readLayoutFile, resolveLayoutFile, updateTabAgentSessionId } from '@/lib/layout-store';
+import { readLayoutFile, resolveLayoutFile, updateTabAgentSession } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { getProviderByPanelType } from '@/lib/providers';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
@@ -56,8 +56,9 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
     command = await provider.buildResumeCommand(input.sessionId, commandOptions);
   } else if (input.action === 'launch' && provider.createLaunchSessionId) {
     const sessionId = provider.createLaunchSessionId();
-    await updateTabAgentSessionId(tab.sessionName, provider, sessionId);
     command = await provider.buildLaunchCommand({ ...commandOptions, sessionId });
+    // Drop the previous session's JSONL so status and timeline do not stay bound to it.
+    await updateTabAgentSession(tab.sessionName, provider, { sessionId, jsonlPath: null });
   } else {
     command = await provider.buildLaunchCommand(commandOptions);
   }

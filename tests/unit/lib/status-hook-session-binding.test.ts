@@ -38,6 +38,43 @@ describe('decideHookSessionRebind', () => {
     })).toEqual({ rebind: false });
   });
 
+  it('rebinds the same session id when the hook reports a different transcript', () => {
+    expect(decideHookSessionRebind({
+      behavior: behavior(),
+      currentSessionId: 'same',
+      currentJsonlPath: '/home/test/.claude/projects/x/old.jsonl',
+      hookSessionId: 'same',
+      transcriptPath: '/home/test/.claude/projects/x/same.jsonl',
+    })).toEqual({ rebind: true, sessionId: 'same', jsonlPath: '/home/test/.claude/projects/x/same.jsonl' });
+    expect(decideHookSessionRebind({
+      behavior: behavior(),
+      currentSessionId: 'same',
+      currentJsonlPath: null,
+      hookSessionId: 'same',
+      transcriptPath: '/home/test/.claude/projects/x/same.jsonl',
+    })).toEqual({ rebind: true, sessionId: 'same', jsonlPath: '/home/test/.claude/projects/x/same.jsonl' });
+  });
+
+  it('does not rebind the same session id when the transcript matches', () => {
+    expect(decideHookSessionRebind({
+      behavior: behavior(),
+      currentSessionId: 'same',
+      currentJsonlPath: '/home/test/.claude/projects/x/same.jsonl',
+      hookSessionId: 'same',
+      transcriptPath: '/home/test/.claude/projects/x/same.jsonl',
+    })).toEqual({ rebind: false });
+  });
+
+  it('does not rebind a different transcript when the provider flag is off', () => {
+    expect(decideHookSessionRebind({
+      behavior: behavior({ bindSessionFromHook: false }),
+      currentSessionId: 'same',
+      currentJsonlPath: '/home/test/.codex/sessions/old.jsonl',
+      hookSessionId: 'same',
+      transcriptPath: '/home/test/.codex/sessions/same.jsonl',
+    })).toEqual({ rebind: false });
+  });
+
   it('does not rebind without a hook session id', () => {
     expect(decideHookSessionRebind({ behavior: behavior(), currentSessionId: 'a' })).toEqual({ rebind: false });
   });

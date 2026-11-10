@@ -11,6 +11,7 @@ import { getConfig } from '@/lib/config-store';
 import { getClaudeProjectsDir } from '@/lib/path-validation';
 import {
   detectActiveClaudeSession,
+  findClaudeTranscriptById,
   findNewestClaudeJsonl,
   isClaudeRunning,
   resolveClaudeJsonlPath,
@@ -77,7 +78,11 @@ export const claudeProvider: IAgentProvider = {
 
   buildResumeCommand: async (sessionId, options) => {
     const validSessionId = assertClaudeSessionId(sessionId);
-    return buildClaudeResumeCommand(validSessionId, await readClaudeCommandOptions(options));
+    const commandOptions = await readClaudeCommandOptions(options);
+    // Claude writes no transcript until the first prompt, so `--resume` would fail for an unused session.
+    return await findClaudeTranscriptById(validSessionId)
+      ? buildClaudeResumeCommand(validSessionId, commandOptions)
+      : buildClaudeLaunchCommand(validSessionId, commandOptions);
   },
   buildLaunchCommand: async (options) => {
     const sessionId = assertClaudeSessionId(options.sessionId);
