@@ -406,7 +406,8 @@ const timelineCatalogReadEntriesPayloadSchema = z.object({
   sessionId: sessionIdSchema,
   beforeByte: z.number().int().nonnegative(),
   limit: z.number().int().min(1).max(200),
-  panelType: z.string().min(1).max(80),
+  // Ignored: the catalog replays with the provider stored on the entry.
+  panelType: z.string().min(1).max(80).optional(),
 }).strict();
 const timelineCatalogRebuildResultSchema = z.object({
   started: z.boolean(),

@@ -19,7 +19,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import AgentProviderIcon from '@/components/icons/agent-provider-icon';
+import { AGENT_PANEL_TYPES } from '@/lib/panel-type';
+import { AGENT_PROVIDER_META, getAgentProviderMeta } from '@/lib/agent-provider-meta';
 import { cn } from '@/lib/utils';
+import type { TAgentPanelType } from '@/types/terminal';
 import type {
   ISavedSessionFilter,
   ISessionSearchPage,
@@ -36,6 +40,7 @@ const searchFormSchema = z.object({
   dateFrom: z.string(),
   dateTo: z.string(),
   pinned: z.boolean(),
+  provider: z.enum(['all', ...AGENT_PANEL_TYPES]),
 });
 
 type TSearchForm = z.infer<typeof searchFormSchema>;
@@ -65,6 +70,12 @@ const splitList = (value: string): string[] | undefined => {
   const values = [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
   return values.length > 0 ? values : undefined;
 };
+
+const PROVIDER_FILTERS = ['all', ...AGENT_PANEL_TYPES] as const;
+
+// A single provider selects it; none or both means no provider filter.
+const providerFilterValue = (providers?: TAgentPanelType[]): TSearchForm['provider'] =>
+  providers?.length === 1 ? providers[0] : 'all';
 
 const toDateStart = (value: string): string | undefined => value ? `${value}T00:00:00.000Z` : undefined;
 const toDateEnd = (value: string): string | undefined => value ? `${value}T23:59:59.999Z` : undefined;
@@ -146,6 +157,7 @@ const SessionExplorer = ({
       dateFrom: query.dateFrom?.slice(0, 10) ?? '',
       dateTo: query.dateTo?.slice(0, 10) ?? '',
       pinned: query.pinned ?? false,
+      provider: providerFilterValue(query.providers),
     },
   });
 
@@ -160,6 +172,7 @@ const SessionExplorer = ({
       models: splitList(values.models),
       projects: splitList(values.projects),
       tags: splitList(values.tags),
+      providers: values.provider === 'all' ? undefined : [values.provider],
       pinned: values.pinned ? true : undefined,
       dateFrom: toDateStart(values.dateFrom),
       dateTo: toDateEnd(values.dateTo),
@@ -198,6 +211,39 @@ const SessionExplorer = ({
         <Input {...form.register('projects')} aria-label={t('project')} placeholder={t('project')} className="min-h-11 md:col-span-2" />
         <Input {...form.register('tags')} aria-label={t('tags')} placeholder={t('tags')} className="min-h-11 md:col-span-2" />
         <Button type="submit" className="min-h-11 md:col-span-2" disabled={loading}>{t('search')}</Button>
+        <Controller
+          name="provider"
+          control={form.control}
+          render={({ field }) => (
+            <div role="group" aria-label={t('providerFilter.label')} className="flex gap-1 md:col-span-12">
+              {PROVIDER_FILTERS.map((option) => {
+                const selected = field.value === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    aria-pressed={selected}
+                    data-filter={option}
+                    onClick={() => {
+                      field.onChange(option);
+                      void submit();
+                    }}
+                    className={cn(
+                      'inline-flex min-h-11 min-w-11 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3 text-sm [word-break:keep-all] transition-colors md:max-w-40',
+                      'hover:bg-agent-active/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
+                      selected
+                        ? 'border-agent-active bg-agent-active/10 font-medium text-foreground'
+                        : 'border-border text-muted-foreground',
+                    )}
+                  >
+                    {option !== 'all' && <AgentProviderIcon panelType={option} className="h-3.5 w-3.5 shrink-0" />}
+                    {option === 'all' ? t('providerFilter.all') : AGENT_PROVIDER_META[option].label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        />
         <Input {...form.register('dateFrom')} type="date" aria-label={t('dateFrom')} className="min-h-11 md:col-span-2" />
         <Input {...form.register('dateTo')} type="date" aria-label={t('dateTo')} className="min-h-11 md:col-span-2" />
         <label className="flex min-h-11 items-center gap-2 rounded-md border px-3 text-xs md:col-span-2">
@@ -311,6 +357,16 @@ const SessionExplorer = ({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                 <span className="font-medium text-foreground">{result.entry.projectLabel}</span>
+                {getAgentProviderMeta(result.entry.provider) && (
+                  <span
+                    data-provider={result.entry.provider}
+                    title={t('providerBadge', { agent: AGENT_PROVIDER_META[result.entry.provider].label })}
+                    className="inline-flex items-center gap-1 rounded border px-1.5 py-0.5 [word-break:keep-all]"
+                  >
+                    <AgentProviderIcon panelType={result.entry.provider} className="h-3 w-3 shrink-0" />
+                    {AGENT_PROVIDER_META[result.entry.provider].label}
+                  </span>
+                )}
                 {result.entry.model && <span>{result.entry.model}</span>}
                 <span className="rounded bg-muted px-1.5 py-0.5">{t(`relationship.${relationshipKey(result.entry.relationship)}`)}</span>
                 <span>{dayjs(result.entry.lastActivityAt).format('YYYY-MM-DD HH:mm')}</span>

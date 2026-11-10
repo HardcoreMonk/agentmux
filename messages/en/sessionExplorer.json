@@ -29,10 +29,15 @@
   "degradedTitle": "The Session Catalog search index is unavailable.",
   "rebuild": "Rebuild index",
   "rebuildTitle": "Rebuild the Session Catalog search index?",
-  "rebuildSafety": "This repairs only the search projection and does not delete original Codex sessions.",
+  "rebuildSafety": "This repairs only the search projection and does not delete original agent sessions.",
   "cancel": "Cancel",
   "replayTitle": "Session replay",
   "replayReadOnly": "This is a read-only record. It cannot resume a session or run shell commands.",
+  "providerFilter": {
+    "label": "Filter by agent",
+    "all": "All"
+  },
+  "providerBadge": "Agent: {agent}",
   "health": {
     "ready": "Ready",
     "building": "Building",

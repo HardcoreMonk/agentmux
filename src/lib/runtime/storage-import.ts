@@ -1,4 +1,5 @@
 import type { TRuntimeDatabase } from '@/lib/runtime/storage/schema';
+import { isAgentPanelType } from '@/lib/panel-type';
 import type { IHistoryEntry } from '@/types/message-history';
 import type { ILayoutData, IPaneNode, ISplitNode, ITab, IWorkspacesData, TLayoutNode, TPanelType, TRuntimeVersion } from '@/types/terminal';
 
@@ -87,7 +88,7 @@ const importAgentSession = (
     insert into agent_sessions (
       id, provider, source, source_id, cwd, jsonl_ref, summary, created_at, updated_at
     )
-    values (?, 'codex', 'legacy-layout', ?, ?, ?, ?, ?, ?)
+    values (?, ?, 'legacy-layout', ?, ?, ?, ?, ?, ?)
     on conflict(id) do update set
       cwd = excluded.cwd,
       jsonl_ref = excluded.jsonl_ref,
@@ -95,6 +96,7 @@ const importAgentSession = (
       updated_at = excluded.updated_at
   `).run(
     tab.agentSessionId,
+    isAgentPanelType(tab.panelType) ? tab.panelType : 'codex',
     tab.agentSessionId,
     tab.cwd ?? null,
     tab.agentJsonlPath ?? null,

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { parseAgentPanelTypeList } from '@/lib/panel-type';
 import {
   sessionIdSchema,
   sessionSearchQuerySchema,
@@ -19,6 +20,10 @@ export const sessionSearchApiQuerySchema = z.object({
     sessionTagSchema.transform((value) => [value]),
     z.array(sessionTagSchema).min(1).max(20),
   ]).optional(),
+  // Comma-separated agent providers (e.g. `codex,claude`); unknown values are dropped.
+  providers: z.union([z.string().max(80), z.array(z.string().max(80)).max(4)])
+    .transform((value) => parseAgentPanelTypeList(value))
+    .optional(),
   pinned: z.enum(['true', 'false']).transform((value) => value === 'true').optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),

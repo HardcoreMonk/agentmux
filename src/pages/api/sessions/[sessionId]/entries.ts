@@ -20,7 +20,6 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       sessionId: query.sessionId,
       beforeByte: query.beforeByte,
       limit: query.limit,
-      panelType: 'codex',
     }));
   } catch (error) {
     return sendRuntimeApiError(res, error);

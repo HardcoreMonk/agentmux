@@ -106,8 +106,44 @@ describe('Session Explorer', () => {
       error: 'catalog-unavailable',
       health: { state: 'degraded', queueLag: 0, cursorAgeMs: null, rebuildState: 'idle', indexedSessions: 0, lastIndexedAt: null },
     });
-    expect(en).toContain('does not delete original Codex sessions');
-    expect(ko).toContain('Codex 원본 세션을 삭제하지 않습니다');
+    expect(en).toContain('does not delete original agent sessions');
+    expect(ko).toContain('에이전트 원본 세션을 삭제하지 않습니다');
+  });
+
+  it('renders a provider icon and label on each result row', () => {
+    const entry = (sessionId: string, provider: 'codex' | 'claude') => ({
+      entry: {
+        sessionId, provider, projectLabel: 'agentmux', model: 'm',
+        startedAt: '2026-08-21T08:00:00.000Z', lastActivityAt: '2026-08-21T08:30:00.000Z',
+        turnCount: 2, indexedAt: '2026-08-21T09:00:00.000Z', relationship: 'root',
+      },
+      snippet: 'row',
+    });
+    const markup = renderExplorer('en', {
+      page: { results: [entry('s-codex', 'codex'), entry('s-claude', 'claude')], nextCursor: null, total: 2, health: 'ready' },
+    });
+    expect(markup).toContain('data-provider="codex"');
+    expect(markup).toContain('data-provider="claude"');
+    expect(markup).toContain('Claude Code');
+  });
+
+  it('renders an accessible provider filter with the active selection', () => {
+    const en = renderExplorer('en', { query: { query: '', providers: ['claude'] } });
+    expect(en).toContain('role="group"');
+    expect(en).toContain('aria-label="Filter by agent"');
+    expect(en).toMatch(/data-filter="claude"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-filter="claude"/);
+    expect(en).toMatch(/data-filter="all"[^>]*aria-pressed="false"|aria-pressed="false"[^>]*data-filter="all"/);
+    expect(en).toContain('min-h-11');
+    expect(en).toContain('keep-all');
+    const ko = renderExplorer('ko');
+    expect(ko).toContain('에이전트별 보기');
+    expect(ko).toMatch(/data-filter="all"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-filter="all"/);
+  });
+
+  it('keeps the rebuild safety copy provider neutral', () => {
+    const health = { state: 'degraded', queueLag: 0, cursorAgeMs: null, rebuildState: 'idle', indexedSessions: 0, lastIndexedAt: null };
+    expect(renderExplorer('en', { error: 'x', health })).not.toContain('Codex sessions');
+    expect(renderExplorer('ko', { error: 'x', health })).not.toContain('Codex 원본');
   });
 
   it('supports bounded Arrow navigation', () => {
