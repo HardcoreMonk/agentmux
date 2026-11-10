@@ -189,11 +189,35 @@ UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agent
 - display name은 비어 있으면 안 됩니다.
 - panel type은 `normalizePanelType`에서 인정되어야 합니다.
 - provider id와 panel type은 기존 provider와 중복될 수 없습니다.
-- status behavior는 provider adapter가 명시합니다.
-  - `watchJsonlWhenBound=true`이면 JSONL path가 tab에 묶인 동안 idle/ready 상태에서도 watcher를 유지합니다.
-  - `deferStopHookUntilJsonlIdle=true`이면 stop hook을 바로 `ready-for-review`로 처리하지 않고 JSONL idle 확인 뒤 상태를 갱신합니다.
+- status behavior(`IAgentProviderStatusBehavior`)는 provider adapter가 명시합니다. 아래 표를 따릅니다.
 
-Generic status policy는 provider id 문자열로 Codex 동작을 추론하지 않고 `statusBehavior`를 입력으로 받습니다. Codex 전용 JSONL parsing과 pane prompt recovery는 여전히 Codex adapter/policy에 둡니다.
+### Provider status 동작 flag
+
+2026-11-10 Claude Code provider 단계 1에서 status 경로의 Codex 전용 분기(`provider.id === 'codex'`,
+`providerId !== 'codex'`)를 모두 provider status 동작 flag로 바꿨습니다. 기존 두 flag에
+`reconcileStateFromJsonl`과 `recoverPaneInput`을 더했습니다. Generic status policy와 service는 provider id
+문자열로 Codex 동작을 추론하지 않고 flag를 입력으로 받습니다. Codex는 네 flag가 모두 `true`이고, flag가
+`true`일 때 각 지점의 호출 순서와 결과는 바꾸기 전과 같습니다.
+
+| Flag | `true`일 때 동작 | 쓰는 곳 | Codex |
+| --- | --- | --- | --- |
+| `watchJsonlWhenBound` | JSONL path가 tab에 묶인 동안 idle/ready 상태에서도 JSONL watcher를 유지합니다 | `status-manager.ts` poll·resolve 경로, `jsonl-reconciliation-service.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `status-side-effect-policy.ts` | `true` |
+| `deferStopHookUntilJsonlIdle` | stop hook을 바로 `ready-for-review`로 처리하지 않고 JSONL idle 확인 뒤 상태를 갱신합니다 | hook reducer(`status-state-machine.ts`). `hook-event-service.ts`가 전달합니다 | `true` |
+| `reconcileStateFromJsonl` | JSONL 상태 읽기 결과로 `cliState`를 맞춥니다(`reduceCodexState` 경로). 꺼져 있으면 초기 상태 보정과 cwd 최신 JSONL 채택 판단도 하지 않습니다 | `status-manager.ts` reconcile, `poll-tab-reconciliation.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `timeline/resume-session-service.ts` | `true` |
+| `recoverPaneInput` | 중단된 prompt나 남은 입력을 pane capture로 확인해 복구합니다 | `status-manager.ts` JSONL 변경 처리, `poll-recovery-service.ts`, `pane-recovery-service.ts`, `scan-tab-bootstrap.ts` | `true` |
+
+- JSONL 상태는 provider의 `readJsonlStatus(jsonlPath)`로 읽습니다. Codex 구현은 기존
+  `checkCodexJsonlState` 경로와 rate-limit 관찰을 그대로 씁니다. Provider 공통 tail 검사(`checkJsonlIdle`)와
+  cache 삭제(`clearJsonlCheckCache`)는 `src/lib/status/jsonl-check.ts`에 있습니다.
+- JSONL 경로 허용 root는 provider의 `jsonlRoots()`를 모은 `isAllowedAgentJsonlPath`가 판정합니다.
+- Runtime v2 status IPC의 `statusBehavior` wire schema(`runtime/ipc.ts`)는 바꾸지 않았습니다. Worker로는
+  여전히 `watchJsonlWhenBound`와 `deferStopHookUntilJsonlIdle` 두 key만 보내고, hook reducer와 side-effect
+  policy는 이 두 key만 받는 `TAgentHookStatusBehavior`를 입력으로 씁니다.
+- Pane 입력 복구가 꺼진 provider에서 복구 결과의 reason은 `not-supported`입니다(이전 `not-codex`).
+
+Codex 전용 JSONL parsing(`checkCodexJsonlState`, `reduceCodexState`)과 pane prompt 판정은 여전히 Codex
+adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 legacy tmux adapter로 만들므로
+(`RUNTIME-V2-CUTOVER.md` 2단계), 이 상태 경로는 v1 agent 탭을 기준으로 동작합니다.
 
 ## 관련 파일
 
@@ -205,6 +229,7 @@ Generic status policy는 provider id 문자열로 Codex 동작을 추론하지 �
 | `src/lib/status-web-push-payload.ts` | status Web Push payload projection |
 | `src/lib/status-state-machine.ts` | 상태 전이 helper |
 | `src/lib/status-jsonl-scan.ts` | legacy JSONL tail scan과 assistant/action 추출 |
+| `src/lib/status/jsonl-check.ts` | provider 공통 JSONL tail 상태 검사와 cache, `IAgentJsonlStatus` |
 | `src/lib/codex-rate-limits.ts` | JSONL rate-limit observation parsing과 window merge |
 | `src/lib/rate-limit-view.ts` | reset/freshness UI projection |
 | `src/hooks/use-git-refresh-generation.ts` | Stop sequence별 session generation 공유 |

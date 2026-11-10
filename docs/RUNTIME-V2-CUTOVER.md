@@ -82,6 +82,32 @@ corepack pnpm smoke:runtime-v2
 
 새 plain terminal tab만 runtime v2로 생성합니다. 기존 legacy tab은 유지합니다.
 
+### Agent 탭은 legacy tmux adapter로 생성 (2026-11-10)
+
+Codex 같은 agent 탭은 Runtime v2 agent 지원이 생길 때까지 terminal mode(`new-tabs`, `default` 포함)와
+관계없이 legacy tmux adapter(Runtime v1, `pt-…` session)로 만듭니다. Runtime v2로 만드는 탭은 plain
+terminal 요청뿐입니다. `src/pages/api/layout/pane/[paneId]/tabs/index.ts`의 `isPlainTerminalTabRequest`가
+판정하며, `panelType`이 없거나 `terminal`이고 `command`와 `resumeSessionId`가 없는 요청만 해당합니다.
+`panelType`은 먼저 `normalizePanelType`으로 정규화하므로 등록되지 않은 종류는 `terminal`로 저장됩니다.
+
+이유: agent 기능 대부분이 legacy tmux socket과 `pt-` 이름만 봅니다. Runtime v2(`rtv2-…`)로 만든 Codex
+탭에서는 다음이 동작하지 않았습니다(plan-eng-review에서 코드와 live log로 확인).
+
+- hook 인증: `parseSessionName`이 `pt-` 이름만 받아 v2 session의 status hook을 거절합니다. Live log에
+  `rejected status hook target`이 남았습니다.
+- 상태 감시: `getAllPanesInfo`가 legacy socket만 나열합니다.
+- timeline: `getSessionPanePid`가 v2 pane을 찾지 못합니다.
+- storage 조회: `getReadyTerminalTabBySession`이 `panel_type = 'terminal'` 행만 찾아 실행 입력과 화면
+  캡처가 막힙니다.
+- 권한 요청 카드: 화면 캡처와 key 입력도 legacy socket만 씁니다.
+
+이미 만들어진 v2 agent 탭은 그대로 둡니다(2026-11-10 live layout에는 없음). Runtime v2 agent 지원(hook
+인증, 상태 감시, timeline process 찾기, storage `panel_type` 구분, 화면 캡처와 key 입력)은 Claude Code
+provider 설계 범위 밖의 후속 작업입니다. 결정 근거는
+`superpowers/specs/2026-11-10-claude-code-provider-design.md` 1절과
+`superpowers/reviews/2026-11-10-claude-code-provider-phase1-eng-review.md` #1이며, ADR-037 후보(Draft)입니다.
+회귀 test는 `tests/unit/pages/layout-tabs-api.test.ts`입니다.
+
 검증:
 
 ```bash
