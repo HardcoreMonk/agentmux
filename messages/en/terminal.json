@@ -83,5 +83,9 @@
   "copyPaneCaptureFailed": "Failed to load terminal output",
   "copyPaneCopyAll": "Copy all",
   "copyPaneSuccess": "Copied to clipboard",
-  "copyPaneCopyFailed": "Failed to copy"
+  "copyPaneCopyFailed": "Failed to copy",
+  "agentSwitchLocked": "{agent} is working or waiting for input, so you can't switch to another agent now.",
+  "switchToAgentView": "{agent} is running here. Switch to the agent view?",
+  "switchToAgentViewAccept": "Switch view",
+  "switchToAgentViewDismiss": "Dismiss"
 }

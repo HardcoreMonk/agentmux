@@ -46,7 +46,7 @@ vi.mock('@/hooks/use-tab-metadata-store', () => ({
   },
 }));
 
-const createLayout = (panelType: 'terminal' | 'codex', runtimeVersion?: 1 | 2): ILayoutData => ({
+const createLayout = (panelType: 'terminal' | 'codex' | 'claude', runtimeVersion?: 1 | 2): ILayoutData => ({
   root: {
     type: 'pane',
     id: 'pane-test',
@@ -218,6 +218,51 @@ describe('useLayoutStore panel type switching', () => {
     if (pane?.type !== 'pane') throw new Error('pane fixture missing');
     expect(pane.tabs[0].panelType).toBe('codex');
     expect(toastError).not.toHaveBeenCalled();
+  });
+
+  describe('agent switch lock', () => {
+    const initAgentTab = (cliState: 'idle' | 'busy' | 'needs-input') => {
+      useLayoutStore.setState({ layout: createLayout('codex') });
+      useTabStore.getState().initTab('tab-agent', {
+        workspaceId: 'ws-test',
+        panelType: 'codex',
+        cliState,
+      });
+    };
+
+    it.each(['busy', 'needs-input'] as const)('refuses to switch a %s Codex tab to Claude Code', (cliState) => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      toastError.mockClear();
+      initAgentTab(cliState);
+
+      const applied = useLayoutStore.getState().updateTabPanelType('pane-test', 'tab-agent', 'claude');
+
+      expect(applied).toBe(false);
+      const pane = useLayoutStore.getState().layout?.root;
+      if (pane?.type !== 'pane') throw new Error('pane fixture missing');
+      expect(pane.tabs[0].panelType).toBe('codex');
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(toastError).toHaveBeenCalledTimes(1);
+      expect(toastError.mock.calls[0][0]).toContain('Codex');
+      expect(toastError.mock.calls[0][0]).not.toContain('{agent}');
+    });
+
+    it('switches an idle Codex tab to Claude Code', () => {
+      initAgentTab('idle');
+      expect(useLayoutStore.getState().updateTabPanelType('pane-test', 'tab-agent', 'claude')).toBe(true);
+    });
+
+    it('allows a busy Codex tab to switch to terminal', () => {
+      initAgentTab('busy');
+      expect(useLayoutStore.getState().updateTabPanelType('pane-test', 'tab-agent', 'terminal')).toBe(true);
+    });
+
+    it('returns false for the runtime v2 guard', () => {
+      toastError.mockClear();
+      useLayoutStore.setState({ layout: createLayout('terminal', 2), createTabInPane: vi.fn() });
+      expect(useLayoutStore.getState().updateTabPanelType('pane-test', 'tab-agent', 'codex')).toBe(false);
+    });
   });
 
   it('preserves the surviving local pane and tab focus after closing another pane', async () => {

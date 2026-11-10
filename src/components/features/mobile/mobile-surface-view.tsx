@@ -6,7 +6,7 @@ import type { ISessionMeta } from '@/types/timeline';
 import Spinner from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import type { ITab, TPanelType } from '@/types/terminal';
+import type { ITab, TAgentPanelType, TPanelType } from '@/types/terminal';
 import WebBrowserPanel from '@/components/features/workspace/web-browser-panel';
 import DiffPanel from '@/components/features/workspace/diff-panel';
 import useTerminal from '@/hooks/use-terminal';
@@ -16,9 +16,11 @@ import TerminalContainer from '@/components/features/workspace/terminal-containe
 import ConnectionStatus from '@/components/features/workspace/connection-status';
 import MobileAgentPanel from '@/components/features/mobile/mobile-agent-panel';
 import TrustPromptCard from '@/components/features/workspace/trust-prompt-card';
+import AgentViewPrompt from '@/components/features/workspace/agent-view-prompt';
+import { acceptAgentViewPrompt, agentViewPromptRegistry, shouldOfferAgentView } from '@/lib/agent-view-prompt-state';
 import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
 import MobileTerminalToolbar from '@/components/features/mobile/mobile-terminal-toolbar';
-import { formatTabTitle, isShellProcess } from '@/lib/tab-title';
+import { formatTabTitle, isShellProcess, parseCurrentCommand } from '@/lib/tab-title';
 import {
   isAppShortcut,
   isClearShortcut,
@@ -75,7 +77,7 @@ interface IMobileSurfaceViewProps {
   onDeleteTab: (paneId: string, tabId: string) => Promise<void>;
   onSwitchTab: (paneId: string, tabId: string) => void;
   onRemoveTabLocally: (paneId: string, tabId: string) => void;
-  onUpdateTabPanelType: (paneId: string, tabId: string, panelType: TPanelType) => void;
+  onUpdateTabPanelType: (paneId: string, tabId: string, panelType: TPanelType) => boolean;
   onCliStateChange?: (state: TCliState) => void;
   onOpenNewTabDialog?: () => void;
 }
@@ -150,6 +152,8 @@ const MobileSurfaceView = ({
 
   const pendingRestartRef = useRef(false);
   const pendingAgentInputRef = useRef<string | null>(null);
+  const [offeredAgentView, setOfferedAgentView] = useState<{ tabId: string; provider: TAgentPanelType } | null>(null);
+  const [, setPromptDismissTick] = useState(0);
   const lastTitleRef = useRef('');
   const agentProcess = useTabStore((s) => activeTabId ? selectAgentProcess(s.tabs, activeTabId) : null);
   const sessionView = useTabStore((s) => activeTabId ? selectSessionView(s.tabs, activeTabId) : null);
@@ -203,6 +207,7 @@ const MobileSurfaceView = ({
       lastTitleRef.current = title;
       const formatted = formatTabTitle(title);
       useTabMetadataStore.getState().setTitle(tabId, formatted);
+      useTabStore.getState().setCurrentProcess(tabId, parseCurrentCommand(title));
       if (isShellProcess(title) && pendingRestartRef.current) {
         pendingRestartRef.current = false;
         const workspaceId = useLayoutStore.getState().workspaceId;
@@ -213,7 +218,8 @@ const MobileSurfaceView = ({
         const prevCheckedAt = selectAgentProcessCheckedAt(useTabStore.getState().tabs, tabId);
         fetch(`/api/check-agent?session=${tab.sessionName}`)
           .then((res) => res.json())
-          .then(({ running, checkedAt }) => {
+          .then(({ running, checkedAt, providerPanelType }) => {
+            setOfferedAgentView(running && providerPanelType ? { tabId, provider: providerPanelType } : null);
             const current = useTabStore.getState().tabs[tabId];
             if (current && selectAgentProcessCheckedAt(useTabStore.getState().tabs, tabId) !== prevCheckedAt) {
               if (selectAgentProcess(useTabStore.getState().tabs, tabId) !== running) {
@@ -468,8 +474,33 @@ const MobileSurfaceView = ({
   const handleSendToAgent = useCallback((text: string) => {
     if (!activeTabId) return;
     pendingAgentInputRef.current = text;
-    onUpdateTabPanelType(paneId, activeTabId, isAgentPanelType(panelType) ? panelType : DEFAULT_AGENT_PANEL_TYPE);
+    const applied = onUpdateTabPanelType(paneId, activeTabId, isAgentPanelType(panelType) ? panelType : DEFAULT_AGENT_PANEL_TYPE);
+    if (!applied) pendingAgentInputRef.current = null;
   }, [activeTabId, paneId, onUpdateTabPanelType, panelType]);
+
+  const agentViewProvider = offeredAgentView && offeredAgentView.tabId === activeTabId
+    && shouldOfferAgentView({
+      runtimeVersion: activeTab?.runtimeVersion,
+      panelType,
+      providerPanelType: offeredAgentView.provider,
+      dismissed: agentViewPromptRegistry.isDismissed(offeredAgentView.tabId, offeredAgentView.provider),
+    })
+    ? offeredAgentView.provider
+    : null;
+
+  const handleAcceptAgentView = useCallback(() => {
+    if (!activeTabId || !agentViewProvider) return;
+    acceptAgentViewPrompt(
+      { updateTabPanelType: onUpdateTabPanelType, setSessionView: useTabStore.getState().setSessionView },
+      { paneId, tabId: activeTabId, providerPanelType: agentViewProvider },
+    );
+  }, [paneId, activeTabId, agentViewProvider, onUpdateTabPanelType]);
+
+  const handleDismissAgentView = useCallback(() => {
+    if (!activeTabId || !agentViewProvider) return;
+    agentViewPromptRegistry.dismiss(activeTabId, agentViewProvider);
+    setPromptDismissTick((n) => n + 1);
+  }, [activeTabId, agentViewProvider]);
 
   useEffect(() => {
     if (!isAgentPanel || !pendingAgentInputRef.current) return;
@@ -591,6 +622,14 @@ const MobileSurfaceView = ({
             (!isAgentPanel || showAgentTerminalPreview) && ready && showTerminal ? 'opacity-100' : '',
             (!isAgentPanel || showAgentTerminalPreview) && (!ready || !showTerminal) ? 'opacity-0' : '',
           )}
+        />
+      )}
+
+      {agentViewProvider && (
+        <AgentViewPrompt
+          providerPanelType={agentViewProvider}
+          onAccept={handleAcceptAgentView}
+          onDismiss={handleDismissAgentView}
         />
       )}
 

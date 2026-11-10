@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getSessionPanePid, hasSession } from '@/lib/tmux';
 import { getChildPids } from '@/lib/session-detection';
+import type { TAgentPanelType } from '@/types/terminal';
 import { detectAnyActiveSession, isAnyAgentRunning } from '@/lib/providers';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
@@ -18,22 +19,25 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   const exists = await hasSession(session);
   if (!exists) {
-    return res.status(200).json({ running: false, checkedAt, sessionId: null });
+    return res.status(200).json({ running: false, checkedAt, sessionId: null, providerPanelType: null });
   }
 
   const panePid = await getSessionPanePid(session);
   if (!panePid) {
-    return res.status(200).json({ running: false, checkedAt, sessionId: null });
+    return res.status(200).json({ running: false, checkedAt, sessionId: null, providerPanelType: null });
   }
 
   const childPids = await getChildPids(panePid);
   const running = await isAnyAgentRunning(panePid, childPids);
   if (!running) {
-    return res.status(200).json({ running: false, checkedAt, sessionId: null });
+    return res.status(200).json({ running: false, checkedAt, sessionId: null, providerPanelType: null });
   }
 
-  const { info } = await detectAnyActiveSession(panePid, childPids);
-  return res.status(200).json({ running: true, checkedAt, sessionId: info.sessionId, resumable: !!info.jsonlPath });
+  const { provider, info } = await detectAnyActiveSession(panePid, childPids);
+  return res.status(200).json({
+    running: true, checkedAt, sessionId: info.sessionId, resumable: !!info.jsonlPath,
+    providerPanelType: (provider?.id as TAgentPanelType | undefined) ?? null,
+  });
 };
 
 export default handler;
