@@ -141,13 +141,15 @@ const createResponse = () => {
   };
 };
 
-const callSend = async (tabId: string, content: string) => {
+const CALLER_HEADER = 'x-agentmux-caller-tab';
+
+const callSend = async (tabId: string, content: string, callerTabId?: string) => {
   const response = createResponse();
   const req = {
     method: 'POST',
     query: { tabId, workspaceId: 'ws-a' },
     body: { content },
-    headers: {},
+    headers: callerTabId ? { [CALLER_HEADER]: callerTabId } : {},
   } as unknown as NextApiRequest;
   await handler(req, response.res);
   return response;
@@ -285,7 +287,7 @@ describe('POST /api/cli/tabs/<id>/send to an agent tab', () => {
 });
 
 describe('POST /api/cli/tabs/<id>/send to a terminal tab', () => {
-  it.each(['tab-term-v1', 'tab-term-v2'])('types into %s without status checks', async (tabId) => {
+  it.each(['tab-term-v1', 'tab-term-v2'])('types into %s without status checks when no caller tab is set', async (tabId) => {
     const response = await callSend(tabId, 'ls');
 
     expect(response.statusCode).toBe(200);
@@ -305,6 +307,45 @@ describe('POST /api/cli/tabs/<id>/send to a terminal tab', () => {
 
     expect(response.statusCode).toBe(409);
     expect(response.body).toEqual({ error: 'runtime-v2-disabled', message: 'Runtime v2 is disabled' });
+  });
+});
+
+describe('POST /api/cli/tabs/<id>/send with a caller tab', () => {
+  it.each(['tab-term-v1', 'tab-term-v2'])('refuses terminal tab %s with delegation-send-forbidden and types nothing', async (tabId) => {
+    const response = await callSend(tabId, 'rm -rf build', 'tab-claude');
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({
+      error: 'delegation-send-forbidden',
+      message: 'An agent can send only to agent tabs',
+    });
+    expectNothingTyped();
+  });
+
+  it('returns caller-tab-not-found for an unknown caller tab and types nothing', async () => {
+    const response = await callSend('tab-codex', 'hello', 'tab-gone');
+
+    expect(response.statusCode).toBe(404);
+    expect(response.body).toEqual({ error: 'caller-tab-not-found', message: expect.any(String) });
+    expectNothingTyped();
+  });
+
+  it('keeps the agent gates for an agent target', async () => {
+    mocks.readTabCliState.mockResolvedValue('needs-input');
+
+    const refused = await callSend('tab-codex', 'hello', 'tab-claude');
+
+    expect(refused.statusCode).toBe(409);
+    expect(refused.body).toMatchObject({ error: 'target-needs-input' });
+    expectNothingTyped();
+
+    mocks.readTabCliState.mockResolvedValue('idle');
+
+    const sent = await callSend('tab-codex', 'run the tests', 'tab-claude');
+
+    expect(sent.statusCode).toBe(200);
+    expect(sent.body).toEqual({ status: 'sent', cliState: 'idle', followUpEnterSkipped: false });
+    expect(mocks.writeTabInput).toHaveBeenCalledWith(tabById('tab-codex'), 'run the tests', { guardFollowUpEnter: true });
   });
 });
 

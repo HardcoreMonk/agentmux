@@ -419,11 +419,11 @@
 ## ADR-036: 위임은 확인 없이 진행하고 신뢰 경계는 Unix 사용자로 둔다
 
 - 상태: Accepted (2026-11-11)
-- 결정: agentmux가 띄운 Claude Code는 `claude-tabs/<tab-id>.json`의 `permissions.allow`로 `agentmux tab`의 하위 명령 6개(`list`, `create`, `send`, `status`, `result`, `close`)를 확인 없이 실행합니다. 규칙은 `Bash(agentmux tab list:*)` 형태이며 `tab browser`(특히 `eval`)와 `agentmux` 전체는 허용하지 않습니다. 신뢰 경계는 CLI token을 읽을 수 있는 Unix 사용자입니다. CLI의 위임 제한(호출 탭 header `x-agentmux-caller-tab`이 있을 때 적용)은 agent의 실수를 막는 장치이고 보안 경계가 아닙니다. 제한은 다음과 같습니다: workspace당 agent가 만든 탭 6개(409 `delegation-limit`), 입력이 필요한 agent 탭에는 `tab send` 거절(409 `target-needs-input`), 준비되지 않은 탭에는 거절(409 `target-not-ready`), 호출 탭이 만든 탭만 닫기(403 `delegation-close-forbidden`). CLI는 권한 요청 화면이나 시작 화면에 글자를 보내지 않으며 사용자 대신 승인하거나 거절하지 않습니다. CLI token 범위는 바꾸지 않습니다.
+- 결정: agentmux가 띄운 Claude Code는 `claude-tabs/<tab-id>.json`의 `permissions.allow`로 `agentmux tab`의 하위 명령 6개(`list`, `create`, `send`, `status`, `result`, `close`)를 확인 없이 실행합니다. 규칙은 `Bash(agentmux tab list:*)` 형태이며 `tab browser`(특히 `eval`)와 `agentmux` 전체는 허용하지 않습니다. 신뢰 경계는 CLI token을 읽을 수 있는 Unix 사용자입니다. CLI의 위임 제한(호출 탭 header `x-agentmux-caller-tab`이 있을 때 적용)은 agent의 실수를 막는 장치이고 보안 경계가 아닙니다. 제한은 다음과 같습니다: workspace당 agent가 만든 탭 6개(409 `delegation-limit`), 입력이 필요한 agent 탭에는 `tab send` 거절(409 `target-needs-input`), 준비되지 않은 탭에는 거절(409 `target-not-ready`), agent 탭에만 보내기(403 `delegation-send-forbidden`), 호출 탭이 만든 탭만 닫기(403 `delegation-close-forbidden`). CLI는 권한 요청 화면이나 시작 화면에 글자를 보내지 않으며 사용자 대신 승인하거나 거절하지 않습니다. CLI token 범위는 바꾸지 않습니다.
 - 이유: 위임할 때마다 사용자 확인을 요구하면 agent가 agent에게 일을 맡기는 흐름이 끊깁니다. 한편 같은 Unix 사용자는 token 파일과 tmux 입력을 이미 직접 다룰 수 있으므로 CLI 제한을 우회 불가능한 경계로 설명하면 오해를 만듭니다.
-- trade-off: 위임 제한은 의도적 우회를 막지 못합니다. 사용자 승인 없이 위임 탭이 최대 6개까지 만들어질 수 있고 각 탭은 해당 agent의 자체 권한 설정을 따릅니다.
+- trade-off: 위임 제한은 의도적 우회를 막지 못합니다. 사용자 승인 없이 위임 탭이 최대 6개까지 만들어질 수 있습니다. 위임 입력(`tab send`)은 agent 탭(`claude`, `codex`)에만 닿고, 각 agent 탭은 그 agent의 자체 권한 설정을 따릅니다. Agent 호출은 terminal 탭에 입력할 수 없습니다(403 `delegation-send-forbidden`). 미리 허용된 `tab send`가 shell에 닿으면 agent 자신의 명령 승인(Claude Code의 Bash 권한 확인)을 건너뛰고 shell 명령을 실행하게 되기 때문입니다(사용자 결정 2026-11-11). `tab create -t terminal`은 보내기 없이 무해하므로 그대로 둡니다. 호출 탭이 없는 요청(사람이 실행한 CLI)은 terminal 탭에 그대로 입력합니다.
 - 영향: `src/lib/delegation-guide.ts`, tab API(`workspace-tab-service`), `agentmux tab` CLI, `claude-tabs/<tab-id>.json`.
-- 검증 조건: `permissions.allow`에 위 6개 외 규칙이 없고, 제한별 오류 code가 단위 test로 고정되며, 격리 live 확인에서 권한 확인 화면 없이 위임이 진행되고 needs-input 탭에는 입력이 들어가지 않아야 합니다.
+- 검증 조건: `permissions.allow`에 위 6개 외 규칙이 없고, 제한별 오류 code(agent 호출의 terminal 탭 `tab send` 403 포함)가 단위 test로 고정되며, 격리 live 확인에서 권한 확인 화면 없이 위임이 진행되고 needs-input 탭에는 입력이 들어가지 않아야 합니다.
 
 ## ADR-037: Runtime v2가 agent를 지원하기 전까지 agent 탭은 legacy tmux adapter(Runtime v1)로 만든다
 

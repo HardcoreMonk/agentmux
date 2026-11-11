@@ -9,9 +9,11 @@ All endpoints require header \`x-agentmux-token: <AMUX_TOKEN>\` (legacy \`x-cmux
 
 An agent running in an agentmux tab sends header \`x-agentmux-caller-tab: <its tab id>\`
 (the CLI adds it when AMUX_TAB_ID is set). With this header the request is an agent call:
-tab create and tab close apply the delegation limits below. The server looks the tab up in
-every workspace; an unknown id returns 404 caller-tab-not-found. Without the header there
-are no delegation limits. The limits prevent mistakes; they are not a security boundary.
+tab create, tab send, and tab close apply the delegation limits below. The server looks the
+tab up in every workspace; an unknown id returns 404 caller-tab-not-found. Without the header
+there are no delegation limits. The limits prevent mistakes; they are not a security boundary.
+An agent call can send only to agent tabs (codex, claude): agents pre-allow tab send, so
+input typed into a shell tab would run commands without the agent's own command approval.
 
 ## Errors
 
@@ -21,6 +23,8 @@ Errors added for delegation use { "error": "<code>", "message": "<readable text>
   404 caller-tab-not-found        the caller tab header names no tab
   409 agent-unavailable           the agent for panelType is not installed or not compatible
   409 delegation-limit            the workspace already has 6 agent-created tabs
+  403 delegation-send-forbidden   an agent tried to send to a tab that is not an agent tab
+                                  (nothing is typed)
   403 delegation-close-forbidden  an agent tried to close a tab it did not create
   409 target-needs-input          the target agent waits for the user (state or permission prompt)
   409 target-not-ready            the target agent is not ready (state, no agent process,
@@ -71,7 +75,9 @@ DELETE /api/cli/tabs/<tabId>?workspaceId=WS
 POST /api/cli/tabs/<tabId>/send?workspaceId=WS
   Body: { "content": "..." }
   Send text (bracketed paste, then Enter) to the tab.
-  Terminal tabs: sent without checks. Response: { "status": "sent" }
+  With a caller tab, the target must be an agent tab (codex, claude); any other tab returns
+  403 delegation-send-forbidden and nothing is typed.
+  Terminal tabs without a caller tab: sent without checks. Response: { "status": "sent" }
   Agent tabs (codex, claude): sent only when the state is idle, busy, or ready-for-review,
   the agent process is running, and the screen shows no permission prompt or startup
   screen. Otherwise 409 target-needs-input or target-not-ready, and nothing is typed.

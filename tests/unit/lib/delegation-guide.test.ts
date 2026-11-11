@@ -58,6 +58,12 @@ describe('buildDelegationGuide', () => {
     expect(guide).not.toMatch(/ws-|tab-/);
   });
 
+  it('offers only agent tab types to create, since agents cannot send to terminal tabs', () => {
+    const guide = buildDelegationGuide('claude');
+    expect(guide).toContain('- agentmux tab create -t claude|codex [-n NAME] [--cwd DIR]');
+    expect(guide).not.toContain('terminal');
+  });
+
   it('adds only the sandbox paragraph for codex', () => {
     const claude = buildDelegationGuide('claude');
     const codex = buildDelegationGuide('codex');

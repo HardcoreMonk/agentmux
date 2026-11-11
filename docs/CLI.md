@@ -81,16 +81,19 @@ Bash(agentmux tab close:*)
 - active 탭은 바뀌지 않고 `createdByTabId`가 기록됩니다.
 - workspace당 agent가 만든 탭은 6개까지이며 넘으면 409 `delegation-limit`입니다. 확인과 생성은 workspace별 lock 안에서 합니다.
 - `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. 띄우기가 실패하면 `launchError`를 돌려줍니다.
-- 호출 탭이 없는 탭 id이면 404 `caller-tab-not-found`(create와 close).
+- 호출 탭이 없는 탭 id이면 404 `caller-tab-not-found`(create, send, close).
+- `-t terminal`도 만들 수 있지만 agent 호출은 그 탭에 `tab send`를 할 수 없습니다(아래 tab send).
 
 ### tab send
+
+호출 탭이 있으면 대상은 agent 탭(`claude`, `codex`)이어야 합니다. terminal 탭 등 agent 탭이 아닌 대상은 403 `delegation-send-forbidden`이고 아무것도 입력하지 않습니다. Claude Code는 `tab send`를 미리 허용하므로, shell에 입력이 닿으면 agent 자신의 명령 승인(Bash 권한 확인)을 건너뛰고 shell 명령을 실행하게 되기 때문입니다(ADR-036, 사용자 결정 2026-11-11). 위임 입력은 agent 탭에만 닿고 각 agent 탭은 자체 권한 설정을 따릅니다. 호출 탭이 없는 요청(사람이 실행한 CLI)은 terminal 탭에 확인 없이 입력합니다.
 
 agent 탭에는 다음 경우 입력을 거절합니다.
 
 - 409 `target-needs-input`: 상태가 needs-input이거나 화면에 권한 요청이 있음
 - 409 `target-not-ready`: 상태가 idle/busy/ready-for-review가 아님, agent process가 돌고 있지 않음, 화면을 읽지 못함, 또는 trust·Codex update·Codex hook review 시작 화면이 떠 있음
 
-붙여 넣은 뒤 그런 화면이 나타나면 이어지는 Enter를 보내지 않습니다. CLI는 권한 요청과 시작 화면에 글자를 보내지 않으며 사용자 대신 승인하거나 거절하지 않습니다. Runtime v2 plain terminal 탭은 tmux `send-keys -l --`로 입력하므로 browser 없이도 동작합니다.
+붙여 넣은 뒤 그런 화면이 나타나면 이어지는 Enter를 보내지 않습니다. CLI는 권한 요청과 시작 화면에 글자를 보내지 않으며 사용자 대신 승인하거나 거절하지 않습니다. 사람이 실행한 CLI가 Runtime v2 plain terminal 탭에 보내는 입력은 tmux `send-keys -l --`를 쓰므로 browser 없이도 동작합니다.
 
 ### tab status, result, close
 
@@ -110,7 +113,8 @@ agent 탭에는 다음 경우 입력을 거절합니다.
 | --- | --- | --- |
 | `invalid-panel-type` | 400 | `-t` 값이 `terminal`, `codex`, `claude`, `web-browser`, `diff`가 아님 |
 | `invalid-cwd` | 400 | `--cwd`가 존재하는 절대 경로 directory가 아님 |
-| `caller-tab-not-found` | 404 | 호출 탭 id를 찾을 수 없음(create, close) |
+| `caller-tab-not-found` | 404 | 호출 탭 id를 찾을 수 없음(create, send, close) |
+| `delegation-send-forbidden` | 403 | 호출 탭이 있는 `tab send`의 대상이 agent 탭(`claude`, `codex`)이 아님. 아무것도 입력하지 않음 |
 | `delegation-close-forbidden` | 403 | 호출 탭이 만들지 않은 탭을 닫으려 함 |
 | `agent-unavailable` | 409 | agent가 설치되어 있지 않음 |
 | `delegation-limit` | 409 | workspace의 agent 생성 탭이 이미 6개 |

@@ -76,6 +76,7 @@
 - **명령 길이**: tmux `send-keys` 한 인자는 약 16 KB를 넘으면 거절된다. 합친 Codex 명령이 12 KB(`CODEX_COMMAND_SAFE_BYTES = 12_288`)를 넘으면 `developerInstructions`를 빼고 log warn.
 - **개수 제한 동시성**: 제한 확인과 탭 생성을 workspace별 in-process lock(`withDelegationLock(workspaceId, fn)`, `globalThis` guard) 안에서 한다. Claude Code는 Bash를 병렬로 부를 수 있다. CLI 요청은 모두 한 server process를 거치므로 이 lock으로 충분하다.
 - **Runtime v2 꺼짐**: `AGENTMUX_RUNTIME_V2 !== '1'`이면 v2 탭은 살아 있지 않은 것으로 다룬다. 이때 supervisor를 부르지 않는다(worker를 띄우지 않음).
+- **Agent 호출의 terminal 탭 보내기 금지**(사용자 결정 2026-11-11, branch 최종 검토 뒤): Claude Code는 `Bash(agentmux tab send:*)`와 `Bash(agentmux tab create:*)`를 미리 허용하므로, agent가 `tab create -t terminal` 뒤 `tab send`로 shell 명령을 Bash 권한 확인 없이 실행할 수 있었다(사용자의 기존 terminal 탭도 같음). 그래서 호출 탭이 있는 `tab send`는 agent 탭(`claude`, `codex`)에만 보내고, 다른 탭은 403 `delegation-send-forbidden`(아무것도 입력하지 않음)이다. 호출 탭이 없는 사람의 CLI는 그대로다. 고정 안내 문장의 `tab create` 줄에서 `|terminal`을 뺐다(위 Task 1 문장은 바뀐 문장). `tab create -t terminal`은 보내기 없이 무해하므로 호출 탭이 있어도 허용한다.
 - **Runtime v2 storage**: 기본 mode(`AGENTMUX_RUNTIME_STORAGE_V2_MODE=default`, live 설정)에서는 layout을 SQLite에서 읽으므로 `createdByTabId`를 `tabs.created_by_tab_id` column(schema v6)에 저장한다. 이 migration 뒤에는 이전 build가 DB를 열지 못한다(새 schema version 거부). Rollback은 DB 안에서 schema를 내리는 방식을 기본으로 한다(Task 9). Migration 전 backup을 되돌리는 방식은 배포 뒤 쓴 SQLite 자료(탭, workspace, annotation, governance 기록)를 잃는다. 그 뒤 첫 layout 쓰기가 오래된 SQLite layout으로 현재 `layout.json`을 덮으므로 비상용으로만 둔다.
 
 ---
@@ -108,7 +109,7 @@ You are running inside an agentmux tab. You can hand work to other agent tabs in
 The CLI reads the workspace and your tab from AMUX_WORKSPACE_ID and AMUX_TAB_ID, so you do not need -w.
 
 - agentmux tab list
-- agentmux tab create -t claude|codex|terminal [-n NAME] [--cwd DIR]   (prints tabId and ready; waits up to 60 seconds for the agent)
+- agentmux tab create -t claude|codex [-n NAME] [--cwd DIR]   (prints tabId and ready; waits up to 60 seconds for the agent)
 - agentmux tab send TAB_ID 'instruction'   (quote the instruction with single quotes so your shell does not expand backticks or $; use a heredoc for multi-line text)
 - agentmux tab status TAB_ID   (cliState)
 - agentmux tab result TAB_ID   (lastAssistantMessage and the screen)

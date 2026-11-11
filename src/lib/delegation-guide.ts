@@ -14,7 +14,7 @@ You are running inside an agentmux tab. You can hand work to other agent tabs in
 The CLI reads the workspace and your tab from AMUX_WORKSPACE_ID and AMUX_TAB_ID, so you do not need -w.
 
 - agentmux tab list
-- agentmux tab create -t claude|codex|terminal [-n NAME] [--cwd DIR]   (prints tabId and ready; waits up to 60 seconds for the agent)
+- agentmux tab create -t claude|codex [-n NAME] [--cwd DIR]   (prints tabId and ready; waits up to 60 seconds for the agent)
 - agentmux tab send TAB_ID 'instruction'   (quote the instruction with single quotes so your shell does not expand backticks or $; use a heredoc for multi-line text)
 - agentmux tab status TAB_ID   (cliState)
 - agentmux tab result TAB_ID   (lastAssistantMessage and the screen)

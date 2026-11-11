@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyCliToken } from '@/lib/cli-token';
 import { findTab } from '@/lib/cli-utils';
-import { sendCliError, sendCliServiceError } from '@/lib/cli-caller';
+import { resolveCliCaller, sendCliError, sendCliServiceError } from '@/lib/cli-caller';
 import { createLogger } from '@/lib/logger';
 import { isAgentPanelType } from '@/lib/panel-type';
 import { hasPermissionPrompt } from '@/lib/permission-prompt';
@@ -50,6 +50,15 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const { tab } = found;
 
   try {
+    const resolved = await resolveCliCaller(req);
+    if (!resolved.ok) {
+      return sendCliError(res, resolved.status, resolved.code, 'The calling tab was not found in any workspace');
+    }
+    // Agents pre-allow `tab send`; typing into a shell tab would run commands without the agent's own approval.
+    if (resolved.caller && !isAgentPanelType(tab.panelType)) {
+      return sendCliError(res, 403, 'delegation-send-forbidden', 'An agent can send only to agent tabs');
+    }
+
     const alive = await isTabSessionAlive(tab);
     if (!alive) return res.status(409).json({ error: 'Tab session is not running' });
 
