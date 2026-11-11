@@ -103,7 +103,7 @@ agent 탭에는 다음 경우 입력을 거절합니다.
 
 ### Runtime v2 꺼짐
 
-`AGENTMUX_RUNTIME_V2`가 켜져 있지 않으면 v2 탭은 살아 있지 않은 것으로 보고, 쓰기는 409 `runtime-v2-disabled`입니다.
+`AGENTMUX_RUNTIME_V2`가 켜져 있지 않으면 v2 탭은 살아 있지 않은 것으로 보고 Runtime v2 supervisor를 부르지 않습니다. 그래서 v2 탭에 대한 `tab send`와 `tab result`는 409 `{ "error": "Tab session is not running" }`(기존 형식)이고, `tab status`는 200에 `alive: false`를 돌려줍니다. v2 탭은 plain terminal뿐이므로 호출 탭이 있는 `tab send`는 그 전에 403 `delegation-send-forbidden`입니다.
 
 ## 오류 응답
 
@@ -120,4 +120,4 @@ agent 탭에는 다음 경우 입력을 거절합니다.
 | `delegation-limit` | 409 | workspace의 agent 생성 탭이 이미 6개 |
 | `target-needs-input` | 409 | 대상 agent가 사용자 입력(권한 요청)을 기다림 |
 | `target-not-ready` | 409 | 대상 agent가 입력을 받을 상태가 아님 |
-| `runtime-v2-disabled` | 409 | Runtime v2가 꺼져 있어 v2 탭에 쓸 수 없음 |
+| `runtime-v2-disabled` | 409 | 탭 서비스가 Runtime v2가 꺼진 상태에서 v2 탭 쓰기를 거절함. `send`와 `result`는 그 전에 session 확인에서 `Tab session is not running`을 돌려주므로 보통은 나오지 않음 |

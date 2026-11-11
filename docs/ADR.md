@@ -430,6 +430,6 @@
 - 상태: Accepted (2026-11-11)
 - 결정: Claude Code와 Codex 탭은 Runtime v2 agent 지원 전까지 legacy tmux adapter(Runtime v1)로 만듭니다. Plain terminal 탭은 terminal v2 mode 규칙(`shouldCreateTerminalTabInRuntimeV2`)을 따르며 CLI가 만드는 탭도 같습니다. 단계 1에서 구현했고 이 ADR은 그 결정을 기록합니다. Runtime v2 terminal 탭에는 browser 없이도 입력할 수 있도록 tmux `send-keys -l --`를 쓰는 `terminal.send-text` IPC를 둡니다.
 - 이유: Runtime v2 worker와 storage는 agent 상태 감지, hook, resume을 아직 다루지 않습니다. Agent 탭을 v2로 만들면 단계 1~3의 provider 경로를 다시 쓰게 됩니다.
-- trade-off: Agent 탭과 plain terminal 탭이 다른 runtime에 있어 위임 코드가 두 경로를 구분해야 합니다. Runtime v2가 꺼지면 v2 탭은 살아 있지 않은 것으로 다루고 쓰기는 409 `runtime-v2-disabled`입니다.
+- trade-off: Agent 탭과 plain terminal 탭이 다른 runtime에 있어 위임 코드가 두 경로를 구분해야 합니다. Runtime v2가 꺼지면 v2 탭은 살아 있지 않은 것으로 다루고 supervisor를 부르지 않습니다. 그래서 v2 탭의 `tab send`·`tab result`는 409 `Tab session is not running`, `tab status`는 `alive: false`입니다.
 - 영향: `agent-launch-service`, `workspace-tab-service`, Runtime v2 supervisor IPC.
 - 검증 조건: Runtime v2 agent 지원을 설계할 때 이 ADR을 새 ADR로 대체합니다.

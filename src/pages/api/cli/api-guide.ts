@@ -30,7 +30,9 @@ Errors added for delegation use { "error": "<code>", "message": "<readable text>
   409 target-not-ready            the target agent is not ready (state, no agent process,
                                   unreadable screen, or a startup screen such as folder trust
                                   or the Codex update prompt)
-  409 runtime-v2-disabled         the tab is a Runtime v2 tab and Runtime v2 is off
+  409 runtime-v2-disabled         the tab service refused a Runtime v2 write while Runtime v2
+                                  is off. Rarely seen: send and result check the session
+                                  first and return 409 "Tab session is not running"
   500 internal-error              unexpected server error
 Other errors keep the { "error": "<text>" } form.
 
