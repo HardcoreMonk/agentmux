@@ -433,7 +433,9 @@ Task 1~8로 구현했다. 설계 결정은 ADR-035/036/037, CLI 계약은 `docs/
   같으면 일찍 return하므로). `writeIfChanged` 임시 이름 경합은 수정 루프에 포함했다.
 - `activate:false`로 만든 탭이 빈 pane(`activeTabId` null)에 놓이면 그 탭을 active로 한다(`activePaneId`는 그대로).
 - `tab send`는 시작 화면 검사를 권한 요청 검사보다 먼저 한다(`hasPermissionPrompt`가 trust 화면에도 맞아서). 둘 다 입력은 보내지 않는다.
-- 호출 탭 header는 `create`와 `close`에서만 해석한다(404 `caller-tab-not-found`). `send`/`status`/`result`/`list`는 무시한다.
+- 호출 탭 header는 `create`, `send`, `close`에서 해석한다(404 `caller-tab-not-found`). `status`/`result`/`list`는 무시한다. `send`는
+  최종 review 뒤 사용자 결정("막기")으로 header를 읽게 됐다: 호출 탭이 있으면 agent 탭에만 보낼 수 있고 terminal 탭은 403
+  `delegation-send-forbidden`.
 - agent 탭 안의 `tab list`는 `AMUX_WORKSPACE_ID` workspace로 범위가 좁혀진다(`-w`가 우선).
 - 호출 탭 header 없는 `create`의 500 본문이 `{ error: 'internal-error', message }`로 바뀐다.
 - Runtime v2 storage 기본 mode에서는 `createdByTabId`를 SQLite column(schema v6)에 저장한다.
@@ -475,7 +477,7 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 | 4 | needs-input 대상 `tab send` 거절 | 재현 못 함. 격리 config에 `claudePermissionMode: 'default'`를 두고 `touch /tmp/p4-perm-probe`를 요청했지만 사용자 Claude 설정 아래에서 권한 요청 없이 실행됐다(파일은 확인 뒤 지움). 그래서 상태가 `ready-for-review`였고 뒤의 `tab send`는 정상 전달됐다(prompt 1개 초과). needs-input 거절은 unit test(`cli-tabs-send-api.test.ts`)가 고정하고, 화면 판정 거절 경로는 2에서 live로 확인했다 |
 | 5 | 개수·닫기 제한, Runtime v2 터미널 | 통과. 위임 탭 6개(터미널 5 + Claude 1) 뒤 7번째 `tab create` → `delegation-limit`. 사용자 탭·호출 탭 자신 `tab close` → `delegation-close-forbidden`. 위임으로 만든 plain terminal 탭은 Runtime v2이고 active 탭을 바꾸지 않았다. 브라우저가 붙지 않은 v2 탭에 `tab send 'echo p4-ok'`, `tab result`에 `p4-ok`, `tab status`의 `alive: true`. 이 live 확인 뒤 agent 호출은 terminal 탭에 `tab send`를 할 수 없게 바뀌었다(사용자 결정 2026-11-11, 403 `delegation-send-forbidden`). 그래서 위 v2 terminal `tab send`는 이제 사람이 실행한 CLI(호출 탭 header 없음)에만 해당하고, 403은 unit test(`cli-tabs-send-api.test.ts`)가 고정한다 |
 | 6 | 위임 설정 끔 | 통과. 새 Claude process에 `--append-system-prompt-file`·`AMUX_*` 없음, 탭 설정에 `permissions` 없음 |
-| 7 | Legacy mode(`AGENTMUX_RUNTIME_V2` 없음) | 통과(prompt 없이). `tab create -t claude` 2초 만에 `ready: true`(status manager 경로), terminal 탭 v1, `tab send`/`result` 동작, 위임 탭 status `idle`·`providerId: claude` |
+| 7 | Legacy mode(`AGENTMUX_RUNTIME_V2` 없음) | 통과(prompt 없이). `tab create -t claude` 2초 만에 `ready: true`(status manager 경로), terminal 탭 v1, `tab send`/`result` 동작, 위임 탭 status `idle`·`providerId: claude`. 이때 terminal 탭 `tab send`는 `AMUX_TAB_ID`를 준 shim으로 보냈으므로, 최종 수정(agent 호출자의 terminal 전송 차단) 뒤에는 403이 된다. 사람이 실행하는 CLI(호출 탭 header 없음)의 terminal 전송은 그대로다 |
 | 8 | Rollback SQL | 통과. v6 DB 복사본(`created_by_tab_id` 값 1행)에 `RUNTIME_SCHEMA_V6_DOWNGRADE_SQL` 실행 → version 5, column 제거, 탭 5행 유지. main `5b29cb67` build가 그 복사본으로 시작해 Runtime v2 storage ok, `tab list` 5개, schema 오류 없음 |
 
 - 안전 확인: 전후 `~/.claude/settings.json`, `~/.codex/config.toml` sha256, 기본 socket의 live tmux session 목록,
