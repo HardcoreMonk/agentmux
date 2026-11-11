@@ -97,7 +97,7 @@ export const buildHookSettings = () => ({
   },
 });
 
-const writeIfChanged = async (filePath: string, content: string, mode: number): Promise<void> => {
+export const writeIfChanged = async (filePath: string, content: string, mode: number): Promise<void> => {
   try {
     if (await fs.readFile(filePath, 'utf-8') === content) return;
   } catch {
