@@ -1,7 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyCliToken } from '@/lib/cli-token';
 import { findTab } from '@/lib/cli-utils';
-import { capturePaneContent, hasSession } from '@/lib/tmux';
+import { sendCliServiceError } from '@/lib/cli-caller';
+import { createLogger } from '@/lib/logger';
+import { isAgentPanelType } from '@/lib/panel-type';
+import {
+  isTabSessionAlive,
+  readLastAssistantMessage,
+  readTabCliState,
+  readTabScreen,
+} from '@/lib/workspace-tab-service';
+
+const log = createLogger('api:cli:tabs');
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'GET') {
@@ -20,12 +30,27 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   const found = await findTab(workspaceId, tabId);
   if (!found) return res.status(404).json({ error: 'Tab not found' });
+  const { tab } = found;
 
-  const alive = await hasSession(found.tab.sessionName);
-  if (!alive) return res.status(409).json({ error: 'Tab session is not running' });
+  try {
+    const alive = await isTabSessionAlive(tab);
+    if (!alive) return res.status(409).json({ error: 'Tab session is not running' });
 
-  const content = await capturePaneContent(found.tab.sessionName);
-  return res.status(200).json({ content });
+    const content = await readTabScreen(tab);
+    if (!isAgentPanelType(tab.panelType)) {
+      return res.status(200).json({ content });
+    }
+    return res.status(200).json({
+      tabId,
+      panelType: tab.panelType,
+      cliState: await readTabCliState(tab),
+      lastAssistantMessage: await readLastAssistantMessage(tab),
+      content,
+    });
+  } catch (err) {
+    log.error(`read tab result failed: ${err instanceof Error ? err.message : err}`);
+    return sendCliServiceError(res, err);
+  }
 };
 
 export default handler;

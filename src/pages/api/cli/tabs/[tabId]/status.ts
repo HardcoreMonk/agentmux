@@ -1,8 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyCliToken } from '@/lib/cli-token';
 import { findTab } from '@/lib/cli-utils';
-import { hasSession, getPaneCurrentCommand } from '@/lib/tmux';
+import { sendCliServiceError } from '@/lib/cli-caller';
+import { createLogger } from '@/lib/logger';
+import { getPaneCurrentCommand } from '@/lib/tmux';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
+import { getProviderByPanelType } from '@/lib/providers';
+import { resolveTabRuntimeVersion } from '@/lib/runtime/terminal-mode';
+import { isTabSessionAlive, readTabCliState } from '@/lib/workspace-tab-service';
+
+const log = createLogger('api:cli:tabs');
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'GET') {
@@ -21,21 +28,28 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
   const found = await findTab(workspaceId, tabId);
   if (!found) return res.status(404).json({ error: 'Tab not found' });
+  const { tab } = found;
 
-  const alive = await hasSession(found.tab.sessionName);
-  if (!alive) {
-    return res.status(200).json({ tabId, workspaceId, alive: false });
+  try {
+    const alive = await isTabSessionAlive(tab);
+    const command = alive && resolveTabRuntimeVersion(tab) === 1
+      ? await getPaneCurrentCommand(tab.sessionName)
+      : null;
+    return res.status(200).json({
+      tabId,
+      workspaceId,
+      panelType: tab.panelType ?? null,
+      providerId: getProviderByPanelType(tab.panelType)?.id ?? null,
+      alive,
+      command,
+      cliState: await readTabCliState(tab),
+      agentSessionId: readAgentSessionId(tab),
+      createdByTabId: tab.createdByTabId ?? null,
+    });
+  } catch (err) {
+    log.error(`read tab status failed: ${err instanceof Error ? err.message : err}`);
+    return sendCliServiceError(res, err);
   }
-
-  const command = await getPaneCurrentCommand(found.tab.sessionName);
-  return res.status(200).json({
-    tabId,
-    workspaceId,
-    alive: true,
-    command,
-    cliState: found.tab.cliState ?? null,
-    agentSessionId: readAgentSessionId(found.tab),
-  });
 };
 
 export default handler;
