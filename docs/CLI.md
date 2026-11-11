@@ -108,6 +108,7 @@ agent 탭에는 다음 경우 입력을 거절합니다.
 
 | code | HTTP | 의미 |
 | --- | --- | --- |
+| `invalid-panel-type` | 400 | `-t` 값이 `terminal`, `codex`, `claude`, `web-browser`, `diff`가 아님 |
 | `invalid-cwd` | 400 | `--cwd`가 존재하는 절대 경로 directory가 아님 |
 | `caller-tab-not-found` | 404 | 호출 탭 id를 찾을 수 없음(create, close) |
 | `delegation-close-forbidden` | 403 | 호출 탭이 만들지 않은 탭을 닫으려 함 |

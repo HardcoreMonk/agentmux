@@ -313,6 +313,8 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 
 | 항목 | 내용 |
 | --- | --- |
+| Codex 위임 대상이 hook 검토 화면에서 멈춤 | 2026-11-11 격리 live 확인: agentmux가 띄운 Codex `0.167.0`이 "Hooks need review"(3 hooks new or changed)에서 멈춰 `tab create -t codex`가 `ready: false`. 위임 CLI는 이 화면에 입력하지 않음(`target-not-ready`). Codex를 위임 대상으로 쓰려면 hook 정의를 실행마다 같게 만드는 설계 2 작업(capability를 환경 변수로)이 먼저 필요 |
+| needs-input live 재현 | 격리 live 확인에서 Claude 권한 요청을 띄우지 못해(사용자 설정 아래 `touch`가 확인 없이 실행) needs-input 대상 `tab send` 거절은 unit test로만 확인. 다음 live 확인에서 확실히 권한을 묻는 동작으로 재시도 |
 | 모바일 `aria-label`과 표시 문구 | `mobile-workspace-tab-bar.tsx`의 `aria-label`이 sr-only "Agent가 만든 탭" 문구를 가림. 모바일 표시 test 없음 |
 | 만든 탭 이름 title | 만든 agent 탭 표시의 title이 creator 이름 대신 일반 fallback 문구 |
 | 띄우기 중 예외 | `tab create`에서 탭 생성 뒤 `launchAgentInTab`이 throw하면 `tabId` 없는 500. 탭은 `createdByTabId`와 함께 남아 `tab list`로 찾을 수 있음. 해법 후보: catch 후 201 `ready:false` `launchError:'launch-failed'` |

@@ -460,8 +460,30 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 
 ### 전체 gate와 격리 live 확인
 
-- 전체 gate: (controller가 기록)
-- 격리 live 확인: (controller가 기록)
+- 전체 gate(`79bba83c` 코드, 문서 `d53c9702`): `tsc --noEmit` 통과, lint error 0(기존 `window.location` 경고 6개), 임시 HOME으로
+  전체 test 333 files / 2320 통과 / 3 skipped, `pnpm build` 통과, `check:project-design`·`check:product-name` 통과.
+- 격리 live 확인(2026-11-11 17:45~17:55 KST). 이 worktree production build, `env -i` 허용 목록, 임시 `AGENTMUX_DATA_DIR`와 짧은
+  임시 `TMUX_TMPDIR`, live와 같은 Runtime v2 mode, port 18122(legacy 18123, rollback 18124). Workspace cwd는
+  `/data/projects/agentcode-zone`(Claude·Codex trust가 이미 수락된 경로, project `.codex/config.toml` 없음). 브라우저는 열지 않았다.
+  Claude prompt 5개(계획 4개, 아래 4에서 1개 초과), Codex prompt 0개.
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 1 | 위임 설정 켬 Claude 탭 | 통과. Claude process에 `--append-system-prompt-file`, 환경 변수 `AMUX_WORKSPACE_ID`·`AMUX_TAB_ID`. 탭 설정 `permissions.allow`는 `agentmux tab` 하위 명령 6개. Shim 줄과 안내 파일 mode 0600 확인 |
+| 2 | Claude → Codex 위임 | 부분. Claude가 권한 확인 없이 `agentmux tab create -t codex`를 실행했고, Codex 탭이 같은 pane·같은 cwd에 생겼으며 active 탭은 그대로, `createdByTabId` 기록. 그러나 Codex가 "Hooks need review"(3 hooks new or changed)에서 멈춰 `ready: false`였고 Claude는 안내대로 보내지 않았다. 그 탭에 직접 `tab send`하면 `target-not-ready`("Codex hook review screen")로 거절되고 화면은 그대로였다(상태는 `busy`라 화면 판정이 막았다). 같은 탭을 호출 탭 권한으로 `tab close` → 성공 |
+| 3 | Claude → Claude 위임(긍정 경로) | 통과. 위임 탭이 같은 pane·cwd, active 탭 그대로, 지시 전달, `tab result`의 `lastAssistantMessage` "OK", 호출한 Claude가 "lastAssistantMessage 텍스트는 OK" 보고 |
+| 4 | needs-input 대상 `tab send` 거절 | 재현 못 함. 격리 config에 `claudePermissionMode: 'default'`를 두고 `touch /tmp/p4-perm-probe`를 요청했지만 사용자 Claude 설정 아래에서 권한 요청 없이 실행됐다(파일은 확인 뒤 지움). 그래서 상태가 `ready-for-review`였고 뒤의 `tab send`는 정상 전달됐다(prompt 1개 초과). needs-input 거절은 unit test(`cli-tabs-send-api.test.ts`)가 고정하고, 화면 판정 거절 경로는 2에서 live로 확인했다 |
+| 5 | 개수·닫기 제한, Runtime v2 터미널 | 통과. 위임 탭 6개(터미널 5 + Claude 1) 뒤 7번째 `tab create` → `delegation-limit`. 사용자 탭·호출 탭 자신 `tab close` → `delegation-close-forbidden`. 위임으로 만든 plain terminal 탭은 Runtime v2이고 active 탭을 바꾸지 않았다. 브라우저가 붙지 않은 v2 탭에 `tab send 'echo p4-ok'`, `tab result`에 `p4-ok`, `tab status`의 `alive: true` |
+| 6 | 위임 설정 끔 | 통과. 새 Claude process에 `--append-system-prompt-file`·`AMUX_*` 없음, 탭 설정에 `permissions` 없음 |
+| 7 | Legacy mode(`AGENTMUX_RUNTIME_V2` 없음) | 통과(prompt 없이). `tab create -t claude` 2초 만에 `ready: true`(status manager 경로), terminal 탭 v1, `tab send`/`result` 동작, 위임 탭 status `idle`·`providerId: claude` |
+| 8 | Rollback SQL | 통과. v6 DB 복사본(`created_by_tab_id` 값 1행)에 `RUNTIME_SCHEMA_V6_DOWNGRADE_SQL` 실행 → version 5, column 제거, 탭 5행 유지. main `5b29cb67` build가 그 복사본으로 시작해 Runtime v2 storage ok, `tab list` 5개, schema 오류 없음 |
+
+- 안전 확인: 전후 `~/.claude/settings.json`, `~/.codex/config.toml` sha256, 기본 socket의 live tmux session 목록,
+  `agentmux.service` MainPID `704190`(NRestarts 0)가 같다. 격리 server 3개와 그 tmux server, 임시 data dir, rollback용 임시
+  worktree는 정리했다.
+- Codex 위임 한계: agentmux가 띄운 Codex `0.167.0`은 매번 "Hooks need review" 화면에서 멈춘다(hook 명령 안의 capability가
+  실행마다 바뀌는 것으로 추정, 아래 Follow-Up의 Codex hooks 항목). 이 화면은 위임 CLI가 감지해 입력하지 않지만, Codex를
+  위임 대상으로 쓰려면 사용자가 화면에서 처리해야 한다. 고치는 일은 설계 2 범위다.
 
 ## Current Lifecycle Stage
 
@@ -485,8 +507,9 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 
 ## Next Action
 
-단계 3은 live에 배포됐고(`ad32559d`) 배포 뒤 확인을 마쳤다. 단계 4(위임 안내, `permissions.allow`, CLI 변경)는 구현과 문서를 마쳤다.
-다음은 전체 gate, 격리 live 확인, 최종 code-review, PR이다. 배포(main push와 `deploy:local`)는 사용자가 직접 실행한다.
+단계 3은 live에 배포됐고(`ad32559d`) 배포 뒤 확인을 마쳤다. 단계 4(위임 안내, `permissions.allow`, CLI 변경)는 구현, 문서, 전체
+gate, 격리 live 확인을 마쳤다. 다음은 branch 최종 code-review, PR이다. 배포(main push와 `deploy:local`)는 사용자가 직접 실행한다.
+단계 3 이전 build(`d1accfc6` 등)로 내릴 때는 Claude 탭을 먼저 닫는다.
 단계 4 rollback은 위 "배포와 rollback 절차"(schema v6 in-place downgrade)를 따른다. 단계 3 rollback(통계 cache v5→v4)은
 service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json` 뒤 이전 build를 시작하는 방식이다
 (이전 build는 v5를 버리고 원본 파일로 다시 계산해 원본이 없는 날짜를 잃는다).
