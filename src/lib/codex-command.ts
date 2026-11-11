@@ -3,6 +3,9 @@ const THREAD_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const shellQuote = (value: string): string =>
   `'${value.replace(/'/g, `'\\''`)}'`;
 
+// tmux rejects a send-keys argument of about 16 KB.
+export const CODEX_COMMAND_SAFE_BYTES = 12_288;
+
 export const isValidCodexThreadId = (id: unknown): id is string =>
   typeof id === 'string' && THREAD_ID_RE.test(id);
 
@@ -19,6 +22,8 @@ export interface ICodexCommandOptions {
   approvalPolicy?: TCodexApprovalPolicy;
   search?: boolean;
   hookConfigs?: string[];
+  envPrefix?: string;
+  developerInstructions?: string;
 }
 
 const buildCodexOptions = (options: ICodexCommandOptions = {}): string[] => {
@@ -31,12 +36,17 @@ const buildCodexOptions = (options: ICodexCommandOptions = {}): string[] => {
   return parts;
 };
 
-const buildCodexGlobalOptions = (options: ICodexCommandOptions): string[] =>
-  (options.hookConfigs ?? []).flatMap((config) => ['-c', shellQuote(config)]);
+const buildCodexGlobalOptions = (options: ICodexCommandOptions): string[] => {
+  const configs = [...(options.hookConfigs ?? [])];
+  if (options.developerInstructions) {
+    configs.push(`developer_instructions=${JSON.stringify(options.developerInstructions)}`);
+  }
+  return configs.flatMap((config) => ['-c', shellQuote(config)]);
+};
 
 export const buildCodexLaunchCommand = (options: ICodexCommandOptions = {}): string => {
   const parts = ['codex', ...buildCodexGlobalOptions(options), ...buildCodexOptions(options)];
-  return parts.join(' ');
+  return `${options.envPrefix ?? ''}${parts.join(' ')}`;
 };
 
 export const buildCodexResumeCommand = (
@@ -47,5 +57,5 @@ export const buildCodexResumeCommand = (
     throw new Error(`Invalid Codex thread ID format: ${threadId}`);
   }
   const parts = ['codex', ...buildCodexGlobalOptions(options), 'resume', threadId, ...buildCodexOptions(options)];
-  return parts.join(' ');
+  return `${options.envPrefix ?? ''}${parts.join(' ')}`;
 };

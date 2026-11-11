@@ -8,7 +8,12 @@ interface IClaudeTabSettingsInput {
   tabId: string;
   sessionName: string;
   nodePath?: string;
+  allowDelegation?: boolean;
 }
+
+// `tab browser` (page eval) and the rest of the CLI still ask the user.
+export const CLAUDE_DELEGATION_ALLOW_RULES: readonly string[] = ['list', 'create', 'send', 'status', 'result', 'close']
+  .map((subcommand) => `Bash(agentmux tab ${subcommand}:*)`);
 
 const HOOK_EVENTS = [
   { name: 'SessionStart', bridgeEvent: 'session-start', matcher: 'startup|resume|clear|fork' },
@@ -32,6 +37,7 @@ export const writeClaudeTabSettings = async ({
   tabId,
   sessionName,
   nodePath = process.execPath,
+  allowDelegation = false,
 }: IClaudeTabSettingsInput): Promise<string> => {
   const capability = createAgentHookCapability(tabId, sessionName);
   const hooks = Object.fromEntries(HOOK_EVENTS.map((spec) => [
@@ -52,6 +58,7 @@ export const writeClaudeTabSettings = async ({
       type: 'command',
       command: buildNodeCommand(nodePath, [STATUSLINE_SCRIPT_PATH]),
     },
+    ...(allowDelegation ? { permissions: { allow: [...CLAUDE_DELEGATION_ALLOW_RULES] } } : {}),
   };
 
   const dir = getTabSettingsDir();

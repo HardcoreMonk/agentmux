@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   readLayoutFile: vi.fn(),
@@ -12,6 +15,8 @@ const mocks = vi.hoisted(() => ({
   buildClaudeLaunchCommand: vi.fn(),
   createLaunchSessionId: vi.fn(),
   patchTab: vi.fn(),
+  getSessionCwd: vi.fn(),
+  getConfig: vi.fn(),
 }));
 
 vi.mock('@/lib/layout-store', () => ({
@@ -22,7 +27,13 @@ vi.mock('@/lib/layout-store', () => ({
 }));
 vi.mock('@/lib/tmux', () => ({
   checkTerminalProcess: mocks.checkTerminalProcess,
+  getSessionCwd: mocks.getSessionCwd,
   sendKeys: mocks.sendKeys,
+}));
+vi.mock('@/lib/config-store', () => ({ getConfig: mocks.getConfig }));
+vi.mock('@/lib/cli-token', () => ({ getCliToken: () => 'test-token' }));
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({ trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
 }));
 const codexTestProvider = {
   id: 'codex',
@@ -69,6 +80,7 @@ const layout = (runtimeVersion: 1 | 2, panelType: 'codex' | 'claude' = 'codex') 
       order: 0,
       panelType,
       runtimeVersion,
+      cwd: '/work/stored',
     }],
   },
 });
@@ -84,6 +96,7 @@ describe('launchAgentInTab', () => {
       },
     });
     mocks.checkTerminalProcess.mockResolvedValue({ isSafe: true, processName: 'bash' });
+    mocks.getSessionCwd.mockResolvedValue('/work/live');
     mocks.buildLaunchCommand.mockResolvedValue('codex -c hooks');
     mocks.updateTabAgentSession.mockResolvedValue(undefined);
     mocks.patchTab.mockResolvedValue({});
@@ -104,9 +117,18 @@ describe('launchAgentInTab', () => {
       workspaceId: 'ws-a',
       tabId: 'tab-a',
       sessionName: 'pt-ws-a-pane-a-tab-a',
+      cwd: '/work/live',
     });
+    expect(mocks.getSessionCwd).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a');
     expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'codex -c hooks');
     expect(mocks.updateTabAgentSession).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the stored tab cwd when tmux does not know it', async () => {
+    mocks.readLayoutFile.mockResolvedValue(layout(1));
+    mocks.getSessionCwd.mockResolvedValue(null);
+    await launchAgentInTab({ workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch' });
+    expect(mocks.buildLaunchCommand).toHaveBeenCalledWith(expect.objectContaining({ cwd: '/work/stored' }));
   });
 
   it('builds, then stores the assigned Claude session id, then sends the launch command', async () => {
@@ -127,6 +149,7 @@ describe('launchAgentInTab', () => {
       workspaceId: 'ws-a',
       tabId: 'tab-a',
       sessionName: 'pt-ws-a-pane-a-tab-a',
+      cwd: '/work/live',
       sessionId: 'session-claude-1',
     });
     expect(mocks.sendKeys).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'claude --session-id session-claude-1');
@@ -185,6 +208,8 @@ describe('launchAgentInTab', () => {
       data: 'codex -c hooks\r',
     });
     expect(mocks.sendKeys).not.toHaveBeenCalled();
+    expect(mocks.getSessionCwd).not.toHaveBeenCalled();
+    expect(mocks.buildLaunchCommand).toHaveBeenCalledWith(expect.objectContaining({ cwd: '/work/stored' }));
   });
 
   it('blocks unsafe legacy processes and unsupported Codex versions', async () => {
@@ -227,6 +252,48 @@ describe('launchAgentInTab', () => {
     await expect(launchAgentInTab({
       workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch',
     })).resolves.toEqual({ ok: true });
+  });
+
+  describe('with the real Claude provider', () => {
+    const claudeSessionId = '11111111-2222-4333-8444-555555555555';
+    let root: string;
+
+    beforeEach(async () => {
+      root = await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-launch-service-'));
+      vi.stubEnv('HOME', root);
+      vi.stubEnv('AGENTMUX_DATA_DIR', path.join(root, 'data'));
+      const { claudeProvider } = await vi.importActual<typeof import('@/lib/providers/claude')>(
+        '@/lib/providers/claude',
+      );
+      mocks.buildClaudeLaunchCommand.mockImplementation(claudeProvider.buildLaunchCommand);
+      mocks.createLaunchSessionId.mockReturnValue(claudeSessionId);
+      mocks.readLayoutFile.mockResolvedValue(layout(1, 'claude'));
+    });
+
+    afterEach(async () => {
+      vi.unstubAllEnvs();
+      await fs.rm(root, { recursive: true, force: true });
+    });
+
+    it('sends the tab id env var when delegation is on', async () => {
+      mocks.getConfig.mockResolvedValue({});
+      await expect(launchAgentInTab({
+        workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch',
+      })).resolves.toEqual({ ok: true });
+      const [, command] = mocks.sendKeys.mock.calls[0] as [string, string];
+      expect(command).toContain("AMUX_TAB_ID='tab-a'");
+      expect(command).toContain(`--session-id ${claudeSessionId}`);
+    });
+
+    it('sends no tab id env var when delegation is off', async () => {
+      mocks.getConfig.mockResolvedValue({ agentDelegationGuideEnabled: false });
+      await expect(launchAgentInTab({
+        workspaceId: 'ws-a', paneId: 'pane-a', tabId: 'tab-a', action: 'launch',
+      })).resolves.toEqual({ ok: true });
+      const [, command] = mocks.sendKeys.mock.calls[0] as [string, string];
+      expect(command).not.toContain('AMUX_TAB_ID');
+      expect(command.startsWith('claude --settings ')).toBe(true);
+    });
   });
 
   describe('switching provider on resume', () => {

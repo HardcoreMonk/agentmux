@@ -8,6 +8,7 @@ export interface IAgentResumeCommandOptions {
   tabId?: string;
   sessionName?: string;
   sessionId?: string;
+  cwd?: string;
 }
 
 export interface IAgentLaunchCommandOptions {
@@ -15,6 +16,7 @@ export interface IAgentLaunchCommandOptions {
   tabId?: string;
   sessionName?: string;
   sessionId?: string;
+  cwd?: string;
 }
 
 export interface IAgentSessionWatchOptions {

@@ -31,6 +31,29 @@ describe('claude command', () => {
     expect(() => buildClaudeResumeCommand('bad', { settingsPath: '/s.json' })).toThrow();
   });
 
+  it('keeps the command unchanged without delegation values', () => {
+    expect(buildClaudeLaunchCommand(id, { settingsPath: '/s.json', model: 'opus', permissionMode: 'plan' }))
+      .toBe(`claude --settings '/s.json' --session-id ${id} --model 'opus' --permission-mode plan`);
+    expect(buildClaudeResumeCommand(id, { settingsPath: '/s.json' }))
+      .toBe(`claude --settings '/s.json' --resume ${id}`);
+  });
+
+  it('prefixes the env vars and appends the guide file after the session flag', () => {
+    const envPrefix = `AMUX_WORKSPACE_ID='ws-1' AMUX_TAB_ID='tab-1' PATH='/d/bin':"$PATH" `;
+    const options = {
+      settingsPath: '/s.json',
+      model: 'opus',
+      envPrefix,
+      appendSystemPromptFile: '/d/delegation/claude.md',
+    };
+    expect(buildClaudeLaunchCommand(id, options)).toBe(
+      `${envPrefix}claude --settings '/s.json' --session-id ${id} --append-system-prompt-file '/d/delegation/claude.md' --model 'opus'`,
+    );
+    expect(buildClaudeResumeCommand(id, options).startsWith(`AMUX_WORKSPACE_ID='ws-1' `)).toBe(true);
+    expect(buildClaudeResumeCommand(id, options))
+      .toContain(`--resume ${id} --append-system-prompt-file '/d/delegation/claude.md'`);
+  });
+
   it('resolves the projects directory under the given home', () => {
     expect(getClaudeProjectsDir('/home/test')).toBe('/home/test/.claude/projects');
   });

@@ -1,4 +1,4 @@
-import { checkTerminalProcess, sendKeys } from '@/lib/tmux';
+import { checkTerminalProcess, getSessionCwd, sendKeys } from '@/lib/tmux';
 import { patchTab, readLayoutFile, resolveLayoutFile, updateTabAgentSession } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { getProviderByPanelType } from '@/lib/providers';
@@ -60,6 +60,7 @@ export const launchAgentInTab = async (input: IAgentLaunchInput): Promise<IAgent
     workspaceId: input.workspaceId,
     tabId: tab.id,
     sessionName: tab.sessionName,
+    cwd: resolveTabRuntimeVersion(tab) === 1 ? (await getSessionCwd(tab.sessionName)) ?? tab.cwd : tab.cwd,
   };
   let command: string;
   let bindSessionId: string | null = null;
