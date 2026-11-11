@@ -51,6 +51,19 @@ describe.skipIf(!hasTmux)('terminal worker runtime with real tmux', () => {
     expect(content).toContain('p4-marker');
   });
 
+  it('types text that starts with a dash literally', async () => {
+    const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');
+    const runtime = createTerminalWorkerRuntime();
+
+    await runtime.sendText(SESSION, '-n hi', false);
+    let content = '';
+    for (let i = 0; i < 20 && !content.includes('-n hi'); i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      content = (await runtime.capturePane(SESSION)).content;
+    }
+    expect(content).toContain('-n hi');
+  });
+
   it('reports a missing session as not-found', async () => {
     const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');
     const runtime = createTerminalWorkerRuntime();

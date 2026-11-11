@@ -299,7 +299,7 @@ export const createTerminalWorkerRuntime = (): ITerminalWorkerRuntime => {
     async sendText(sessionName, text, enter) {
       assertRuntimeSessionName(sessionName);
       try {
-        await execFile('tmux', ['-L', RUNTIME_TMUX_SOCKET, 'send-keys', '-t', sessionName, '-l', text], {
+        await execFile('tmux', ['-L', RUNTIME_TMUX_SOCKET, 'send-keys', '-t', sessionName, '-l', '--', text], {
           timeout: CMD_TIMEOUT,
         });
         if (enter) {

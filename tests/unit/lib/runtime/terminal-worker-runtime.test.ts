@@ -264,7 +264,7 @@ describe('terminal worker runtime', () => {
     const calls = execFileMock.mock.calls.map((call) => call[1]);
     expect(calls).toEqual([
       ['-L', 'codexmux-runtime-v2', 'capture-pane', '-p', '-t', 'rtv2-ws-a-pane-b-tab-c'],
-      ['-L', 'codexmux-runtime-v2', 'send-keys', '-t', 'rtv2-ws-a-pane-b-tab-c', '-l', 'echo p4'],
+      ['-L', 'codexmux-runtime-v2', 'send-keys', '-t', 'rtv2-ws-a-pane-b-tab-c', '-l', '--', 'echo p4'],
       ['-L', 'codexmux-runtime-v2', 'send-keys', '-t', 'rtv2-ws-a-pane-b-tab-c', 'Enter'],
     ]);
     expect(ptySpawnMock).not.toHaveBeenCalled();
