@@ -16,7 +16,7 @@
 | `agentmux tab browser ...` | web-browser 탭 제어(`url`, `screenshot`, `console`, `network`, `eval`). 위임 허용 규칙에 포함되지 않음 |
 | `agentmux api-guide` | HTTP API 안내 출력 |
 
-`-w`는 모든 `tab` 하위 명령에서 `AMUX_WORKSPACE_ID`가 있으면 생략할 수 있습니다. `-w`를 주면 환경 변수보다 우선합니다. 오류는 `error: <code>: <message>` 형식으로 출력합니다.
+`-w`는 모든 `tab` 하위 명령에서 `AMUX_WORKSPACE_ID`가 있으면 생략할 수 있습니다. `-w`를 주면 환경 변수보다 우선합니다. `tab list`는 `-w`와 `AMUX_WORKSPACE_ID`가 모두 없으면 모든 workspace의 탭을 보여줍니다. 오류는 `error: <code>: <message>` 형식으로 출력합니다.
 
 ## 환경 변수
 
@@ -77,7 +77,7 @@ Bash(agentmux tab close:*)
 ### tab create
 
 - 탭 위치: 호출 탭의 pane. `-w`로 다른 workspace를 지정하면 그 workspace의 첫 pane.
-- cwd: `--cwd`(존재하는 절대 경로 directory, 아니면 400 `invalid-cwd`), 없으면 호출 탭의 현재 cwd.
+- cwd: `--cwd`(존재하는 directory, 아니면 400 `invalid-cwd`), 없으면 호출 탭의 현재 cwd. CLI는 상대 경로(`.`, `../other`)를 현재 directory 기준 절대 경로로 바꿔 보냅니다. HTTP API는 절대 경로만 받습니다.
 - active 탭은 바뀌지 않고 `createdByTabId`가 기록됩니다.
 - workspace당 agent가 만든 탭은 6개까지이며 넘으면 409 `delegation-limit`입니다. 확인과 생성은 workspace별 lock 안에서 합니다.
 - `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. 띄우기가 실패하면 `launchError`를 돌려줍니다.

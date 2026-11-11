@@ -126,7 +126,8 @@ const cmdTabCreate = async (args) => {
     workspaceId: wsId,
     ...(name ? { name } : {}),
     ...(panelType ? { panelType } : {}),
-    ...(cwd ? { cwd } : {}),
+    // The server needs an absolute path; resolve against the shell's cwd like other CLIs do.
+    ...(cwd ? { cwd: path.resolve(cwd) } : {}),
   });
   out(body);
 };
@@ -315,7 +316,9 @@ Commands:
   api-guide                                Print full HTTP API reference
   help                                     Show this usage
 
--w WS may be omitted on every tab command except 'tab list' when AMUX_WORKSPACE_ID is set.
+-w WS may be omitted on every tab command when AMUX_WORKSPACE_ID is set; -w wins over it.
+'tab list' uses the same workspace and lists tabs in every workspace when neither -w nor AMUX_WORKSPACE_ID is set.
+--cwd DIR may be relative; it is resolved against the current directory.
 
 Environment:
   AMUX_PORT          Server port (legacy alias: CMUX_PORT)

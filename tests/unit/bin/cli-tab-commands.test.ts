@@ -61,6 +61,7 @@ const runCli = async (
   args: string[],
   port: number,
   extraEnv: Record<string, string> = {},
+  cwd: string = process.cwd(),
 ): Promise<{ code: number | null; stdout: string; stderr: string }> => {
   const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-cli-tab-test-'));
   tempDirs.push(homeDir);
@@ -71,7 +72,7 @@ const runCli = async (
   });
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [path.join(process.cwd(), 'bin/agentmux.js'), ...args], {
-      cwd: process.cwd(),
+      cwd,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -109,6 +110,32 @@ describe('agentmux CLI tab context from environment', () => {
     expect(requests[0].method).toBe('POST');
     expect(requests[0].body).toEqual({ workspaceId: 'ws-1', panelType: 'claude', cwd: '/tmp' });
     expect(requests[0].headers['x-agentmux-caller-tab']).toBe('tab-1');
+  });
+
+  it.each([
+    ['../other', 'other'],
+    ['.', ''],
+  ])('sends a relative --cwd %s as an absolute path', async (cwdArg, expectedTail) => {
+    const base = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'agentmux-cli-cwd-test-')));
+    tempDirs.push(base);
+    const work = path.join(base, 'work');
+    await fs.mkdir(work);
+    const { port, requests } = await startFakeServer(200, { id: 'tab-new' });
+
+    const result = await runCli(['tab', 'create', '-w', 'ws-1', '--cwd', cwdArg], port, {}, work);
+
+    expect(result.code).toBe(0);
+    const expected = cwdArg === '.' ? work : path.join(base, expectedTail);
+    expect(requests[0].body).toEqual({ workspaceId: 'ws-1', cwd: expected });
+    expect(path.isAbsolute((requests[0].body as { cwd: string }).cwd)).toBe(true);
+  });
+
+  it('describes how tab list falls back in the help text', async () => {
+    const result = await runCli(['help'], 0);
+
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toContain("except 'tab list'");
+    expect(result.stdout).toContain('lists tabs in every workspace when neither -w nor AMUX_WORKSPACE_ID is set');
   });
 
   it('prefers -w over AMUX_WORKSPACE_ID', async () => {
