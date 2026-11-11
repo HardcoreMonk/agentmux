@@ -1,19 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { removeTabFromPane, restartTabSession, patchTab, getLayout } from '@/lib/layout-store';
+import { restartTabSession, patchTab, getLayout } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
 import { isAgentPanelType, normalizePanelType } from '@/lib/panel-type';
 import { resolveTabRuntimeVersion } from '@/lib/runtime/terminal-mode';
 import { getActiveWorkspaceId } from '@/lib/workspace-store';
-import { getStatusManager } from '@/lib/status-manager';
 import { createLogger } from '@/lib/logger';
-import { getRuntimeStatusV2Mode } from '@/lib/runtime/status-mode';
-import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
+import { closeWorkspaceTab } from '@/lib/workspace-tab-service';
 import type { ITab } from '@/types/terminal';
 
 const log = createLogger('layout');
-
-const shouldUseRuntimeStatusLive = (): boolean =>
-  process.env.AGENTMUX_RUNTIME_V2 === '1' && getRuntimeStatusV2Mode() === 'default';
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const wsId = (req.query.workspace as string) || await getActiveWorkspaceId();
@@ -25,16 +20,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   const tabId = req.query.tabId as string;
 
   if (req.method === 'DELETE') {
-    const found = await removeTabFromPane(wsId, paneId, tabId);
+    const found = await closeWorkspaceTab(wsId, paneId, tabId);
     if (!found) {
       return res.status(404).json({ error: 'Tab not found' });
-    }
-    if (shouldUseRuntimeStatusLive()) {
-      getRuntimeSupervisor().removeStatusLiveTab({ tabId }).catch((err) => {
-        log.warn(`runtime status remove tab failed: ${err instanceof Error ? err.message : err}`);
-      });
-    } else {
-      getStatusManager().removeTab(tabId);
     }
     return res.status(204).end();
   }

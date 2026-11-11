@@ -340,15 +340,23 @@ export const sendRawKeys = async (
   );
 };
 
+export const buildBracketedPaste = (content: string): string => `\x1b[200~${content}\x1b[201~`;
+
+export interface ISendBracketedPasteOptions {
+  // Runs just before the follow-up Enter; returning false skips it.
+  beforeFollowUpEnter?: () => Promise<boolean>;
+}
+
 /** Send text via bracketed paste mode and press Enter twice (handles long agent CLI input confirmation) */
 export const sendBracketedPaste = async (
   sessionName: string,
   content: string,
+  options?: ISendBracketedPasteOptions,
 ): Promise<void> => {
   await exitCopyMode(sessionName);
   await execFile(
     'tmux',
-    ['-L', TMUX_SOCKET, 'send-keys', '-t', sessionName, '-l', `\x1b[200~${content}\x1b[201~`],
+    ['-L', TMUX_SOCKET, 'send-keys', '-t', sessionName, '-l', buildBracketedPaste(content)],
     { timeout: CMD_TIMEOUT },
   );
   await execFile(
@@ -357,6 +365,7 @@ export const sendBracketedPaste = async (
     { timeout: CMD_TIMEOUT },
   );
   await new Promise((resolve) => setTimeout(resolve, 600));
+  if (options?.beforeFollowUpEnter && !(await options.beforeFollowUpEnter())) return;
   await execFile(
     'tmux',
     ['-L', TMUX_SOCKET, 'send-keys', '-t', sessionName, 'Enter'],
