@@ -77,7 +77,7 @@ describe('buildDelegationShimSource', () => {
     const lines = source.split('\n');
     expect(lines[0]).toBe('#!/bin/sh');
     expect(lines[1]).toBe(
-      `AGENTMUX_DATA_DIR='/d' exec '/n o/node' '/a'\\''b/bin/agentmux.js' "$@"`,
+      `AGENTMUX_DATA_DIR='/d' ELECTRON_RUN_AS_NODE=1 exec '/n o/node' '/a'\\''b/bin/agentmux.js' "$@"`,
     );
   });
 });
@@ -108,6 +108,19 @@ describe('ensureDelegationAssets', () => {
     await ensureDelegationAssets(input);
     const after = [(await fs.stat(shimPath)).mtimeMs, (await fs.stat(guidePath)).mtimeMs];
     expect(after).toEqual(before);
+  });
+
+  it('survives concurrent calls on a fresh dir', async () => {
+    const tmp = await makeTempDir();
+    const input = { baseDir: tmp, nodePath: process.execPath, appDir: repoRoot };
+    await Promise.all(Array.from({ length: 8 }, () => ensureDelegationAssets(input)));
+    const shimPath = path.join(tmp, 'bin', 'agentmux');
+    const guidePath = getClaudeDelegationGuidePath(tmp);
+    expect((await fs.stat(shimPath)).mode & 0o777).toBe(0o700);
+    expect((await fs.stat(guidePath)).mode & 0o777).toBe(0o600);
+    expect(await fs.readFile(guidePath, 'utf-8')).toBe(buildDelegationGuide('claude'));
+    expect(await fs.readFile(shimPath, 'utf-8')).toContain('ELECTRON_RUN_AS_NODE=1');
+    expect(await fs.readdir(path.join(tmp, 'bin'))).toEqual(['agentmux']);
   });
 
   it('produces a shim that runs the CLI', async () => {

@@ -52,7 +52,7 @@ export const buildDelegationShimSource = (input: {
   cliEntryPath: string;
   dataDir: string;
 }): string =>
-  `#!/bin/sh\nAGENTMUX_DATA_DIR=${shQuote(input.dataDir)} exec ${shQuote(input.nodePath)} ${shQuote(input.cliEntryPath)} "$@"\n`;
+  `#!/bin/sh\nAGENTMUX_DATA_DIR=${shQuote(input.dataDir)} ELECTRON_RUN_AS_NODE=1 exec ${shQuote(input.nodePath)} ${shQuote(input.cliEntryPath)} "$@"\n`;
 
 export const ensureDelegationAssets = async (
   input: { baseDir?: string; nodePath?: string; appDir?: string } = {},
