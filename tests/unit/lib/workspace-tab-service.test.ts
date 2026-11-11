@@ -116,6 +116,15 @@ const TRUST_SCREEN = [
   '  2. No, quit',
 ].join('\n');
 
+const HOOKS_REVIEW_SCREEN = [
+  '  Hooks need review',
+  '',
+  '  Hooks can run outside the sandbox after you trust them.',
+  '',
+  '› 1. Trust all and continue',
+  "  2. Continue without trusting (hooks won't run)",
+].join('\n');
+
 const agentTab = (overrides: Partial<ITab> = {}): ITab => ({
   id: 'tab-a',
   sessionName: 'pt-ws-a-pane-a-tab-a',
@@ -240,9 +249,23 @@ describe('writeTabInput', () => {
     expect(mocks.capturePaneContent.mock.invocationCallOrder[0]).toBeGreaterThan(enters[0]);
   });
 
-  it('holds back the follow-up Enter when a startup screen appears after the paste', async () => {
+  it.each([
+    ['trust', TRUST_SCREEN],
+    ['Codex hook review', HOOKS_REVIEW_SCREEN],
+  ])('holds back the follow-up Enter when the %s screen appears after the paste', async (_label, screen) => {
     vi.useFakeTimers();
-    mocks.capturePaneContent.mockResolvedValue(TRUST_SCREEN);
+    mocks.capturePaneContent.mockResolvedValue(screen);
+
+    const pending = writeTabInput(agentTab({ panelType: 'codex' }), 'hi', { guardFollowUpEnter: true });
+    await vi.advanceTimersByTimeAsync(600);
+
+    await expect(pending).resolves.toEqual({ followUpEnterSkipped: true });
+    expect(enterCalls()).toHaveLength(1);
+  });
+
+  it('holds back the follow-up Enter when the screen after the paste cannot be read', async () => {
+    vi.useFakeTimers();
+    mocks.capturePaneContent.mockResolvedValue(null);
 
     const pending = writeTabInput(agentTab(), 'hi', { guardFollowUpEnter: true });
     await vi.advanceTimersByTimeAsync(600);

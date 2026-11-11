@@ -22,6 +22,7 @@ const SENDABLE_STATES = new Set<TCliState>(['idle', 'busy', 'ready-for-review'])
 const STARTUP_SCREEN_LABELS = {
   trust: 'folder trust',
   'codex-update': 'Codex update',
+  'codex-hooks-review': 'Codex hook review',
 } as const;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
