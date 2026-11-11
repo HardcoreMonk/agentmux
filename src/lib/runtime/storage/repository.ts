@@ -128,6 +128,7 @@ interface ITabRow {
   agentSummary: string | null;
   lastUserMessage: string | null;
   dismissedAt: number | null;
+  createdByTabId: string | null;
 }
 
 interface IPaneRow {
@@ -558,7 +559,7 @@ export const createStorageRepository = (db: TRuntimeDatabase) => {
           web_url as webUrl, last_command as lastCommand, terminal_ratio as terminalRatio,
           terminal_collapsed as terminalCollapsed,
           null as cliState, null as agentSessionId, null as agentJsonlPath, null as agentSummary,
-          null as lastUserMessage, null as dismissedAt
+          null as lastUserMessage, null as dismissedAt, created_by_tab_id as createdByTabId
         from tabs
         where panel_type = 'terminal' and lifecycle_state = 'ready' and runtime_version = 2
         order by created_at asc, order_index asc, id asc
@@ -582,7 +583,7 @@ export const createStorageRepository = (db: TRuntimeDatabase) => {
           web_url as webUrl, last_command as lastCommand, terminal_ratio as terminalRatio,
           terminal_collapsed as terminalCollapsed,
           null as cliState, null as agentSessionId, null as agentJsonlPath, null as agentSummary,
-          null as lastUserMessage, null as dismissedAt
+          null as lastUserMessage, null as dismissedAt, created_by_tab_id as createdByTabId
         from tabs
         where session_name = ? and panel_type = 'terminal' and lifecycle_state = 'ready' and runtime_version = 2
       `).get(sessionName) as ITabRow | undefined;
@@ -639,6 +640,7 @@ export const createStorageRepository = (db: TRuntimeDatabase) => {
           s.agent_summary as agentSummary,
           s.last_user_message as lastUserMessage,
           s.dismissed_at as dismissedAt,
+          t.created_by_tab_id as createdByTabId,
           t.pane_id as paneId
         from tabs t
         left join tab_status s on s.tab_id = t.id
@@ -665,6 +667,7 @@ export const createStorageRepository = (db: TRuntimeDatabase) => {
           ...(row.agentSummary ? { agentSummary: row.agentSummary } : {}),
           ...(row.lastUserMessage ? { lastUserMessage: row.lastUserMessage } : {}),
           ...(row.dismissedAt !== null ? { dismissedAt: row.dismissedAt } : {}),
+          ...(row.createdByTabId ? { createdByTabId: row.createdByTabId } : {}),
         };
         tabsByPaneId.set(row.paneId, [...(tabsByPaneId.get(row.paneId) ?? []), tab]);
       }

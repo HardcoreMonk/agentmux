@@ -19,7 +19,9 @@ export interface IRuntimeMigrationBackupInput {
   toVersion: number;
 }
 
-export const CURRENT_RUNTIME_SCHEMA_VERSION = 5;
+export const CURRENT_RUNTIME_SCHEMA_VERSION = 6;
+
+export const RUNTIME_SCHEMA_V6_DOWNGRADE_SQL = 'alter table tabs drop column created_by_tab_id; delete from schema_migrations where version = 6;';
 
 const runtimeRequireBase = path.join(
   process.env.__CMUX_APP_DIR_UNPACKED || process.env.__CMUX_APP_DIR || path.join(/*turbopackIgnore: true*/ process.cwd()),
@@ -315,6 +317,12 @@ const RUNTIME_MIGRATIONS: IRuntimeMigration[] = [
       `);
     },
   },
+  {
+    version: 6,
+    up: (db) => {
+      db.exec(`alter table tabs add column created_by_tab_id text null;`);
+    },
+  },
 ];
 
 const createSqliteUnavailableError = (cause: unknown): Error =>
@@ -341,7 +349,10 @@ const readAppliedMigrationVersions = (db: TRuntimeDatabase): Set<number> => {
   return new Set(rows.map((row) => row.version));
 };
 
-export const runRuntimeMigrations = (db: TRuntimeDatabase): void => {
+export const runRuntimeMigrations = (
+  db: TRuntimeDatabase,
+  targetVersion = CURRENT_RUNTIME_SCHEMA_VERSION,
+): void => {
   const appliedVersions = readAppliedMigrationVersions(db);
   const maxAppliedVersion = Math.max(0, ...Array.from(appliedVersions));
   if (maxAppliedVersion > CURRENT_RUNTIME_SCHEMA_VERSION) {
@@ -355,7 +366,7 @@ export const runRuntimeMigrations = (db: TRuntimeDatabase): void => {
   }
 
   for (const migration of RUNTIME_MIGRATIONS) {
-    if (appliedVersions.has(migration.version)) continue;
+    if (migration.version > targetVersion || appliedVersions.has(migration.version)) continue;
     db.transaction(() => {
       migration.up(db);
       db.prepare(`insert into schema_migrations(version, applied_at) values(?, ?)`).run(

@@ -314,7 +314,32 @@ export const deletePane = async (
   }
 };
 
-export const addTabToPane = async (wsId: string, paneId: string, name?: string, cwd?: string, panelType?: string, command?: string): Promise<ITab | null> =>
+export interface IAddTabOptions {
+  activate?: boolean;
+  createdByTabId?: string | null;
+  restoreActiveTabId?: string | null;
+}
+
+const applyAddedTabActivation = (pane: IPaneNode, tabId: string, options?: IAddTabOptions): void => {
+  if (options?.activate !== false) {
+    pane.activeTabId = tabId;
+    return;
+  }
+  const restoreId = options.restoreActiveTabId;
+  if (restoreId && pane.tabs.some((t) => t.id === restoreId)) {
+    pane.activeTabId = restoreId;
+  }
+};
+
+export const addTabToPane = async (
+  wsId: string,
+  paneId: string,
+  name?: string,
+  cwd?: string,
+  panelType?: string,
+  command?: string,
+  options?: IAddTabOptions,
+): Promise<ITab | null> =>
   withLock(async () => {
     const filePath = resolveLayoutFile(wsId);
     const layout = await readLayoutFile(filePath);
@@ -344,10 +369,11 @@ export const addTabToPane = async (wsId: string, paneId: string, name?: string, 
       ...(!isWebBrowser ? { runtimeVersion: 1 as const } : {}),
       ...(cwd ? { cwd } : {}),
       ...(panelType ? { panelType: panelType as ITab['panelType'] } : {}),
+      ...(options?.createdByTabId ? { createdByTabId: options.createdByTabId } : {}),
     };
 
     pane.tabs.push(tab);
-    pane.activeTabId = tabId;
+    applyAddedTabActivation(pane, tabId, options);
     layout.updatedAt = new Date().toISOString();
     await writeLayoutFile(layout, filePath);
     syncWorkspaceDirectories(wsId,layout.root);
@@ -355,7 +381,12 @@ export const addTabToPane = async (wsId: string, paneId: string, name?: string, 
     return tab;
   });
 
-export const addExistingTabToPane = async (wsId: string, paneId: string, tab: ITab): Promise<ITab | null> =>
+export const addExistingTabToPane = async (
+  wsId: string,
+  paneId: string,
+  tab: ITab,
+  options?: IAddTabOptions,
+): Promise<ITab | null> =>
   withLock(async () => {
     const filePath = resolveLayoutFile(wsId);
     const layout = await readLayoutFile(filePath);
@@ -364,15 +395,18 @@ export const addExistingTabToPane = async (wsId: string, paneId: string, tab: IT
     const pane = collectPanes(layout.root).find((p) => p.id === paneId);
     if (!pane) return null;
 
+    const existing = pane.tabs.find((t) => t.id === tab.id);
     const nextOrder = pane.tabs.length > 0 ? Math.max(...pane.tabs.map((t) => t.order)) + 1 : 0;
-    const nextTab: ITab = {
+    const fields: ITab = {
       ...tab,
       name: tab.name.trim(),
-      order: nextOrder,
+      order: existing?.order ?? nextOrder,
+      ...(options?.createdByTabId ? { createdByTabId: options.createdByTabId } : {}),
     };
+    const nextTab = existing ? Object.assign(existing, fields) : fields;
 
-    pane.tabs.push(nextTab);
-    pane.activeTabId = nextTab.id;
+    if (!existing) pane.tabs.push(nextTab);
+    applyAddedTabActivation(pane, nextTab.id, options);
     layout.updatedAt = new Date().toISOString();
     await writeLayoutFile(layout, filePath);
     syncWorkspaceDirectories(wsId, layout.root);
@@ -452,6 +486,17 @@ export const renameTabInPane = async (wsId: string, paneId: string, tabId: strin
     return { ...tab };
   });
 
+// Runtime v2 restart recreates the storage row, which drops the creator in SQLite-backed layouts.
+const rewriteTabCreator = async (filePath: string, paneId: string, tabId: string, createdByTabId: string): Promise<void> => {
+  const layout = await readLayoutFile(filePath);
+  if (!layout) return;
+  const tab = collectPanes(layout.root).find((p) => p.id === paneId)?.tabs.find((t) => t.id === tabId);
+  if (!tab || tab.createdByTabId === createdByTabId) return;
+  tab.createdByTabId = createdByTabId;
+  layout.updatedAt = new Date().toISOString();
+  await writeLayoutFile(layout, filePath);
+};
+
 export const restartTabSession = async (wsId: string, paneId: string, tabId: string, command?: string): Promise<boolean> =>
   withLock(async () => {
     const filePath = resolveLayoutFile(wsId);
@@ -468,6 +513,7 @@ export const restartTabSession = async (wsId: string, paneId: string, tabId: str
     const cwdLost = Boolean(tab.cwd && tab.cwd !== effectiveCwd);
 
     if (resolveTabRuntimeVersion(tab) === 2) {
+      const createdByTabId = tab.createdByTabId;
       const supervisor = getRuntimeSupervisor();
       await supervisor.ensureStarted();
       await supervisor.restartTerminalTab({
@@ -488,6 +534,9 @@ export const restartTabSession = async (wsId: string, paneId: string, tabId: str
         delete tab.lastCommand;
         layout.updatedAt = new Date().toISOString();
         await writeLayoutFile(layout, filePath);
+      }
+      if (createdByTabId) {
+        await rewriteTabCreator(filePath, paneId, tabId, createdByTabId);
       }
       return true;
     }

@@ -33,6 +33,7 @@ export interface ITab {
   terminalRatio?: number;
   terminalCollapsed?: boolean;
   runtimeVersion?: TRuntimeVersion;
+  createdByTabId?: string | null;
 }
 
 export interface ISplitNode {
