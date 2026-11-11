@@ -27,7 +27,9 @@
     "fontSizeXLarge": "더크게",
     "keyboardShortcuts": "키보드 단축키",
     "keyboardShortcutsDescription": "단축키 전체 보기 및 커스터마이즈.",
-    "openShortcuts": "열기"
+    "openShortcuts": "열기",
+    "delegationGuide": "Agent에 위임 안내 넣기",
+    "delegationGuideDescription": "켜면 agentmux가 띄운 Claude Code와 Codex가 `agentmux tab` 명령으로 다른 탭에 일을 맡길 수 있습니다. 새로 시작하거나 재개하는 agent부터 적용됩니다."
   },
   "appearance": {
     "customCSS": "Custom CSS",

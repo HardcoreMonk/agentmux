@@ -24,6 +24,7 @@ export interface IConfigInitialData {
   codexSearchEnabled?: boolean;
   codexShowTerminal?: boolean;
   agentShowTerminal?: boolean;
+  agentDelegationGuideEnabled?: boolean;
   claudeModel?: string | null;
   claudePermissionMode?: TClaudePermissionMode | null;
   editorUrl?: string;
@@ -50,6 +51,7 @@ interface IConfigState {
   codexApprovalPolicy: TCodexApprovalPolicy | '';
   codexSearchEnabled: boolean;
   agentShowTerminal: boolean;
+  agentDelegationGuideEnabled: boolean;
   claudeModel: string;
   claudePermissionMode: TClaudePermissionMode | '';
   editorUrl: string;
@@ -76,6 +78,7 @@ interface IConfigState {
   setCodexApprovalPolicy: (policy: TCodexApprovalPolicy | '') => void;
   setCodexSearchEnabled: (enabled: boolean) => void;
   setAgentShowTerminal: (enabled: boolean) => void;
+  setAgentDelegationGuideEnabled: (enabled: boolean) => void;
   setClaudeModel: (model: string) => void;
   setClaudePermissionMode: (mode: TClaudePermissionMode | '') => void;
   setEditorUrl: (url: string) => void;
@@ -109,6 +112,7 @@ const initialConfig = {
   codexApprovalPolicy: '' as TCodexApprovalPolicy | '',
   codexSearchEnabled: false,
   agentShowTerminal: true,
+  agentDelegationGuideEnabled: true,
   claudeModel: '',
   claudePermissionMode: '' as TClaudePermissionMode | '',
   hasAuthPassword: false,
@@ -138,6 +142,7 @@ const useConfigStore = create<IConfigState>((set, get) => ({
   codexApprovalPolicy: initialConfig.codexApprovalPolicy,
   codexSearchEnabled: initialConfig.codexSearchEnabled,
   agentShowTerminal: initialConfig.agentShowTerminal,
+  agentDelegationGuideEnabled: initialConfig.agentDelegationGuideEnabled,
   claudeModel: initialConfig.claudeModel,
   claudePermissionMode: initialConfig.claudePermissionMode,
   editorUrl: initialConfig.editorUrl,
@@ -166,6 +171,8 @@ const useConfigStore = create<IConfigState>((set, get) => ({
       codexSearchEnabled: data.codexSearchEnabled ?? false,
       // Legacy codexShowTerminal is read as a fallback only; writes go to agentShowTerminal.
       agentShowTerminal: data.agentShowTerminal ?? data.codexShowTerminal ?? true,
+      // Absent means on, matching the server (`value !== false`).
+      agentDelegationGuideEnabled: data.agentDelegationGuideEnabled !== false,
       claudeModel: data.claudeModel ?? '',
       claudePermissionMode: data.claudePermissionMode ?? '',
       editorUrl: data.editorUrl ?? '',
@@ -220,6 +227,12 @@ const useConfigStore = create<IConfigState>((set, get) => ({
     if (get().agentShowTerminal === enabled) return;
     set({ agentShowTerminal: enabled });
     saveConfig({ agentShowTerminal: enabled });
+  },
+
+  setAgentDelegationGuideEnabled: (enabled) => {
+    if (get().agentDelegationGuideEnabled === enabled) return;
+    set({ agentDelegationGuideEnabled: enabled });
+    saveConfig({ agentDelegationGuideEnabled: enabled });
   },
 
   setClaudeModel: (model) => {

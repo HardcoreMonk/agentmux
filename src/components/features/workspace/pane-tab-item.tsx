@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Globe, GitCompareArrows } from 'lucide-react';
+import { X, Globe, GitCompareArrows, CornerDownRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import AgentProviderIcon from '@/components/icons/agent-provider-icon';
 import ProcessIcon from '@/components/icons/process-icon';
@@ -42,6 +42,7 @@ const PaneTabItem = ({
   onDragLeave,
 }: IPaneTabItemProps) => {
   const t = useTranslations('terminal');
+  const tw = useTranslations('workspace');
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +123,16 @@ const PaneTabItem = ({
               process={currentProcess ?? displayTitle}
               className="h-3 w-3 shrink-0 text-muted-foreground"
             />
+          )}
+          {tab.createdByTabId && (
+            <span
+              data-slot="delegated-tab-marker"
+              title={tw('createdByAgent')}
+              className="flex shrink-0 items-center"
+            >
+              <CornerDownRight aria-hidden="true" className="h-3 w-3 text-muted-foreground" />
+              <span className="sr-only">{tw('createdByAgent')}</span>
+            </span>
           )}
           <span
             className={cn(

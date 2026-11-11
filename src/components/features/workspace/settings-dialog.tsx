@@ -106,6 +106,8 @@ const GeneralTab = () => {
   const setLocale = useConfigStore((s) => s.setLocale);
   const fontSize = useConfigStore((s) => s.fontSize);
   const setFontSize = useConfigStore((s) => s.setFontSize);
+  const delegationGuideEnabled = useConfigStore((s) => s.agentDelegationGuideEnabled);
+  const setDelegationGuideEnabled = useConfigStore((s) => s.setAgentDelegationGuideEnabled);
   const setSettingsDialogOpen = useWorkspaceStore((s) => s.setSettingsDialogOpen);
   const setCheatSheetOpen = useWorkspaceStore((s) => s.setCheatSheetOpen);
 
@@ -189,6 +191,22 @@ const GeneralTab = () => {
           {t('openShortcuts')}
           <ChevronRight className="h-3.5 w-3.5" />
         </Button>
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-0.5">
+          <Label htmlFor="agent-delegation-guide" className="text-sm font-medium">
+            {t('delegationGuide')}
+          </Label>
+          <p className="text-sm text-muted-foreground break-keep">
+            {t('delegationGuideDescription')}
+          </p>
+        </div>
+        <Switch
+          id="agent-delegation-guide"
+          checked={delegationGuideEnabled}
+          onCheckedChange={setDelegationGuideEnabled}
+        />
       </div>
 
       <a
