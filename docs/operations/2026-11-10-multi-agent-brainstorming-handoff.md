@@ -487,6 +487,21 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   실행마다 바뀌는 것으로 추정, 아래 Follow-Up의 Codex hooks 항목). 이 화면은 위임 CLI가 감지해 입력하지 않지만, Codex를
   위임 대상으로 쓰려면 사용자가 화면에서 처리해야 한다. 고치는 일은 설계 2 범위다.
 
+### 운영 기록 (사용자 직접 실행)
+
+- 최종 code-review(Opus) "수정 후 merge": Important 1건(미리 허용된 `tab send`로 terminal 탭에 shell 명령을 확인 없이 실행)에
+  사용자가 "막기"를 골라 agent 호출자의 terminal 전송을 403 `delegation-send-forbidden`으로 막았다. 나머지 Minor와 함께
+  한 번에 고치고 재검토했다. PR #50 CI 성공, main에 로컬 merge(`14b8da96`), 사용자 main push, main CI 성공.
+- 첫 `deploy:local`은 type check에서 실패했다(`smol-toml` 없음: `deploy:local`은 의존성을 설치하지 않는다). Next build가
+  type check 전에 `.next`를 지워, service(PID `704190`)는 살아 있었지만 웹 화면이 500을 돌려줬다(`/api/health`는 응답,
+  tmux server와 세션은 영향 없음). 사용자가 `corepack pnpm install --frozen-lockfile && corepack pnpm deploy:local`로 복구했다
+  (2026-11-12 01:32 KST).
+- 배포 뒤 확인: health `14b8da96`, PID `3936210`(NRestarts 0), `/login` 200, Runtime health 모든 worker ok, 재시작 뒤 journal error 0,
+  Runtime v2 schema v6(`tabs.created_by_tab_id` 있음, 탭 7개), migration backup
+  `~/.codexmux/backups/runtime-v2-migration-v5-v6-20261111T163212450Z`, `~/.codexmux/bin/agentmux`(0700)와
+  `~/.codexmux/delegation/claude.md`(0600) 생성, live shim으로 `tab list` 동작, 7개 workspace의 탭 목록과 active 탭이 배포
+  전과 같음, live tmux server `43870` 유지(새 PID 2개는 새 service의 attach client).
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -503,14 +518,15 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   live smoke(9개 확인 통과, 결함 4개 기록)를 마쳤다. Branch 최종 code-review 수정(`d5f3432a`, 권한 요청 "No" 뒤 `busy`
   고정과 모바일 탭 이름 폭 포함)과 격리 live 재확인(3개 통과)을 마쳤다. PR, main merge, live 배포는 이후 hotfix #48과 함께 완료(위 단계 3 절의 운영 기록).
 - 설계 1 단계 3: plan-eng-review 반영(`2a749a2e`), Task 1~10 implement와 task별 code-review, 전체 gate, 격리 browser·live 확인(5개 통과, 1개 부분), branch 최종 code-review(Critical/Important 0, Minor 1 반영)를 마쳤다. PR #49, main merge(`ad32559d`), live 배포(2026-11-11 09:28 KST)와 배포 뒤 확인을 마쳤다. operate. Worktree와 로컬 branch는 정리했다.
-- 설계 1 단계 4: plan 승인(2026-11-11), Task 1~8 implement와 task별 code-review를 마쳤고 문서(ADR-035/036/037, `docs/CLI.md`)를 기록했다. 다음은 전체 gate, 격리 live 확인, 최종 code-review, PR이다(branch `feat/claude-provider-phase4`). implement 완료, release 전.
+- 설계 1 단계 4: plan 승인(2026-11-11), Task 1~9 implement와 task별 code-review, 전체 gate, 격리 live 확인, 최종 code-review와 수정,
+  PR #50, main merge(`14b8da96`), live 배포(2026-11-12 01:32 KST)와 배포 뒤 확인을 마쳤다. operate. 설계 1 완료.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-단계 3은 live에 배포됐고(`ad32559d`) 배포 뒤 확인을 마쳤다. 단계 4(위임 안내, `permissions.allow`, CLI 변경)는 구현, 문서, 전체
-gate, 격리 live 확인을 마쳤다. 다음은 branch 최종 code-review, PR이다. 배포(main push와 `deploy:local`)는 사용자가 직접 실행한다.
+설계 1(단계 1~4)은 live에 배포됐다(`14b8da96`). 다음은 배포 도구 보완(아래 Follow-Up의 `deploy:local` 두 항목)과 설계 2
+brainstorming이다. 설계 2의 첫 후보는 Codex hook 검토 화면 문제다(Codex를 위임 대상으로 쓰려면 먼저 필요).
 단계 3 이전 build(`d1accfc6` 등)로 내릴 때는 Claude 탭을 먼저 닫는다.
 단계 4 rollback은 위 "배포와 rollback 절차"(schema v6 in-place downgrade)를 따른다. 단계 3 rollback(통계 cache v5→v4)은
 service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json` 뒤 이전 build를 시작하는 방식이다
