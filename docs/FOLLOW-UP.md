@@ -305,6 +305,31 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | Codex 지난 세션 목록 확인 | 배포 뒤 live Codex 탭의 지난 세션 목록 개수와 순서가 배포 전과 같은지 확인(격리 확인에서는 Codex index 첫 scan 중이라 Codex 항목을 보지 못함) |
 | 문서 외 미검증 | Claude 직접 실행 뒤 timeline 연결, 일일 리포트의 실제 Claude 생성 경로(생성기 전체) |
 
+## Claude Code provider 단계 4 후속
+
+단계 4(위임 안내, 탭 환경 변수와 CLI shim, `permissions.allow`, `agentmux tab` CLI·API 변경, Runtime v2 schema v6)는 branch
+`feat/claude-provider-phase4`에 구현했습니다. 설계는 ADR-035, ADR-036, ADR-037, CLI는 `CLI.md`에 있습니다. gate, 격리 live
+확인, PR, main merge와 live 배포는 이 절 작성 뒤 이어집니다(결과는 handoff 단계 4 절).
+
+| 항목 | 내용 |
+| --- | --- |
+| Codex 위임 대상이 hook 검토 화면에서 멈춤 | 2026-11-11 격리 live 확인: agentmux가 띄운 Codex `0.167.0`이 "Hooks need review"(3 hooks new or changed)에서 멈춰 `tab create -t codex`가 `ready: false`. 위임 CLI는 이 화면에 입력하지 않음(`target-not-ready`). Codex를 위임 대상으로 쓰려면 hook 정의를 실행마다 같게 만드는 설계 2 작업(capability를 환경 변수로)이 먼저 필요 |
+| needs-input live 재현 | 격리 live 확인에서 Claude 권한 요청을 띄우지 못해(사용자 설정 아래 `touch`가 확인 없이 실행) needs-input 대상 `tab send` 거절은 unit test로만 확인. 다음 live 확인에서 확실히 권한을 묻는 동작으로 재시도 |
+| 만든 탭 이름 title | 만든 agent 탭 표시의 title이 creator 이름 대신 일반 fallback 문구 |
+| TOML `U+007F` | `JSON.stringify`가 `U+007F`를 이스케이프하지 않음. 사용자 TOML이 `\u007F`를 이스케이프한 경우에만 해당 |
+| Codex profile 우선순위 | `[profiles.<profile>]`의 `developer_instructions`와 최상위 `-c`의 우선순위 미검증. profile만 쓰는 사용자는 안내가 안 붙을 수 있음(사용자 값은 보존) |
+| project layer 탐색 | cwd부터 `/`까지 올라가며 project `.codex/config.toml`을 읽음. git root로 제한하지 않음. symlink `CODEX_HOME`은 resolve하지 않음. 둘 다 안내를 빼는 쪽이라 보수적 |
+| `writeIfChanged` 실패 경로 | 실패 시 임시 파일 정리에 전용 test 없음 |
+| `sendText` 두 번 exec | text와 Enter를 두 번 exec. Enter가 실패하면 text가 이미 입력된 채 실패 보고 |
+| Enter guard test | 이어지는 Enter guard의 화면 읽기 실패 branch에 test 없음 |
+| `create` 500 본문 | 호출 탭 header 없는 `create`의 500 본문이 `{ error: <raw message> }`에서 `{ error: 'internal-error', message }`로 바뀜(controller 결정) |
+| `runtimeLayoutTabSchema` | `src/lib/runtime/ipc.ts`의 `runtimeLayoutTabSchema`가 `createdByTabId`를 버림. supervisor `getLayout`과 `/api/v2` layout에서 빠지고 UI가 쓰는 `/api/layout`은 영향 없음 |
+| Test가 실제 `~/.codex/sessions`에 씀 | `tests/unit/lib/runtime/timeline-worker-service.test.ts`가 실제 `~/.codex/sessions` 아래에 씀. 임시 directory로 격리 필요 |
+| `storage-write-ownership.test.ts` | 전역 `AGENTMUX_DATA_DIR`가 설정된 환경에서 실패(기존 문제, 임시 `HOME`만으로 충분) |
+| 임시 test directory | 단계 4 test가 남긴 `/tmp/p4t.*`, `/tmp/p4h.*`를 사용자가 확인 뒤 삭제 |
+| 위임 한계 | Codex `workspace-write` sandbox는 local network를 막아 위임 불가. `shell_environment_policy`가 `core`/`none`이면 호출 탭을 모름(`CLI.md`) |
+| Agent 호출의 terminal 탭 보내기 금지 | 사용자 결정(2026-11-11): 호출 탭이 있는 `tab send`는 agent 탭(`claude`, `codex`)에만 보냄. terminal 등 다른 탭은 403 `delegation-send-forbidden`(미리 허용된 `tab send`로 Bash 권한 확인 없이 shell 명령이 도는 것을 막음). 사람이 실행한 CLI는 그대로. 다음 격리 live 확인에서 agent 탭의 terminal `tab send` 403을 확인(ADR-036, `CLI.md`) |
+
 ## Codex lifecycle 기준
 
 - `domain-architecture` pass를 `superpowers:brainstorming / writing-spec` 뒤, `grill-me` 앞에 둡니다.

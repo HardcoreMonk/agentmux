@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { Globe, GitCompareArrows } from 'lucide-react';
+import { Globe, GitCompareArrows, CornerDownRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Spinner from '@/components/ui/spinner';
 import useTabStore, { selectTabDisplayStatus } from '@/hooks/use-tab-store';
@@ -22,6 +22,7 @@ interface ITabDot {
   paneId: string;
   tabId: string;
   panelType?: TPanelType;
+  createdByTabId?: string | null;
 }
 
 const MobileWorkspaceTabBar = ({
@@ -33,6 +34,7 @@ const MobileWorkspaceTabBar = ({
   onSelect,
 }: IMobileWorkspaceTabBarProps) => {
   const t = useTranslations('mobile');
+  const tw = useTranslations('workspace');
   const activeRef = useRef<HTMLButtonElement>(null);
   const statusTabs = useTabStore((s) => s.tabs);
   const workspaceNameById = useMemo(
@@ -49,7 +51,7 @@ const MobileWorkspaceTabBar = ({
       for (const pane of panes) {
         const sorted = [...pane.tabs].sort((a, b) => a.order - b.order);
         for (const tab of sorted) {
-          wsTabs.push({ workspaceId: ws.id, paneId: pane.id, tabId: tab.id, panelType: tab.panelType });
+          wsTabs.push({ workspaceId: ws.id, paneId: pane.id, tabId: tab.id, panelType: tab.panelType, createdByTabId: tab.createdByTabId });
         }
       }
 
@@ -98,6 +100,12 @@ const MobileWorkspaceTabBar = ({
             : termStatus === 'running'
               ? 'text-ui-blue'
               : 'text-muted-foreground/50';
+          const workspaceName = workspaceNameById.get(item.workspaceId) ?? 'Workspace';
+          const tabLabel = isActive
+            ? t('currentTab', { name: workspaceName })
+            : t('switchTab', { name: workspaceName });
+          // aria-label replaces the button's text, so the sr-only marker must be part of it.
+          const ariaLabel = item.createdByTabId ? `${tabLabel}, ${tw('createdByAgent')}` : tabLabel;
 
           return (
             <button
@@ -107,13 +115,10 @@ const MobileWorkspaceTabBar = ({
                 'flex h-8 w-8 shrink-0 touch-manipulation items-center justify-center rounded-md transition-colors hover:bg-accent/40 active:bg-accent/70 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                 isActive && 'bg-accent/30',
               )}
+              title={item.createdByTabId ? tw('createdByAgent') : undefined}
               onClick={() => onSelect(item.workspaceId, item.paneId, item.tabId)}
               aria-current={isActive ? 'true' : undefined}
-              aria-label={
-                isActive
-                  ? t('currentTab', { name: workspaceNameById.get(item.workspaceId) ?? 'Workspace' })
-                  : t('switchTab', { name: workspaceNameById.get(item.workspaceId) ?? 'Workspace' })
-              }
+              aria-label={ariaLabel}
             >
               {isActive ? (
                 <span className="h-2 w-2 rounded-[2px] bg-foreground" />
@@ -133,6 +138,12 @@ const MobileWorkspaceTabBar = ({
                 <GitCompareArrows className="h-2.5 w-2.5 text-muted-foreground/50" />
               ) : (
                 <ProcessIcon process={currentProcess} className={cn('h-3 w-3', iconColorClass)} />
+              )}
+              {item.createdByTabId && (
+                <>
+                  <CornerDownRight aria-hidden="true" className="ml-0.5 h-2.5 w-2.5 text-muted-foreground" />
+                  <span className="sr-only">{tw('createdByAgent')}</span>
+                </>
               )}
             </button>
           );

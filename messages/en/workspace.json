@@ -17,5 +17,6 @@
   "activityBusy": "Working",
   "activityNeedsReview": "Review needed",
   "activityUnknown": "Status unknown",
-  "activityIdle": "No active tasks"
+  "activityIdle": "No active tasks",
+  "createdByAgent": "Created by an agent"
 }

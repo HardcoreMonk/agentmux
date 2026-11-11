@@ -27,7 +27,9 @@
     "fontSizeXLarge": "X-Large",
     "keyboardShortcuts": "Keyboard shortcuts",
     "keyboardShortcutsDescription": "View and customize all keyboard shortcuts.",
-    "openShortcuts": "Open"
+    "openShortcuts": "Open",
+    "delegationGuide": "Give agents the delegation guide",
+    "delegationGuideDescription": "When on, Claude Code and Codex started by agentmux can hand work to other tabs with `agentmux tab`. Applies to agents started or resumed after the change."
   },
   "appearance": {
     "customCSS": "Custom CSS",

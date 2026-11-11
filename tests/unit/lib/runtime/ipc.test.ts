@@ -435,6 +435,25 @@ describe('runtime ipc', () => {
       rows: 30,
     })).toThrow(/Invalid runtime IPC payload/);
 
+    expect(parseRuntimeCommandPayload('terminal.capture-pane', { sessionName: 'rtv2-ws-a-pane-b-tab-c' }))
+      .toEqual({ sessionName: 'rtv2-ws-a-pane-b-tab-c' });
+    expect(() => parseRuntimeCommandPayload('terminal.capture-pane', { sessionName: 'pt-ws-a-pane-b-tab-c' }))
+      .toThrow(/Invalid runtime IPC payload/);
+    expect(parseRuntimeCommandPayload('terminal.send-text', {
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      text: 'echo p4',
+      enter: true,
+    })).toEqual({ sessionName: 'rtv2-ws-a-pane-b-tab-c', text: 'echo p4', enter: true });
+    expect(() => parseRuntimeCommandPayload('terminal.send-text', {
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      enter: true,
+    })).toThrow(/Invalid runtime IPC payload/);
+    expect(() => parseRuntimeCommandPayload('terminal.send-text', {
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      text: 'x',
+      enter: 'yes',
+    })).toThrow(/Invalid runtime IPC payload/);
+
     expect(parseRuntimeCommandPayload('timeline.list-sessions', {
       tmuxSession: 'pt-ws-a-pane-b-tab-c',
       panelType: 'codex',

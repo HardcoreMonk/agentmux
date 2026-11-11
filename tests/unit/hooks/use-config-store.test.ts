@@ -72,3 +72,19 @@ describe('useConfigStore Claude settings', () => {
     expect(lastPatchBody()).toEqual({ claudePermissionMode: null });
   });
 });
+
+describe('useConfigStore delegation guide', () => {
+  it('defaults to on, and hydrates an explicit false', () => {
+    expect(useConfigStore.getState().agentDelegationGuideEnabled).toBe(true);
+    useConfigStore.getState().hydrate({ agentDelegationGuideEnabled: false });
+    expect(useConfigStore.getState().agentDelegationGuideEnabled).toBe(false);
+    useConfigStore.getState().hydrate({});
+    expect(useConfigStore.getState().agentDelegationGuideEnabled).toBe(true);
+  });
+
+  it('saves the toggle', () => {
+    useConfigStore.getState().setAgentDelegationGuideEnabled(false);
+    expect(useConfigStore.getState().agentDelegationGuideEnabled).toBe(false);
+    expect(lastPatchBody()).toEqual({ agentDelegationGuideEnabled: false });
+  });
+});

@@ -38,6 +38,20 @@ const describeDataFile = (name) =>
 const PORT = process.env.AMUX_PORT || process.env.CMUX_PORT || readDataFile('port');
 const TOKEN = process.env.AMUX_TOKEN || process.env.CMUX_TOKEN || readDataFile('cli-token');
 const BASE = `http://localhost:${PORT}`;
+// Context injected by agentmux into agent tabs (empty for CLIs run by hand).
+const ENV_WORKSPACE_ID = process.env.AMUX_WORKSPACE_ID || null;
+const ENV_TAB_ID = process.env.AMUX_TAB_ID || null;
+const CALLER_TAB_HEADER = 'x-agentmux-caller-tab';
+
+const authHeaders = () => ({
+  'x-agentmux-token': TOKEN,
+  ...(ENV_TAB_ID ? { [CALLER_TAB_HEADER]: ENV_TAB_ID } : {}),
+});
+
+const errorText = (body, status) => {
+  if (!body?.error) return `HTTP ${status}`;
+  return body.message ? `${body.error}: ${body.message}` : body.error;
+};
 
 const die = (msg) => {
   process.stderr.write(`error: ${msg}\n`);
@@ -57,7 +71,7 @@ const api = async (method, path, data) => {
   const url = `${BASE}${path}`;
   const opts = {
     method,
-    headers: { 'x-agentmux-token': TOKEN, 'Content-Type': 'application/json' },
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
   };
   if (data !== undefined) opts.body = JSON.stringify(data);
   const resp = await fetch(url, opts);
@@ -65,8 +79,7 @@ const api = async (method, path, data) => {
     ? await resp.json()
     : null;
   if (!resp.ok) {
-    const msg = body?.error || `HTTP ${resp.status}`;
-    die(msg);
+    die(errorText(body, resp.status));
   }
   return { resp, body };
 };
@@ -75,13 +88,13 @@ const apiRaw = async (method, path) => {
   const url = `${BASE}${path}`;
   const resp = await fetch(url, {
     method,
-    headers: { 'x-agentmux-token': TOKEN },
+    headers: authHeaders(),
   });
   if (!resp.ok) {
     const ct = resp.headers.get('content-type') || '';
     if (ct.includes('json')) {
       const body = await resp.json();
-      die(body?.error || `HTTP ${resp.status}`);
+      die(errorText(body, resp.status));
     }
     die(`HTTP ${resp.status}`);
   }
@@ -96,7 +109,7 @@ const cmdWorkspaces = async () => {
 
 const cmdTabList = async (args) => {
   requireEnv();
-  const wsId = flagValue(args, '--workspace') || flagValue(args, '-w');
+  const wsId = flagValue(args, '--workspace') || flagValue(args, '-w') || ENV_WORKSPACE_ID;
   const qs = wsId ? `?workspaceId=${encodeURIComponent(wsId)}` : '';
   const { body } = await api('GET', `/api/cli/tabs${qs}`);
   out(body);
@@ -104,20 +117,23 @@ const cmdTabList = async (args) => {
 
 const cmdTabCreate = async (args) => {
   requireEnv();
-  const wsId = flagValue(args, '--workspace') || flagValue(args, '-w');
+  const wsId = flagValue(args, '--workspace') || flagValue(args, '-w') || ENV_WORKSPACE_ID;
   const name = flagValue(args, '--name') || flagValue(args, '-n');
   const panelType = flagValue(args, '--type') || flagValue(args, '-t');
+  const cwd = flagValue(args, '--cwd');
   if (!wsId) die('--workspace is required');
   const { body } = await api('POST', '/api/cli/tabs', {
     workspaceId: wsId,
     ...(name ? { name } : {}),
     ...(panelType ? { panelType } : {}),
+    // The server needs an absolute path; resolve against the shell's cwd like other CLIs do.
+    ...(cwd ? { cwd: path.resolve(cwd) } : {}),
   });
   out(body);
 };
 
 const resolveWsForTab = (args) => {
-  const wsId = flagValue(args, '--workspace') || flagValue(args, '-w');
+  const wsId = flagValue(args, '--workspace') || flagValue(args, '-w') || ENV_WORKSPACE_ID;
   if (!wsId) die('--workspace is required');
   return wsId;
 };
@@ -249,7 +265,7 @@ const cmdTabBrowser = async (args) => {
 const cmdApiGuide = async () => {
   requireEnv();
   const resp = await fetch(`${BASE}/api/cli/api-guide`, {
-    headers: { 'x-agentmux-token': TOKEN },
+    headers: authHeaders(),
   });
   if (!resp.ok) die(`HTTP ${resp.status}`);
   process.stdout.write((await resp.text()) + '\n');
@@ -283,7 +299,8 @@ Usage: agentmux <command> [args...]
 Commands:
   workspaces                               List workspaces
   tab list [-w WS]                         List tabs (optionally scoped to workspace)
-  tab create -w WS [-n NAME] [-t TYPE]     Create a tab in workspace (type: terminal | codex | web-browser | diff)
+  tab create -w WS [-n NAME] [-t TYPE]     Create a tab in workspace (type: terminal | codex | claude | web-browser | diff)
+                          [--cwd DIR]
   tab send -w WS TAB_ID CONTENT...         Send input to a tab
   tab status -w WS TAB_ID                  Tab status
   tab result -w WS TAB_ID                  Capture tab pane content
@@ -299,9 +316,15 @@ Commands:
   api-guide                                Print full HTTP API reference
   help                                     Show this usage
 
+-w WS may be omitted on every tab command when AMUX_WORKSPACE_ID is set; -w wins over it.
+'tab list' uses the same workspace and lists tabs in every workspace when neither -w nor AMUX_WORKSPACE_ID is set.
+--cwd DIR may be relative; it is resolved against the current directory.
+
 Environment:
-  AMUX_PORT       Server port (legacy alias: CMUX_PORT)
-  AMUX_TOKEN      CLI token (legacy alias: CMUX_TOKEN)
+  AMUX_PORT          Server port (legacy alias: CMUX_PORT)
+  AMUX_TOKEN         CLI token (legacy alias: CMUX_TOKEN)
+  AMUX_WORKSPACE_ID  Default workspace for tab commands (set in agent tabs launched by agentmux)
+  AMUX_TAB_ID        Calling tab; sent as the x-agentmux-caller-tab header on every request
 `);
 };
 

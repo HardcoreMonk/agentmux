@@ -1,7 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { verifyCliToken } from '@/lib/cli-token';
 import { findTab } from '@/lib/cli-utils';
-import { removeTabFromPane } from '@/lib/layout-store';
+import { resolveCliCaller, sendCliError, sendCliServiceError } from '@/lib/cli-caller';
+import { createLogger } from '@/lib/logger';
+import { closeWorkspaceTab } from '@/lib/workspace-tab-service';
+
+const log = createLogger('api:cli:tabs');
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (!verifyCliToken(req)) {
@@ -28,10 +32,22 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   }
 
   if (req.method === 'DELETE') {
-    const found = await findTab(workspaceId, tabId);
-    if (!found) return res.status(404).json({ error: 'Tab not found' });
-    const ok = await removeTabFromPane(workspaceId, found.paneId, tabId);
-    return res.status(200).json({ ok });
+    try {
+      const resolved = await resolveCliCaller(req);
+      if (!resolved.ok) {
+        return sendCliError(res, resolved.status, resolved.code, 'The calling tab was not found in any workspace');
+      }
+      const found = await findTab(workspaceId, tabId);
+      if (!found) return res.status(404).json({ error: 'Tab not found' });
+      if (resolved.caller && found.tab.createdByTabId !== resolved.caller.tab.id) {
+        return sendCliError(res, 403, 'delegation-close-forbidden', 'An agent can close only the tabs it created');
+      }
+      const ok = await closeWorkspaceTab(workspaceId, found.paneId, tabId);
+      return res.status(200).json({ ok });
+    } catch (err) {
+      log.error(`close tab failed: ${err instanceof Error ? err.message : err}`);
+      return sendCliServiceError(res, err);
+    }
   }
 
   res.setHeader('Allow', 'GET, DELETE');

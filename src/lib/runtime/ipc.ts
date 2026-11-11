@@ -819,6 +819,11 @@ export const runtimeCommandRegistry = {
   'terminal.detach': { payload: runtimeTerminalSessionSchema, reply: runtimeTerminalSessionSchema.extend({ detached: z.boolean() }) },
   'terminal.kill-session': { payload: runtimeTerminalSessionSchema, reply: runtimeTerminalSessionSchema.extend({ killed: z.boolean() }) },
   'terminal.has-session': { payload: runtimeTerminalSessionSchema, reply: runtimeTerminalSessionSchema.extend({ exists: z.boolean() }) },
+  'terminal.capture-pane': { payload: runtimeTerminalSessionSchema, reply: runtimeTerminalSessionSchema.extend({ content: z.string() }) },
+  'terminal.send-text': {
+    payload: runtimeTerminalSessionSchema.extend({ text: z.string(), enter: z.boolean() }),
+    reply: runtimeTerminalSessionSchema.extend({ sent: z.boolean() }),
+  },
   'terminal.write-stdin': { payload: terminalWritePayloadSchema, reply: z.object({ written: z.number().int().nonnegative() }) },
   'terminal.write-web-stdin': { payload: terminalWritePayloadSchema, reply: z.object({ written: z.number().int().nonnegative() }) },
   'terminal.resize': { payload: terminalResizePayloadSchema, reply: terminalResizePayloadSchema },

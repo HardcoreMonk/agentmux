@@ -237,6 +237,52 @@ describe('runtime v2 storage import', () => {
     ]);
   });
 
+  it('stores the creator tab id and updates it when a later import changes it', () => {
+    const db = openTestDatabase(path.join(dir, 'runtime-v2', 'state.db'));
+    const workspacesData: IWorkspacesData = {
+      groups: [],
+      activeWorkspaceId: 'ws-a',
+      sidebarCollapsed: false,
+      sidebarWidth: 280,
+      updatedAt: '2026-05-04T00:00:00.000Z',
+      workspaces: [{ id: 'ws-a', name: 'Workspace A', directories: ['/project/a'] }],
+    };
+    const layoutWithCreator = (createdByTabId: string): ILayoutData => ({
+      root: {
+        type: 'pane',
+        id: 'pane-a',
+        activeTabId: 'tab-creator',
+        tabs: [
+          { id: 'tab-creator', sessionName: 'pt-ws-a-pane-a-tab-creator', name: '', order: 0 },
+          { id: 'tab-created', sessionName: 'pt-ws-a-pane-a-tab-created', name: '', order: 1, createdByTabId },
+        ],
+      },
+      activePaneId: 'pane-a',
+      updatedAt: '2026-05-04T00:00:00.000Z',
+    });
+    const readCreators = () => db.prepare('select id, created_by_tab_id as createdByTabId from tabs order by id').all();
+
+    importLegacyStorageSnapshot(db, {
+      workspacesData,
+      layoutsByWorkspaceId: { 'ws-a': layoutWithCreator('tab-creator') },
+      importedAt: '2026-05-04T00:00:00.000Z',
+    });
+    expect(readCreators()).toEqual([
+      { id: 'tab-created', createdByTabId: 'tab-creator' },
+      { id: 'tab-creator', createdByTabId: null },
+    ]);
+
+    importLegacyStorageSnapshot(db, {
+      workspacesData,
+      layoutsByWorkspaceId: { 'ws-a': layoutWithCreator('tab-other') },
+      importedAt: '2026-05-04T00:01:00.000Z',
+    });
+    expect(readCreators()).toEqual([
+      { id: 'tab-created', createdByTabId: 'tab-other' },
+      { id: 'tab-creator', createdByTabId: null },
+    ]);
+  });
+
   it('imports workspace sidebar state and all workspace directories for default read hydration', () => {
     const db = openTestDatabase(path.join(dir, 'runtime-v2', 'state.db'));
     const workspacesData: IWorkspacesData = {

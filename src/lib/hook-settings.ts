@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { getDataDir } from '@/lib/app-identity';
@@ -97,15 +98,20 @@ export const buildHookSettings = () => ({
   },
 });
 
-const writeIfChanged = async (filePath: string, content: string, mode: number): Promise<void> => {
+export const writeIfChanged = async (filePath: string, content: string, mode: number): Promise<void> => {
   try {
     if (await fs.readFile(filePath, 'utf-8') === content) return;
   } catch {
     // Create the file below.
   }
-  const temporaryPath = `${filePath}.${process.pid}.tmp`;
-  await fs.writeFile(temporaryPath, content, { mode });
-  await fs.rename(temporaryPath, filePath);
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await fs.writeFile(temporaryPath, content, { mode });
+    await fs.rename(temporaryPath, filePath);
+  } catch (err) {
+    await fs.rm(temporaryPath, { force: true });
+    throw err;
+  }
   await fs.chmod(filePath, mode);
 };
 

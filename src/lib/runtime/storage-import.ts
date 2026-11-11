@@ -261,9 +261,9 @@ const importTab = (
     insert into tabs (
       id, workspace_id, pane_id, session_name, panel_type, name, title, cwd,
       lifecycle_state, order_index, terminal_ratio, terminal_collapsed, web_url,
-      last_command, runtime_version, created_at, updated_at
+      last_command, runtime_version, created_by_tab_id, created_at, updated_at
     )
-    values (?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?)
+    values (?, ?, ?, ?, ?, ?, ?, ?, 'ready', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     on conflict(id) do update set
       workspace_id = excluded.workspace_id,
       pane_id = excluded.pane_id,
@@ -279,6 +279,7 @@ const importTab = (
       web_url = excluded.web_url,
       last_command = excluded.last_command,
       runtime_version = excluded.runtime_version,
+      created_by_tab_id = excluded.created_by_tab_id,
       updated_at = excluded.updated_at
   `).run(
     tab.id,
@@ -295,6 +296,7 @@ const importTab = (
     tab.webUrl ?? null,
     tab.lastCommand ?? null,
     runtimeVersion,
+    tab.createdByTabId ?? null,
     ts,
     ts,
   );

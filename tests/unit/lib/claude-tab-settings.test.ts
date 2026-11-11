@@ -7,6 +7,7 @@ vi.mock('@/lib/cli-token', () => ({ getCliToken: () => 'test-token' }));
 
 import { verifyAgentHookCapability } from '@/lib/agent-hooks';
 import {
+  CLAUDE_DELEGATION_ALLOW_RULES,
   getClaudeTabSettingsPath,
   removeClaudeTabSettings,
   writeClaudeTabSettings,
@@ -71,6 +72,35 @@ describe('claude tab settings', () => {
     expect(settings.statusLine.command.startsWith('ELECTRON_RUN_AS_NODE=1 ')).toBe(true);
     expect(settings.statusLine.command).toContain('statusline.cjs');
     expect('permissions' in settings).toBe(false);
+  });
+
+  it('allows only the delegation tab subcommands', async () => {
+    const file = await writeClaudeTabSettings({
+      tabId: 'tab-a',
+      sessionName: 'pt-ws-pane-tab-a',
+      nodePath: '/usr/bin/node',
+      allowDelegation: true,
+    });
+    const settings = JSON.parse(await fs.readFile(file, 'utf-8')) as { permissions?: { allow: string[] } };
+    expect(settings.permissions).toEqual({ allow: [...CLAUDE_DELEGATION_ALLOW_RULES] });
+    expect(CLAUDE_DELEGATION_ALLOW_RULES).toHaveLength(6);
+    for (const rule of CLAUDE_DELEGATION_ALLOW_RULES) {
+      expect(rule).toMatch(/^Bash\(agentmux tab (list|create|send|status|result|close):\*\)$/);
+      expect(rule).not.toContain('tab browser');
+    }
+    expect(CLAUDE_DELEGATION_ALLOW_RULES).not.toContain('Bash(agentmux:*)');
+    expect(CLAUDE_DELEGATION_ALLOW_RULES).not.toContain('Bash(agentmux tab:*)');
+  });
+
+  it('writes no permissions when delegation is off', async () => {
+    const file = await writeClaudeTabSettings({
+      tabId: 'tab-a',
+      sessionName: 'pt-ws-pane-tab-a',
+      nodePath: '/usr/bin/node',
+      allowDelegation: false,
+    });
+    const settings = JSON.parse(await fs.readFile(file, 'utf-8')) as Record<string, unknown>;
+    expect(Object.keys(settings)).toEqual(['hooks', 'statusLine']);
   });
 
   it('removes the settings file and tolerates a missing one', async () => {

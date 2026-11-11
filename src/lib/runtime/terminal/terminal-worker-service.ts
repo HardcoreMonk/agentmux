@@ -199,6 +199,14 @@ export const createTerminalWorkerService = (options: ITerminalWorkerServiceOptio
           clearStdout(input.sessionName);
           return ok(command, await options.runtime.killSession(input.sessionName));
         }
+        if (command.type === 'terminal.capture-pane') {
+          const input = parseRuntimeCommandPayload('terminal.capture-pane', command.payload);
+          return ok(command, await options.runtime.capturePane(input.sessionName));
+        }
+        if (command.type === 'terminal.send-text') {
+          const input = parseRuntimeCommandPayload('terminal.send-text', command.payload);
+          return ok(command, await options.runtime.sendText(input.sessionName, input.text, input.enter));
+        }
         if (command.type === 'terminal.has-session') {
           const input = parseRuntimeCommandPayload('terminal.has-session', command.payload);
           return ok(command, await options.runtime.hasSession(input.sessionName));

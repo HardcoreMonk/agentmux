@@ -25,6 +25,7 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `STATUS.md` | Codex 작업 상태 감지, notification, timeline metadata |
 | `TMUX.md` | Linux tmux adapter와 terminal WebSocket 계약 |
 | `DATA-DIR.md` | `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`) 저장 구조와 삭제 기준 |
+| `CLI.md` | `agentmux` CLI 명령, 환경 변수, 위임 안내와 위임 제한, 오류 code, Codex 제약 |
 | `TESTING.md` | unit/type/lint/build, Linux engine, Playwright와 별도 package smoke 기준 |
 | `ELECTRON.md` | Electron desktop shell, Windows packaging, updater smoke |
 | `PERFORMANCE.md` | 성능 스냅샷, cache, polling, render 최적화 기준 |

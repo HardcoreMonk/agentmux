@@ -29,6 +29,14 @@ export interface ITerminalRuntimeWriteResult {
   written: number;
 }
 
+export interface ITerminalRuntimeCaptureResult extends ITerminalRuntimeSessionRef {
+  content: string;
+}
+
+export interface ITerminalRuntimeSendTextResult extends ITerminalRuntimeSessionRef {
+  sent: boolean;
+}
+
 export interface ITerminalRuntimeResizeResult extends ITerminalRuntimeSessionRef {
   cols: number;
   rows: number;
@@ -55,6 +63,8 @@ export interface ITerminalRuntimeAdapter {
   killSession(sessionName: string): Promise<ITerminalRuntimeKillResult>;
   hasSession(sessionName: string): Promise<ITerminalRuntimePresenceResult>;
   writeStdin(sessionName: string, data: string): Promise<ITerminalRuntimeWriteResult>;
+  capturePane(sessionName: string): Promise<ITerminalRuntimeCaptureResult>;
+  sendText(sessionName: string, text: string, enter: boolean): Promise<ITerminalRuntimeSendTextResult>;
   resize(sessionName: string, cols: number, rows: number): Promise<ITerminalRuntimeResizeResult>;
   getSessionInfo?(sessionName: string): Promise<ITerminalRuntimeSessionInfo>;
 }

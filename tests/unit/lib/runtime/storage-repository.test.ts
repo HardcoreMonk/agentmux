@@ -85,6 +85,32 @@ describe('runtime storage repository', () => {
     }));
   });
 
+  it('projects the creator tab id only for tabs that have one', () => {
+    const db = openTestDatabase(path.join(dir, 'runtime-v2', 'state.db'));
+    const repo = createStorageRepository(db);
+    const workspace = repo.createWorkspace({ name: 'Runtime', defaultCwd: dir });
+    for (const id of ['tab-creator', 'tab-created']) {
+      repo.createPendingTerminalTab({
+        id,
+        workspaceId: workspace.id,
+        paneId: workspace.rootPaneId,
+        sessionName: `rtv2-${workspace.id}-${workspace.rootPaneId}-${id}`,
+        cwd: dir,
+      });
+      repo.finalizeTerminalTab({ id });
+    }
+    db.prepare(`update tabs set created_by_tab_id = ? where id = ?`).run('tab-creator', 'tab-created');
+
+    const layout = repo.getWorkspaceLayout(workspace.id);
+
+    expect(layout?.root.type).toBe('pane');
+    if (layout?.root.type === 'pane') {
+      const [creator, created] = layout.root.tabs;
+      expect(created.createdByTabId).toBe('tab-creator');
+      expect(creator).not.toHaveProperty('createdByTabId');
+    }
+  });
+
   it('rejects terminal tabs for panes outside the supplied workspace', () => {
     const db = openTestDatabase(path.join(dir, 'runtime-v2', 'state.db'));
     const repo = createStorageRepository(db);
@@ -427,6 +453,7 @@ describe('runtime storage repository', () => {
       { version: 3 },
       { version: 4 },
       { version: 5 },
+      { version: 6 },
     ]);
     db.close();
 
@@ -437,6 +464,7 @@ describe('runtime storage repository', () => {
       { version: 3, count: 1 },
       { version: 4, count: 1 },
       { version: 5, count: 1 },
+      { version: 6, count: 1 },
     ]);
   });
 

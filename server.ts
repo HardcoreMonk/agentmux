@@ -32,6 +32,7 @@ import { handleSyncConnection, gracefulSyncShutdown } from './src/lib/sync-serve
 import { handleStatusConnection, gracefulStatusShutdown } from './src/lib/status-server';
 import { getStatusManager } from './src/lib/status-manager';
 import { ensureHookSettings, removePortFile } from './src/lib/hook-settings';
+import { ensureDelegationAssets } from './src/lib/delegation-guide';
 import { getCliToken } from './src/lib/cli-token';
 import { acquireLock, releaseLock, registerLockCleanup } from './src/lib/lock';
 import { listSessions, scanSessions, applyConfig } from './src/lib/tmux';
@@ -500,6 +501,11 @@ export const start = async (opts?: IStartOptions): Promise<IStartResult> => {
   const preexistingSessions = new Set(await listSessions());
   await applyConfig();
   await initWorkspaceStore();
+  try {
+    await ensureDelegationAssets();
+  } catch (err) {
+    log.warn(`Delegation assets setup failed: ${err instanceof Error ? err.message : err}`);
+  }
   await autoResumeOnStartup({ preexistingSessions });
   if (shouldPrewarmSessionIndexOnStartup()) {
     await initSessionIndexService();

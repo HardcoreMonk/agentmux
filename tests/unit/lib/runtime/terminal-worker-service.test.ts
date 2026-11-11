@@ -38,6 +38,13 @@ const createFakeRuntime = (): ITerminalRuntimeAdapter & {
     async hasSession(sessionName) {
       return { sessionName, exists: true };
     },
+    async capturePane(sessionName) {
+      return { sessionName, content: 'screen' };
+    },
+    async sendText(sessionName, text, enter) {
+      writes.push(`${sessionName}:text:${text}:${enter}`);
+      return { sessionName, sent: true };
+    },
     async writeStdin(sessionName, data) {
       writes.push(`${sessionName}:${data}`);
       return { written: data.length };
@@ -95,6 +102,30 @@ describe('terminal worker service', () => {
       sessionName: 'rtv2-ws-a-pane-b-tab-c',
       exists: false,
     });
+  });
+
+  it('captures and types into a session without a pty', async () => {
+    const runtime = createFakeRuntime();
+    const service = createTerminalWorkerService({ runtime });
+
+    const captured = await service.handleCommand(createRuntimeCommand({
+      source: 'supervisor',
+      target: 'terminal',
+      type: 'terminal.capture-pane',
+      payload: { sessionName: 'rtv2-ws-a-pane-b-tab-c' },
+    }));
+    const sent = await service.handleCommand(createRuntimeCommand({
+      source: 'supervisor',
+      target: 'terminal',
+      type: 'terminal.send-text',
+      payload: { sessionName: 'rtv2-ws-a-pane-b-tab-c', text: 'echo p4', enter: true },
+    }));
+
+    expect(captured.ok).toBe(true);
+    expect(captured.payload).toEqual({ sessionName: 'rtv2-ws-a-pane-b-tab-c', content: 'screen' });
+    expect(sent.ok).toBe(true);
+    expect(sent.payload).toEqual({ sessionName: 'rtv2-ws-a-pane-b-tab-c', sent: true });
+    expect(runtime.writes).toEqual(['rtv2-ws-a-pane-b-tab-c:text:echo p4:true']);
   });
 
   it('returns structured errors for invalid worker commands', async () => {

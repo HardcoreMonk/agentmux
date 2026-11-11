@@ -245,6 +245,47 @@ describe('terminal worker runtime', () => {
     expect(ptySpawnMock).not.toHaveBeenCalled();
   });
 
+  it('captures pane content and sends text without attaching a pty', async () => {
+    execFileMock.mockImplementation((_cmd, _args, _options, callback) => {
+      callback(null, { stdout: 'screen text', stderr: '' });
+    });
+    const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');
+    const runtime = createTerminalWorkerRuntime();
+
+    await expect(runtime.capturePane('rtv2-ws-a-pane-b-tab-c')).resolves.toEqual({
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      content: 'screen text',
+    });
+    await expect(runtime.sendText('rtv2-ws-a-pane-b-tab-c', 'echo p4', true)).resolves.toEqual({
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      sent: true,
+    });
+
+    const calls = execFileMock.mock.calls.map((call) => call[1]);
+    expect(calls).toEqual([
+      ['-L', 'codexmux-runtime-v2', 'capture-pane', '-p', '-t', 'rtv2-ws-a-pane-b-tab-c'],
+      ['-L', 'codexmux-runtime-v2', 'send-keys', '-t', 'rtv2-ws-a-pane-b-tab-c', '-l', '--', 'echo p4'],
+      ['-L', 'codexmux-runtime-v2', 'send-keys', '-t', 'rtv2-ws-a-pane-b-tab-c', 'Enter'],
+    ]);
+    expect(ptySpawnMock).not.toHaveBeenCalled();
+  });
+
+  it('skips Enter when enter is false and maps a missing session to not-found', async () => {
+    execFileSuccess();
+    const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');
+    const runtime = createTerminalWorkerRuntime();
+    await runtime.sendText('rtv2-ws-a-pane-b-tab-c', 'x', false);
+    expect(execFileMock).toHaveBeenCalledTimes(1);
+
+    execFileFailure("can't find session: rtv2-ws-a-pane-b-tab-c");
+    await expect(runtime.capturePane('rtv2-ws-a-pane-b-tab-c')).rejects.toMatchObject({
+      code: 'runtime-v2-terminal-session-not-found',
+    });
+    await expect(runtime.sendText('rtv2-ws-a-pane-b-tab-c', 'x', true)).rejects.toMatchObject({
+      code: 'runtime-v2-terminal-session-not-found',
+    });
+  });
+
   it('returns false for missing tmux session presence checks', async () => {
     execFileFailure("can't find session");
     const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');

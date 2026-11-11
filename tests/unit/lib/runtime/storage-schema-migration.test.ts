@@ -6,9 +6,13 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CURRENT_RUNTIME_SCHEMA_VERSION,
+  RUNTIME_SCHEMA_V6_DOWNGRADE_SQL,
   openRuntimeDatabase,
+  runRuntimeMigrations,
   type IRuntimeMigrationBackupInput,
+  type TRuntimeDatabase,
 } from '@/lib/runtime/storage/schema';
+import { createStorageRepository } from '@/lib/runtime/storage/repository';
 
 const requireOptional = createRequire(path.join(process.cwd(), 'package.json'));
 const Database = requireOptional('better-sqlite3') as typeof import('better-sqlite3');
@@ -24,14 +28,22 @@ describe('runtime storage annotation migration', () => {
     await fsPromises.rm(dir, { recursive: true, force: true });
   });
 
-  const createVersion3Database = (dbPath: string) => {
+  const createDatabaseAtVersion = (dbPath: string, version: number) => {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
     const db = new Database(dbPath);
-    db.exec(`create table schema_migrations (version integer primary key, applied_at text not null)`);
-    const insert = db.prepare(`insert into schema_migrations(version, applied_at) values(?, ?)`);
-    for (const version of [1, 2, 3]) insert.run(version, new Date().toISOString());
+    runRuntimeMigrations(db, version);
     db.close();
   };
+
+  const createVersion3Database = (dbPath: string) => createDatabaseAtVersion(dbPath, 3);
+
+  const createVersion5Database = (dbPath: string) => createDatabaseAtVersion(dbPath, 5);
+
+  const readTabColumns = (db: TRuntimeDatabase): string[] =>
+    (db.prepare(`pragma table_info(tabs)`).all() as Array<{ name: string }>).map((row) => row.name);
+
+  const readMaxVersion = (db: TRuntimeDatabase): number =>
+    (db.prepare(`select max(version) as version from schema_migrations`).get() as { version: number }).version;
 
   it('backs up an existing v3 database before adding annotation tables', () => {
     const dbPath = path.join(dir, 'runtime-v2', 'state.db');
@@ -66,6 +78,50 @@ describe('runtime storage annotation migration', () => {
 
     expect(version.version).toBe(3);
     expect(annotation).toBeUndefined();
+  });
+
+  it('backs up a v5 database and adds the tab creator column', () => {
+    const dbPath = path.join(dir, 'runtime-v2', 'state.db');
+    createVersion5Database(dbPath);
+
+    const db = openRuntimeDatabase(dbPath);
+    const columns = readTabColumns(db);
+    const version = readMaxVersion(db);
+    db.close();
+
+    expect(CURRENT_RUNTIME_SCHEMA_VERSION).toBe(6);
+    expect(version).toBe(6);
+    expect(columns).toContain('created_by_tab_id');
+    expect(fs.readdirSync(path.join(dir, 'backups'))).toEqual([
+      expect.stringMatching(/^runtime-v2-migration-v5-v6-/),
+    ]);
+  });
+
+  it('downgrades a v6 database to v5 in place and upgrades it again on the next open', () => {
+    const dbPath = path.join(dir, 'runtime-v2', 'state.db');
+    const db = openRuntimeDatabase(dbPath);
+    const repo = createStorageRepository(db);
+    const workspace = repo.createWorkspace({ name: 'Runtime', defaultCwd: dir });
+    repo.createPendingTerminalTab({
+      id: 'tab-created',
+      workspaceId: workspace.id,
+      paneId: workspace.rootPaneId,
+      sessionName: `rtv2-${workspace.id}-${workspace.rootPaneId}-tab-created`,
+      cwd: dir,
+    });
+    repo.finalizeTerminalTab({ id: 'tab-created' });
+    db.prepare(`update tabs set created_by_tab_id = ? where id = ?`).run('tab-creator', 'tab-created');
+
+    db.exec(RUNTIME_SCHEMA_V6_DOWNGRADE_SQL);
+    expect(readTabColumns(db)).not.toContain('created_by_tab_id');
+    expect(readMaxVersion(db)).toBe(5);
+    expect(db.prepare(`select id from tabs`).all()).toEqual([{ id: 'tab-created' }]);
+    db.close();
+
+    const reopened = openRuntimeDatabase(dbPath);
+    expect(readMaxVersion(reopened)).toBe(6);
+    expect(readTabColumns(reopened)).toContain('created_by_tab_id');
+    reopened.close();
   });
 
   it('keeps the runtime database and its directory private', () => {

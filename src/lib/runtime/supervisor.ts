@@ -199,6 +199,9 @@ export interface IRuntimeSupervisor {
   detachTerminal(input: { sessionName: string; subscriberId: string }): Promise<void>;
   writeTerminal(input: { sessionName: string; subscriberId: string; data: string }): Promise<void>;
   writeTerminalSession(input: { sessionName: string; data: string }): Promise<void>;
+  captureTerminalSession(input: { sessionName: string }): Promise<{ sessionName: string; content: string }>;
+  sendTerminalSessionText(input: { sessionName: string; text: string; enter: boolean }): Promise<void>;
+  hasTerminalSession(input: { sessionName: string }): Promise<boolean>;
   resizeTerminal(input: { sessionName: string; subscriberId: string; cols: number; rows: number }): Promise<void>;
 }
 
@@ -1570,6 +1573,47 @@ export const createRuntimeSupervisorForTest = (
         sessionName,
         data: input.data,
       });
+    },
+
+    async captureTerminalSession(input) {
+      await this.ensureStarted();
+      const sessionName = await assertReadyTerminalSession(input.sessionName);
+      return getClients().terminal.request<{ sessionName: string }, { sessionName: string; content: string }>(
+        'terminal.capture-pane',
+        { sessionName },
+      );
+    },
+
+    async sendTerminalSessionText(input) {
+      await this.ensureStarted();
+      const sessionName = await assertReadyTerminalSession(input.sessionName);
+      await getClients().terminal.request('terminal.send-text', {
+        sessionName,
+        text: input.text,
+        enter: input.enter,
+      });
+    },
+
+    async hasTerminalSession(input) {
+      await this.ensureStarted();
+      const { storage, terminal } = getClients();
+      const sessionName = parseRuntimeSessionName(input.sessionName);
+      const tab = await storage.request<{ sessionName: string }, IRuntimeTerminalTab | null>(
+        'storage.get-ready-terminal-tab-by-session',
+        { sessionName },
+      );
+      if (!tab) return false;
+      try {
+        const presence = await terminal.request<{ sessionName: string }, IRuntimeTerminalSessionPresence>(
+          'terminal.has-session',
+          { sessionName },
+        );
+        return presence.exists;
+      } catch (err) {
+        const maybeStructured = err as { code?: string } | null;
+        if (maybeStructured?.code === 'runtime-v2-terminal-session-not-found') return false;
+        throw err;
+      }
     },
 
     async resizeTerminal(input) {
