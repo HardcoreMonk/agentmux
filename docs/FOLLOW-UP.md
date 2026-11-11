@@ -305,6 +305,31 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | Codex 지난 세션 목록 확인 | 배포 뒤 live Codex 탭의 지난 세션 목록 개수와 순서가 배포 전과 같은지 확인(격리 확인에서는 Codex index 첫 scan 중이라 Codex 항목을 보지 못함) |
 | 문서 외 미검증 | Claude 직접 실행 뒤 timeline 연결, 일일 리포트의 실제 Claude 생성 경로(생성기 전체) |
 
+## Claude Code provider 단계 4 후속
+
+단계 4(위임 안내, 탭 환경 변수와 CLI shim, `permissions.allow`, `agentmux tab` CLI·API 변경, Runtime v2 schema v6)는 branch
+`feat/claude-provider-phase4`에 구현했습니다. 설계는 ADR-035, ADR-036, ADR-037, CLI는 `CLI.md`에 있습니다. gate, 격리 live
+확인, PR, main merge와 live 배포는 이 절 작성 뒤 이어집니다(결과는 handoff 단계 4 절).
+
+| 항목 | 내용 |
+| --- | --- |
+| 모바일 `aria-label`과 표시 문구 | `mobile-workspace-tab-bar.tsx`의 `aria-label`이 sr-only "Agent가 만든 탭" 문구를 가림. 모바일 표시 test 없음 |
+| 만든 탭 이름 title | 만든 agent 탭 표시의 title이 creator 이름 대신 일반 fallback 문구 |
+| 띄우기 중 예외 | `tab create`에서 탭 생성 뒤 `launchAgentInTab`이 throw하면 `tabId` 없는 500. 탭은 `createdByTabId`와 함께 남아 `tab list`로 찾을 수 있음. 해법 후보: catch 후 201 `ready:false` `launchError:'launch-failed'` |
+| TOML `U+007F` | `JSON.stringify`가 `U+007F`를 이스케이프하지 않음. 사용자 TOML이 `\u007F`를 이스케이프한 경우에만 해당 |
+| Codex profile 우선순위 | `[profiles.<profile>]`의 `developer_instructions`와 최상위 `-c`의 우선순위 미검증. profile만 쓰는 사용자는 안내가 안 붙을 수 있음(사용자 값은 보존) |
+| project layer 탐색 | cwd부터 `/`까지 올라가며 project `.codex/config.toml`을 읽음. git root로 제한하지 않음. symlink `CODEX_HOME`은 resolve하지 않음. 둘 다 안내를 빼는 쪽이라 보수적 |
+| `writeIfChanged` 실패 경로 | 실패 시 임시 파일 정리에 전용 test 없음 |
+| `sendText` 두 번 exec | text와 Enter를 두 번 exec. Enter가 실패하면 text가 이미 입력된 채 실패 보고 |
+| Enter guard test | 이어지는 Enter guard의 화면 읽기 실패 branch에 test 없음 |
+| `create` 500 본문 | 호출 탭 header 없는 `create`의 500 본문이 `{ error: <raw message> }`에서 `{ error: 'internal-error', message }`로 바뀜(controller 결정) |
+| help 문구 | `tab list`와 환경 변수 fallback 설명이 명확하지 않음(실제로는 `AMUX_WORKSPACE_ID`가 `tab list`에도 적용) |
+| `runtimeLayoutTabSchema` | `src/lib/runtime/ipc.ts`의 `runtimeLayoutTabSchema`가 `createdByTabId`를 버림. supervisor `getLayout`과 `/api/v2` layout에서 빠지고 UI가 쓰는 `/api/layout`은 영향 없음 |
+| Test가 실제 `~/.codex/sessions`에 씀 | `tests/unit/lib/runtime/timeline-worker-service.test.ts`가 실제 `~/.codex/sessions` 아래에 씀. 임시 directory로 격리 필요 |
+| `storage-write-ownership.test.ts` | 전역 `AGENTMUX_DATA_DIR`가 설정된 환경에서 실패(기존 문제, 임시 `HOME`만으로 충분) |
+| 임시 test directory | 단계 4 test가 남긴 `/tmp/p4t.*`, `/tmp/p4h.*`를 사용자가 확인 뒤 삭제 |
+| 위임 한계 | Codex `workspace-write` sandbox는 local network를 막아 위임 불가. `shell_environment_policy`가 `core`/`none`이면 호출 탭을 모름(`CLI.md`) |
+
 ## Codex lifecycle 기준
 
 - `domain-architecture` pass를 `superpowers:brainstorming / writing-spec` 뒤, `grill-me` 앞에 둡니다.

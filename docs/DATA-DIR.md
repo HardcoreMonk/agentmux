@@ -59,6 +59,10 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
         <action-id>/
           action.json
           preimage/
+  bin/
+    agentmux
+  delegation/
+    claude.md
   hooks.json
   status-hook.cjs
   statusline.cjs
@@ -100,7 +104,9 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
 | `statusline.cjs` | Claude Code statusLine bridge(Node script). 탭 설정 파일의 statusLine이 호출하며 stdin을 server로 보내고 사용자 원래 statusLine 명령을 대신 실행 |
 | `statusline.sh` | 이전 shell statusline bridge. 현재 생성하거나 호출하지 않지만 기존 설치에는 남을 수 있음 |
 | `rate-limits.json` | Claude Code statusLine이 보낸 최신 5시간/7일 rate limit. `claude` provider rate limit의 source |
-| `claude-tabs/<tab-id>.json` | Claude Code 탭별 `--settings` 파일(hook 7개와 statusLine). 파일 `0600`, directory `0700`. 실행·재개마다 새 capability로 다시 쓰고 탭을 닫으면 삭제 |
+| `claude-tabs/<tab-id>.json` | Claude Code 탭별 `--settings` 파일(hook 7개와 statusLine). 파일 `0600`, directory `0700`. 위임 안내가 켜져 있으면 `permissions.allow`에 `Bash(agentmux tab list:*)`, `create`, `send`, `status`, `result`, `close` 6개만 포함(`tab browser`와 bare `agentmux`는 제외). 실행·재개마다 새 capability로 다시 쓰고 탭을 닫으면 삭제 |
+| `bin/agentmux` | agent 탭 `PATH`에 들어가는 CLI shim(`0700`). `AGENTMUX_DATA_DIR`과 `ELECTRON_RUN_AS_NODE=1`을 설정해 `<appDir>/bin/agentmux.js`를 실행. Server 시작 때(auto-resume 전)와 agent를 띄울 때 내용이 바뀐 경우에만 씀. 위임 안내가 꺼져 있어도 지우지 않음 |
+| `delegation/claude.md` | Claude Code 위임 안내(`--append-system-prompt-file`). 파일 `0600`. 쓰는 시점은 shim과 같고, 없으면 flag를 빼고 warning |
 | `session-index.json` | Codex JSONL session list metadata cache. Cold refresh 중에도 UI는 현재 snapshot을 먼저 표시 |
 | `quick-prompts.json` | 사용자 quick prompt와 내장 prompt 표시 상태 |
 | `keybindings.json` | 앱 단축키 override |
@@ -141,7 +147,14 @@ transaction을 보호합니다. 강제 process kill로 남은 recent stage는 ag
 
 Runtime v2는 `runtime-v2/state.db`를 사용합니다.
 
-- SQLite schema는 migration으로 관리합니다.
+- SQLite schema는 migration으로 관리합니다. 현재 schema는 v6이며 v6은 `tabs.created_by_tab_id`(agent가 만든 탭을 만든 호출 탭 id)를 더합니다. v5→v6 migration backup은 `backups/runtime-v2-migration-v5-v6-<timestamp>/`입니다.
+- 이전 build는 v6 DB를 열지 못합니다(새 schema version 거부). Rollback은 service를 멈추고 `runtime-v2/state.db*`를 별도 directory에 복사한 뒤 better-sqlite3로 `src/lib/runtime/storage/schema.ts`의 `RUNTIME_SCHEMA_V6_DOWNGRADE_SQL`을 DB 안에서 실행하고 이전 build를 시작하는 순서입니다. 문장은 다음과 같습니다.
+
+  ```sql
+  alter table tabs drop column created_by_tab_id; delete from schema_migrations where version = 6;
+  ```
+
+  Migration 전 backup을 되돌리는 방법은 비상용입니다. 배포 뒤 SQLite에 쓴 자료를 잃고, 이후 첫 layout 쓰기가 현재 `layout.json`을 오래된 layout으로 덮습니다.
 - `AGENTMUX_RUNTIME_V2_RESET=1`(legacy `CODEXMUX_RUNTIME_V2_RESET=1` 호환)은 `state.db`, `state.db-wal`, `state.db-shm`을 timestamp `.bak` 파일로 이동한 뒤 새 DB를 만듭니다.
 - Windows에서는 열린 SQLite handle 때문에 temp directory 삭제가 실패할 수 있으므로 test/smoke는 service와 DB handle을 닫은 뒤 cleanup합니다.
 - Runtime v2가 꺼진 install/build는 `better-sqlite3` native binding load에 의존하지 않습니다.
@@ -216,6 +229,7 @@ statusLine은 탭별 `claude-tabs/<tab-id>.json`을 `--settings`로 넘겨서만
 | `server` | Electron local/remote server mode |
 | `claudeModel` | Claude Code 탭 실행 시 `--model` 값. 없으면 사용자 Claude 설정을 따름 |
 | `claudePermissionMode` | Claude Code 탭 실행 시 `--permission-mode` 값. 없으면 사용자 Claude 설정을 따름 |
+| `agentDelegationGuideEnabled` | 위임 안내, 탭 환경 변수, `permissions.allow` 사용 여부. 기본 켬. 끄면 agent 실행 명령이 이전과 byte 단위로 같음. 자세한 내용은 `CLI.md` |
 
 `config.json` missing은 최초 startup에서만 새 empty config를 만들고 setup을 시작합니다.
 Malformed JSON, 읽기 오류, valid scrypt hash만 있고 `authSecret`이 없는 상태는 자동

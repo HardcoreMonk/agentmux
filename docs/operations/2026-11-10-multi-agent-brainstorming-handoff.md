@@ -401,6 +401,68 @@ claude-* model이 있는 날은 건너뜀, v4 한 번 백업), 비용은 추정�
   `agentmux.service` MainPID `1705635`(NRestarts 0)가 같다. Live tmux server `43870`은 건드리지 않았고 격리 server 2개와 그
   tmux server, 임시 directory는 정리했다.
 
+## Claude Code provider 단계 4 구현과 검증 (2026-11-11)
+
+위임 안내와 CLI 변경(agentmux가 띄운 Claude Code·Codex에 탭 환경 변수, CLI shim, 위임 안내, Claude `permissions.allow`를
+붙이고, `agentmux tab` CLI·API가 안전하게 위임하도록 변경)을 branch `feat/claude-provider-phase4`(base main `5b29cb67`)에
+Task 1~8로 구현했다. 설계 결정은 ADR-035/036/037, CLI 계약은 `docs/CLI.md`, 저장 구조는 `docs/DATA-DIR.md`에 있다.
+
+### 구현 요약
+
+- 설정 `agentDelegationGuideEnabled`(기본 켬, Settings → General). 끄면 실행 명령은 단계 3과 byte 단위로 같다.
+- 환경 변수 `AMUX_WORKSPACE_ID`, `AMUX_TAB_ID`, `PATH`(앞에 `<dataDir>/bin`). Shim `<dataDir>/bin/agentmux`(`0700`)와
+  `<dataDir>/delegation/claude.md`(`0600`)는 server 시작 때 auto-resume 전에, 이후 agent 실행마다 내용이 바뀐 경우 쓴다.
+- Claude Code: `--append-system-prompt-file`(파일이 없으면 flag를 빼고 warning), `claude-tabs/<tab-id>.json`의
+  `permissions.allow`에 `agentmux tab list/create/send/status/result/close`만(`tab browser`와 bare `agentmux` 제외).
+- Codex: `-c developer_instructions=<TOML string>`. 사용자 값(`$CODEX_HOME/config.toml` 또는 선택한 profile)은 안내 앞에 보존.
+  값이 다르거나, TOML parse 실패, project `.codex/config.toml`이 값을 정의, cwd 불명, 명령 12,288 byte 초과면 안내를 빼고 warn.
+- CLI: `-w` 기본값 `AMUX_WORKSPACE_ID`, header `x-agentmux-caller-tab`, `tab create -t claude`와 `--cwd`, 오류
+  `error: <code>: <message>`. API: 호출 탭 pane에 active 탭 변경 없이 생성, 6개 제한(`delegation-limit`), agent 탭은
+  `session-start` hook 뒤 `idle`까지 최대 60초 대기, `send`의 `target-needs-input`/`target-not-ready` 거절, 호출 탭이 만든
+  탭만 `close`, Runtime v2 plain terminal 탭에 tmux `send-keys -l --`로 입력(browser 불필요).
+- Runtime v2 schema v6: `tabs.created_by_tab_id`. UI: agent가 만든 탭에 `CornerDownRight` 표시("Agent가 만든 탭").
+
+### 구현 중 controller 결정 (plan 작성 시 결정과 구현 중 결정, 코드에 반영됨)
+
+- Codex project `.codex/config.toml`은 `developer_instructions` 유무만 보고 값을 복사하지 않는다. 있으면 안내를 뺀다
+  (`project-defined`). Codex가 신뢰한 project만 읽으므로 복사하면 사용자의 trust 거절을 우회한다.
+- `CODEX_COMMAND_SAFE_BYTES`(12,288)는 `src/lib/codex-command.ts`에서 export한다.
+- Runtime v2 plain terminal 입력은 spec의 supervisor `writeTerminalSession` 대신 새 IPC `terminal.send-text`를 쓴다
+  (`writeTerminalSession`은 browser가 붙인 PTY에만 쓴다).
+- 위임 파일은 `server.ts`의 auto-resume 전과 위임이 켜진 agent 실행 명령을 만들 때마다 쓴다(`ensureHookSettings`는 `hooks.json`이
+  같으면 일찍 return하므로). `writeIfChanged` 임시 이름 경합은 수정 루프에 포함했다.
+- `activate:false`로 만든 탭이 빈 pane(`activeTabId` null)에 놓이면 그 탭을 active로 한다(`activePaneId`는 그대로).
+- `tab send`는 시작 화면 검사를 권한 요청 검사보다 먼저 한다(`hasPermissionPrompt`가 trust 화면에도 맞아서). 둘 다 입력은 보내지 않는다.
+- 호출 탭 header는 `create`와 `close`에서만 해석한다(404 `caller-tab-not-found`). `send`/`status`/`result`/`list`는 무시한다.
+- agent 탭 안의 `tab list`는 `AMUX_WORKSPACE_ID` workspace로 범위가 좁혀진다(`-w`가 우선).
+- 호출 탭 header 없는 `create`의 500 본문이 `{ error: 'internal-error', message }`로 바뀐다.
+- Runtime v2 storage 기본 mode에서는 `createdByTabId`를 SQLite column(schema v6)에 저장한다.
+
+미룬 minor는 `docs/FOLLOW-UP.md`의 "Claude Code provider 단계 4 후속"에 있다.
+
+### 배포와 rollback 절차
+
+Runtime v2 schema v6 migration 뒤에는 이전 build가 DB를 열지 못한다(새 schema version 거부). 그래서 rollback은 순서가 필수다.
+
+1. Service를 멈춘다.
+2. 현재 `<dataDir>/runtime-v2/state.db*`(`state.db`, `state.db-wal`, `state.db-shm`)를 별도 directory에 복사해 둔다.
+3. better-sqlite3로 `src/lib/runtime/storage/schema.ts`의 `RUNTIME_SCHEMA_V6_DOWNGRADE_SQL`을 `state.db`에 실행한다.
+   ```sql
+   alter table tabs drop column created_by_tab_id; delete from schema_migrations where version = 6;
+   ```
+4. 이전 build(배포 직전 build, 기준 main `5b29cb67`)를 시작한다.
+
+Rollback 전에 위임으로 만든 탭은 닫아 두는 편이 안전하다(이전 build는 `createdByTabId`를 모른다). 비상용으로 migration backup
+`<dataDir>/backups/runtime-v2-migration-v5-v6-<시각>/`의 DB를 되돌릴 수 있지만, 배포 뒤 SQLite에 쓴 자료(탭, workspace,
+annotation, governance 기록)를 잃고, 이후 첫 layout 쓰기가 현재 `layout.json`을 오래된 SQLite layout으로 덮는다. 그래서 위
+in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤에는 `<dataDir>/backups/runtime-v2-migration-v5-v6-*` 생성,
+`state.db` schema v6, shim과 안내 파일 생성, 기존 탭 목록과 active 탭 유지를 확인한다.
+
+### 전체 gate와 격리 live 확인
+
+- 전체 gate: (controller가 기록)
+- 격리 live 확인: (controller가 기록)
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -417,16 +479,17 @@ claude-* model이 있는 날은 건너뜀, v4 한 번 백업), 비용은 추정�
   live smoke(9개 확인 통과, 결함 4개 기록)를 마쳤다. Branch 최종 code-review 수정(`d5f3432a`, 권한 요청 "No" 뒤 `busy`
   고정과 모바일 탭 이름 폭 포함)과 격리 live 재확인(3개 통과)을 마쳤다. PR, main merge, live 배포는 이후 hotfix #48과 함께 완료(위 단계 3 절의 운영 기록).
 - 설계 1 단계 3: plan-eng-review 반영(`2a749a2e`), Task 1~10 implement와 task별 code-review, 전체 gate, 격리 browser·live 확인(5개 통과, 1개 부분), branch 최종 code-review(Critical/Important 0, Minor 1 반영)를 마쳤다. PR #49, main merge(`ad32559d`), live 배포(2026-11-11 09:28 KST)와 배포 뒤 확인을 마쳤다. operate. Worktree와 로컬 branch는 정리했다.
+- 설계 1 단계 4: plan 승인(2026-11-11), Task 1~8 implement와 task별 code-review를 마쳤고 문서(ADR-035/036/037, `docs/CLI.md`)를 기록했다. 다음은 전체 gate, 격리 live 확인, 최종 code-review, PR이다(branch `feat/claude-provider-phase4`). implement 완료, release 전.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-단계 3은 live에 배포됐고(`ad32559d`) 배포 뒤 확인을 마쳤다. 원격 branch `feat/claude-provider-phase3` 삭제는 사용자가 직접
-실행한다. 다음은 설계 1 단계 4(위임 안내, `permissions.allow`, CLI 변경) 계획 작성이다.
-Rollback이 필요하면 Claude 탭을 먼저 닫는다. 통계 cache는 이미 v5이므로 service를 멈추고
-`cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json`으로 v4를 되돌린 뒤 이전 build(`d1accfc6`)를 시작한다(이전
-build는 v5를 버리고 원본 파일로 다시 계산해 원본이 없는 날짜를 잃는다).
+단계 3은 live에 배포됐고(`ad32559d`) 배포 뒤 확인을 마쳤다. 단계 4(위임 안내, `permissions.allow`, CLI 변경)는 구현과 문서를 마쳤다.
+다음은 전체 gate, 격리 live 확인, 최종 code-review, PR이다. 배포(main push와 `deploy:local`)는 사용자가 직접 실행한다.
+단계 4 rollback은 위 "배포와 rollback 절차"(schema v6 in-place downgrade)를 따른다. 단계 3 rollback(통계 cache v5→v4)은
+service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json` 뒤 이전 build를 시작하는 방식이다
+(이전 build는 v5를 버리고 원본 파일로 다시 계산해 원본이 없는 날짜를 잃는다).
 
 ## Follow-Up Tasks
 

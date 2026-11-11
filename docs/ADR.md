@@ -406,3 +406,30 @@
 - 영향: `agentmux.service` stop/restart가 터미널과 Codex 프로세스를 끊지 않으며, `server.ts` startup과 legacy/Runtime v2 세션 생성 경로가 scope 편입을 보장합니다. 또한 web service 재시작 때 이미 살아 있던 세션의 shell 프롬프트에 `codex resume`이 중복 입력되지 않도록, 자동 재개(`autoResumeOnStartup`)는 startup 시점에 존재하지 않아 새로 생성한 tmux 세션에만 전송합니다.
 - 검증 조건: 단위 테스트(deps 주입)와 `smoke:tmux-scope` 격리 리허설(transient service 안에서 시작된 tmux 서버를 scope로 편입한 뒤 원래 service를 stop해도 tmux 서버 PID·세션이 생존하고 scope가 `active` 상태를 유지)이 통과해야 하며, 실제 live 전환과 재시작 후 PID 불변 확인 뒤 상태를 갱신합니다.
 - 검증 근거: `tests/unit/lib/tmux-server-scope.test.ts`, `tests/unit/lib/auto-resume.test.ts` 및 `corepack pnpm smoke:tmux-scope` 실측 리허설에서 service stop 전후 tmux 서버·pane PID 생존과 `agentmux-tmux-<socket>.scope` `active` 상태를 확인했습니다(2026-11-09, release 확인 후 갱신 예정).
+
+## ADR-035: 사용자 agent 설정은 고치지 않고 실행 시점 flag와 탭 환경 변수로만 붙인다
+
+- 상태: Accepted (2026-11-11)
+- 결정: agentmux는 `~/.claude/`, `~/.claude.json`, `$CODEX_HOME`(기본 `~/.codex/`) 아래 사용자 설정 파일과 project `.codex/config.toml`을 읽기만 하고 쓰거나 지우지 않습니다. Hook, 위임 안내, 허용 규칙은 agentmux가 띄운 agent의 실행 명령에만 붙입니다. Claude Code는 `--settings <dataDir>/claude-tabs/<tab-id>.json`과 `--append-system-prompt-file <dataDir>/delegation/claude.md`, Codex는 `-c` override(`hooks`, `developer_instructions`)를 사용하고, 두 agent 모두 탭 환경 변수(`AMUX_WORKSPACE_ID`, `AMUX_TAB_ID`, `<dataDir>/bin`을 앞에 붙인 `PATH`)를 받습니다. Workspace id와 탭 id는 안내 문장에 넣지 않고 환경 변수로만 전달합니다(Claude 재개 시 system prompt snapshot이 옛 id를 고정하기 때문). Codex 사용자 `developer_instructions`가 있으면 그 값을 안내 앞에 보존하고, 값이 여럿이거나 TOML을 읽지 못하거나 project `.codex/config.toml`이 값을 정의하거나 cwd를 모르거나 명령이 12,288 byte를 넘으면 안내를 넣지 않고 log warn만 남깁니다. Project 값은 복사하지 않습니다. Codex는 신뢰한 project의 config만 읽으므로 복사하면 사용자의 trust 거절을 우회하게 됩니다. 설정 `agentDelegationGuideEnabled`(기본 켬)를 끄면 실행 명령은 이전과 byte 단위로 같습니다.
+- 이유: 사용자 설정 파일을 고치면 agentmux 밖에서 돈 agent(터미널 직접 실행, 다른 multiplexer)까지 영향을 받고, 제거와 rollback이 어렵고, 사용자가 직접 쓴 값과 충돌합니다. 실행 시점 flag는 agentmux 탭에서만 유효하고 탭을 닫으면 사라집니다.
+- trade-off: 명령이 길어지고 Codex 안내는 조건이 맞을 때만 들어갑니다. Codex `shell_environment_policy`가 `inherit = "core"`/`"none"`이면 환경 변수가 Codex shell에 닿지 않아 CLI가 호출 탭을 모릅니다(사용자가 직접 실행한 CLI처럼 동작).
+- 영향: `src/lib/delegation-guide.ts`, `src/lib/codex-command.ts`, Claude/Codex provider 실행 명령 조립, `docs/CLI.md`.
+- 검증 조건: 설정을 끄면 실행 명령이 이전과 byte 단위로 같고, 사용자 설정 파일 hash가 실행 전후 같으며, 환경 변수와 flag가 agentmux 실행 명령에만 붙어야 합니다.
+
+## ADR-036: 위임은 확인 없이 진행하고 신뢰 경계는 Unix 사용자로 둔다
+
+- 상태: Accepted (2026-11-11)
+- 결정: agentmux가 띄운 Claude Code는 `claude-tabs/<tab-id>.json`의 `permissions.allow`로 `agentmux tab`의 하위 명령 6개(`list`, `create`, `send`, `status`, `result`, `close`)를 확인 없이 실행합니다. 규칙은 `Bash(agentmux tab list:*)` 형태이며 `tab browser`(특히 `eval`)와 `agentmux` 전체는 허용하지 않습니다. 신뢰 경계는 CLI token을 읽을 수 있는 Unix 사용자입니다. CLI의 위임 제한(호출 탭 header `x-agentmux-caller-tab`이 있을 때 적용)은 agent의 실수를 막는 장치이고 보안 경계가 아닙니다. 제한은 다음과 같습니다: workspace당 agent가 만든 탭 6개(409 `delegation-limit`), 입력이 필요한 agent 탭에는 `tab send` 거절(409 `target-needs-input`), 준비되지 않은 탭에는 거절(409 `target-not-ready`), 호출 탭이 만든 탭만 닫기(403 `delegation-close-forbidden`). CLI는 권한 요청 화면이나 시작 화면에 글자를 보내지 않으며 사용자 대신 승인하거나 거절하지 않습니다. CLI token 범위는 바꾸지 않습니다.
+- 이유: 위임할 때마다 사용자 확인을 요구하면 agent가 agent에게 일을 맡기는 흐름이 끊깁니다. 한편 같은 Unix 사용자는 token 파일과 tmux 입력을 이미 직접 다룰 수 있으므로 CLI 제한을 우회 불가능한 경계로 설명하면 오해를 만듭니다.
+- trade-off: 위임 제한은 의도적 우회를 막지 못합니다. 사용자 승인 없이 위임 탭이 최대 6개까지 만들어질 수 있고 각 탭은 해당 agent의 자체 권한 설정을 따릅니다.
+- 영향: `src/lib/delegation-guide.ts`, tab API(`workspace-tab-service`), `agentmux tab` CLI, `claude-tabs/<tab-id>.json`.
+- 검증 조건: `permissions.allow`에 위 6개 외 규칙이 없고, 제한별 오류 code가 단위 test로 고정되며, 격리 live 확인에서 권한 확인 화면 없이 위임이 진행되고 needs-input 탭에는 입력이 들어가지 않아야 합니다.
+
+## ADR-037: Runtime v2가 agent를 지원하기 전까지 agent 탭은 legacy tmux adapter(Runtime v1)로 만든다
+
+- 상태: Accepted (2026-11-11)
+- 결정: Claude Code와 Codex 탭은 Runtime v2 agent 지원 전까지 legacy tmux adapter(Runtime v1)로 만듭니다. Plain terminal 탭은 terminal v2 mode 규칙(`shouldCreateTerminalTabInRuntimeV2`)을 따르며 CLI가 만드는 탭도 같습니다. 단계 1에서 구현했고 이 ADR은 그 결정을 기록합니다. Runtime v2 terminal 탭에는 browser 없이도 입력할 수 있도록 tmux `send-keys -l --`를 쓰는 `terminal.send-text` IPC를 둡니다.
+- 이유: Runtime v2 worker와 storage는 agent 상태 감지, hook, resume을 아직 다루지 않습니다. Agent 탭을 v2로 만들면 단계 1~3의 provider 경로를 다시 쓰게 됩니다.
+- trade-off: Agent 탭과 plain terminal 탭이 다른 runtime에 있어 위임 코드가 두 경로를 구분해야 합니다. Runtime v2가 꺼지면 v2 탭은 살아 있지 않은 것으로 다루고 쓰기는 409 `runtime-v2-disabled`입니다.
+- 영향: `agent-launch-service`, `workspace-tab-service`, Runtime v2 supervisor IPC.
+- 검증 조건: Runtime v2 agent 지원을 설계할 때 이 ADR을 새 ADR로 대체합니다.
