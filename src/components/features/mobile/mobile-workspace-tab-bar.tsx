@@ -100,6 +100,12 @@ const MobileWorkspaceTabBar = ({
             : termStatus === 'running'
               ? 'text-ui-blue'
               : 'text-muted-foreground/50';
+          const workspaceName = workspaceNameById.get(item.workspaceId) ?? 'Workspace';
+          const tabLabel = isActive
+            ? t('currentTab', { name: workspaceName })
+            : t('switchTab', { name: workspaceName });
+          // aria-label replaces the button's text, so the sr-only marker must be part of it.
+          const ariaLabel = item.createdByTabId ? `${tabLabel}, ${tw('createdByAgent')}` : tabLabel;
 
           return (
             <button
@@ -112,11 +118,7 @@ const MobileWorkspaceTabBar = ({
               title={item.createdByTabId ? tw('createdByAgent') : undefined}
               onClick={() => onSelect(item.workspaceId, item.paneId, item.tabId)}
               aria-current={isActive ? 'true' : undefined}
-              aria-label={
-                isActive
-                  ? t('currentTab', { name: workspaceNameById.get(item.workspaceId) ?? 'Workspace' })
-                  : t('switchTab', { name: workspaceNameById.get(item.workspaceId) ?? 'Workspace' })
-              }
+              aria-label={ariaLabel}
             >
               {isActive ? (
                 <span className="h-2 w-2 rounded-[2px] bg-foreground" />
