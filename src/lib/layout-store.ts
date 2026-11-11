@@ -328,6 +328,8 @@ const applyAddedTabActivation = (pane: IPaneNode, tabId: string, options?: IAddT
   const restoreId = options.restoreActiveTabId;
   if (restoreId && pane.tabs.some((t) => t.id === restoreId)) {
     pane.activeTabId = restoreId;
+  } else if (!pane.activeTabId) {
+    pane.activeTabId = tabId;
   }
 };
 
@@ -527,6 +529,8 @@ export const restartTabSession = async (wsId: string, paneId: string, tabId: str
           defaultCwd: effectiveCwd,
         },
       });
+      // The restart rewrote the storage row, so the cached content no longer matches storage.
+      clearLayoutCache(wsId);
 
       if (cwdLost) {
         log.warn(`tab cwd missing, falling back to ${effectiveCwd}: ${tab.sessionName} (was ${tab.cwd})`);

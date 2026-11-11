@@ -44,7 +44,7 @@ const terminalTab = (id: string, order: number, overrides: Partial<ITab> = {}): 
   ...overrides,
 });
 
-const paneLayout = (tabs: ITab[], activeTabId: string): ILayoutData => ({
+const paneLayout = (tabs: ITab[], activeTabId: string | null): ILayoutData => ({
   root: { type: 'pane', id: paneId, tabs, activeTabId },
   activePaneId: paneId,
   updatedAt: '2026-11-11T00:00:00.000Z',
@@ -136,6 +136,21 @@ describe('layout store tab add options', () => {
     expect(added).toEqual(expect.objectContaining({ id: 'tab-v2', createdByTabId: 'tab-a' }));
   });
 
+  it('makes a delegated tab active when it is added to a pane without an active tab', async () => {
+    const store = await loadStore();
+    const filePath = store.resolveLayoutFile(wsId);
+    await seedLayoutFile(filePath, paneLayout([], null));
+
+    const tab = await store.addTabToPane(wsId, paneId, 'worker', '/project', 'terminal', undefined, {
+      activate: false,
+      createdByTabId: 'tab-a',
+    });
+
+    const layout = await readLayoutJson(filePath);
+    expect((layout.root as IPaneNode).activeTabId).toBe(tab?.id);
+    expect(layout.activePaneId).toBe(paneId);
+  });
+
   it('ignores a restore target that is not in the pane', async () => {
     const store = await loadStore();
     const filePath = store.resolveLayoutFile(wsId);
@@ -170,13 +185,19 @@ describe('layout store tab add options', () => {
       return null;
     });
     mocks.supervisor.restartTerminalTab.mockImplementation(async () => {
-      const restarted = (runtimeLayout.root as IPaneNode).tabs.find((t) => t.id === 'tab-v2');
-      delete restarted?.createdByTabId;
+      const pane = runtimeLayout.root as IPaneNode;
+      const others = pane.tabs.filter((t) => t.id !== 'tab-v2');
+      const { createdByTabId: _dropped, ...recreated } = pane.tabs.find((t) => t.id === 'tab-v2')!;
+      pane.tabs = [...others, { ...recreated, name: '', order: Math.max(...others.map((t) => t.order)) + 1 }];
+      pane.activeTabId = 'tab-v2';
     });
+    await store.patchPane(wsId, paneId, { activeTabId: 'tab-v2' });
+    const mirrorCallsBeforeRestart = mocks.mirrorLegacyStorageToRuntimeV2BestEffort.mock.calls.length;
 
     await expect(store.restartTabSession(wsId, paneId, 'tab-v2')).resolves.toBe(true);
 
     expect(mocks.supervisor.restartTerminalTab).toHaveBeenCalledWith(expect.objectContaining({ tabId: 'tab-v2' }));
+    expect(mocks.mirrorLegacyStorageToRuntimeV2BestEffort.mock.calls.length).toBeGreaterThan(mirrorCallsBeforeRestart);
     const layout = await store.readLayoutFile(filePath);
     const restarted = (layout?.root as IPaneNode).tabs.find((t) => t.id === 'tab-v2');
     expect(restarted?.createdByTabId).toBe('tab-a');
