@@ -14,6 +14,7 @@ import {
   withDelegationLock,
 } from '@/lib/cli-caller';
 import { createLogger } from '@/lib/logger';
+import type { IAgentLaunchResult } from '@/lib/agent-launch-service';
 import { isAgentPanelType, isPanelType, PANEL_TYPES } from '@/lib/panel-type';
 import { getCachedRuntimePreflight } from '@/lib/preflight';
 import { resolveTabRuntimeVersion } from '@/lib/runtime/terminal-mode';
@@ -166,7 +167,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       let launchError: string | undefined;
       if (isAgentPanelType(panelType)) {
         const launchStartedAt = Date.now();
-        const launch = await launchAgentAfterShellReady({ workspaceId, paneId, tabId: created.id });
+        let launch: IAgentLaunchResult;
+        try {
+          launch = await launchAgentAfterShellReady({ workspaceId, paneId, tabId: created.id });
+        } catch (err) {
+          // The tab already exists; answer with its id so the caller can find or close it.
+          log.warn(`launch agent in tab ${created.id} failed: ${err instanceof Error ? err.message : err}`);
+          launch = { ok: false };
+        }
         if (launch.ok) {
           ready = await waitForAgentReady(created, { launchStartedAt });
         } else {

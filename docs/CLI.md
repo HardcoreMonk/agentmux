@@ -80,7 +80,7 @@ Bash(agentmux tab close:*)
 - cwd: `--cwd`(존재하는 directory, 아니면 400 `invalid-cwd`), 없으면 호출 탭의 현재 cwd. CLI는 상대 경로(`.`, `../other`)를 현재 directory 기준 절대 경로로 바꿔 보냅니다. HTTP API는 절대 경로만 받습니다.
 - active 탭은 바뀌지 않고 `createdByTabId`가 기록됩니다.
 - workspace당 agent가 만든 탭은 6개까지이며 넘으면 409 `delegation-limit`입니다. 확인과 생성은 workspace별 lock 안에서 합니다.
-- `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. 띄우기가 실패하면 `launchError`를 돌려줍니다.
+- `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. 띄우기가 실패하면 201에 `ready: false`와 `launchError`(실패 이유 code, 띄우기가 예외로 끝나면 `launch-failed`)를 돌려줍니다. 탭은 남아 있으므로 돌려받은 `tabId`로 닫을 수 있습니다.
 - 호출 탭이 없는 탭 id이면 404 `caller-tab-not-found`(create, send, close).
 - `-t terminal`도 만들 수 있지만 agent 호출은 그 탭에 `tab send`를 할 수 없습니다(아래 tab send).
 

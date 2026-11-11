@@ -9,7 +9,9 @@ import type { ILayoutData, ITab } from '@/types/terminal';
 const mocks = vi.hoisted(() => {
   const statusManager = { getAllForClient: vi.fn() };
   const supervisor = { requestStatusLiveSync: vi.fn() };
+  const logger = { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() };
   return {
+    logger,
     verifyCliToken: vi.fn(),
     getLayout: vi.fn(),
     getWorkspaces: vi.fn(),
@@ -39,7 +41,7 @@ vi.mock('@/lib/runtime/supervisor', () => ({ getRuntimeSupervisor: mocks.getRunt
 vi.mock('@/lib/providers', () => ({ getProviderByPanelType: vi.fn() }));
 vi.mock('@/lib/agent-launch-service', () => ({ launchAgentInTab: vi.fn() }));
 vi.mock('@/lib/logger', () => ({
-  createLogger: () => ({ error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() }),
+  createLogger: () => mocks.logger,
 }));
 vi.mock('@/lib/workspace-tab-service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/workspace-tab-service')>()),
@@ -434,6 +436,28 @@ describe('POST /api/cli/tabs for agent tabs', () => {
     expect(response.statusCode).toBe(201);
     expect(response.body).toMatchObject({ ready: false, launchError: 'unsafe-process' });
     expect(mocks.waitForAgentReady).not.toHaveBeenCalled();
+  });
+
+  it('returns the created tab with launch-failed and does not wait when the launch throws', async () => {
+    mocks.launchAgentAfterShellReady.mockRejectedValue(new Error('send-keys failed'));
+
+    const response = await callCreate({ workspaceId: 'ws-a', panelType: 'claude' }, 'tab-caller');
+
+    expect(response.statusCode).toBe(201);
+    expect(response.body).toEqual({
+      tabId: 'tab-new-1',
+      workspaceId: 'ws-a',
+      paneId: 'pane-a2',
+      sessionName: 'pt-tab-new-1',
+      name: '',
+      panelType: 'claude',
+      createdByTabId: 'tab-caller',
+      ready: false,
+      launchError: 'launch-failed',
+    });
+    expect(mocks.waitForAgentReady).not.toHaveBeenCalled();
+    expect(mocks.logger.warn).toHaveBeenCalledWith(expect.stringContaining('send-keys failed'));
+    expect(mocks.logger.error).not.toHaveBeenCalled();
   });
 
   it('returns internal-error when the service throws', async () => {
