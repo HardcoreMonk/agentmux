@@ -29,7 +29,9 @@ vi.mock('@/lib/runtime/storage-mirror', () => ({
   mirrorLegacyStorageToRuntimeV2BestEffort: mocks.mirrorLegacyStorageToRuntimeV2BestEffort,
 }));
 vi.mock('@/lib/sync-server', () => ({ broadcastSync: vi.fn() }));
-vi.mock('@/lib/workspace-store', () => ({ updateWorkspaceDirectories: vi.fn(async () => {}) }));
+vi.mock('@/lib/workspace-store', () => ({
+  updateWorkspaceDirectories: vi.fn().mockResolvedValue(undefined),
+}));
 
 const wsId = 'ws-add-tab';
 const paneId = 'pane-a';
@@ -78,7 +80,7 @@ describe('layout store tab add options', () => {
 
   afterEach(async () => {
     vi.unstubAllEnvs();
-    await fs.rm(dataDir, { recursive: true, force: true });
+    await fs.rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   });
 
   it('adds a delegated tab without changing the active tab and records its creator', async () => {
