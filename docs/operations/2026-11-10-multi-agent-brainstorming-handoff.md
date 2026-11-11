@@ -358,6 +358,18 @@ claude-* model이 있는 날은 건너뜀, v4 한 번 백업), 비용은 추정�
   `feat/claude-provider-phase2`, `fix/timeline-catalog-observe-rejection`는 사용자가 삭제.
 - Live 통계 cache(legacy 실제 경로 `~/.codexmux/stats/cache.json`)는 v4(2026-03-26부터 127일, claude-* model은 03-26~04-27만). 단계 3 배포 뒤 첫
   통계 요청에서 `cache.v4.json`으로 복사되고 v5로 이동한다.
+- 단계 3: PR #49 CI 성공, main에 로컬 merge(`ad32559d`), 사용자가 main push(main CI 성공)와 `deploy:local`(09:28 KST,
+  health `ad32559d`, PID `704190`, NRestarts 0)을 실행했다. Runtime health는 storage, terminal, timeline, status 모두 ok,
+  재시작 뒤 journal error 0, live tmux server `43870` 유지(새 PID 2개는 새 service의 attach client).
+- 단계 3 배포 뒤 확인(Claude, 09:29~09:35 KST):
+  - 통계 cache: 첫 overview 요청(7초)에서 `cache.v4.json`이 생겼고 sha256이 배포 전 사본과 같다. `cache.json`은 v5(136일,
+    `lastComputedDate` 2026-11-10). v4의 127일 중 111일은 그대로, 16일(2026-10-11~11-07)은 Claude model(`claude-opus-5-5`,
+    `claude-opus-4-8`)만 더해졌고 기존 model token이 바뀌거나 count가 줄어든 날은 없다. 새 날짜 9개(10-18~11-10).
+    Overview의 Claude model은 `cost: null`, 가격 있는 Codex model 비용은 그대로다.
+  - Codex 지난 세션 목록: live에 열린 Codex 탭이 없어 workspace 7개의 터미널 탭 session으로 `panelType=codex` 목록을
+    조회했다. 배포 전 total 2110, 배포 뒤 `providers=codex` total 2111. 늘어난 1개는 맨 위의 Codex session
+    (2026-11-11 03:18 KST 생성, `hcp-synergia`)이고, 그것을 빼면 상위 50개 순서 hash가 배포 전과 같다. 이 session은 예전
+    process(02:35 시작)의 목록에는 없었다(아래 Follow-Up).
 
 ### 전체 gate (worktree `8e2dc0e2`)
 
@@ -404,19 +416,17 @@ claude-* model이 있는 날은 건너뜀, v4 한 번 백업), 비용은 추정�
   `2865470`)를 마쳤다. Task 2~9 implement와 task별 code-review를 마쳤고, Task 10에서 문서, 전체 gate, 격리 Claude Code
   live smoke(9개 확인 통과, 결함 4개 기록)를 마쳤다. Branch 최종 code-review 수정(`d5f3432a`, 권한 요청 "No" 뒤 `busy`
   고정과 모바일 탭 이름 폭 포함)과 격리 live 재확인(3개 통과)을 마쳤다. PR, main merge, live 배포는 이후 hotfix #48과 함께 완료(위 단계 3 절의 운영 기록).
-- 설계 1 단계 3: plan-eng-review 반영(`2a749a2e`), Task 1~10 implement와 task별 code-review, 전체 gate, 격리 browser·live 확인(5개 통과, 1개 부분)을 마쳤다. Branch `feat/claude-provider-phase3`(`8e2dc0e2`)에서 branch 최종 code-review 전. PR, main merge, live 배포 전.
+- 설계 1 단계 3: plan-eng-review 반영(`2a749a2e`), Task 1~10 implement와 task별 code-review, 전체 gate, 격리 browser·live 확인(5개 통과, 1개 부분), branch 최종 code-review(Critical/Important 0, Minor 1 반영)를 마쳤다. PR #49, main merge(`ad32559d`), live 배포(2026-11-11 09:28 KST)와 배포 뒤 확인을 마쳤다. operate. Worktree와 로컬 branch는 정리했다.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-단계 3은 `feat/claude-provider-phase3`(`8e2dc0e2`)에 구현과 검증을 마쳤다. 다음은 branch 전체 최종 code-review, 수정이 있으면
-반영, PR → CI → merge다. Main push와 `deploy:local`은 사용자가 직접 실행한다(auto mode가 막는다). 배포 뒤 live 통계 cache
-v4→v5 이동(`cache.v4.json` 백업, Claude token 표시)과 live Codex 탭의 지난 세션 목록 개수·순서가 배포 전과 같은지 확인한다.
-배포 때 rollback이 필요하면 Claude 탭을 먼저 닫는다. 통계 cache가 이미 v5로 바뀌었다면 service를 멈추고
-`cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json`으로 v4를 되돌린 뒤 이전 build를 시작한다(이전 build는 v5를
-버리고 원본 파일로 다시 계산해 원본이 없는 날짜를 잃는다).
-단계 4(위임 안내, `permissions.allow`, CLI 변경)는 단계 3이 merge된 뒤 계획을 쓴다.
+단계 3은 live에 배포됐고(`ad32559d`) 배포 뒤 확인을 마쳤다. 원격 branch `feat/claude-provider-phase3` 삭제는 사용자가 직접
+실행한다. 다음은 설계 1 단계 4(위임 안내, `permissions.allow`, CLI 변경) 계획 작성이다.
+Rollback이 필요하면 Claude 탭을 먼저 닫는다. 통계 cache는 이미 v5이므로 service를 멈추고
+`cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json`으로 v4를 되돌린 뒤 이전 build(`d1accfc6`)를 시작한다(이전
+build는 v5를 버리고 원본 파일로 다시 계산해 원본이 없는 날짜를 잃는다).
 
 ## Follow-Up Tasks
 
@@ -470,3 +480,6 @@ v4→v5 이동(`cache.v4.json` 백업, Claude token 표시)과 live Codex 탭의
   - Smoke 도구: 격리 `TMUX_TMPDIR`는 짧은 경로여야 하고 setup POST는 `Origin` header가 필요하다. 일일 리포트 fallback은 PATH만으로
     강제할 수 없어(preflight가 알려진 install path에서 Codex를 찾음) 생성기에 test 전용 override를 두면 smoke로 확인할 수 있다.
   - Claude 직접 실행 시 hook 없이 timeline 연결, 일일 리포트의 실제 Claude 생성 전체 경로는 live에서 확인하지 않았다.
+  - 배포 뒤 확인에서 본 것: 03:18 KST에 생긴 Codex session이 예전 process(02:35 시작, `d1accfc6`)의 Runtime v2 지난 세션
+    목록에는 6시간 동안 없었고 재시작 뒤 나타났다(`session-index.json`에는 있었다). Service 시작 뒤 생긴 Codex session이
+    재시작 없이 목록에 나타나는지 새 build에서 확인한다.
