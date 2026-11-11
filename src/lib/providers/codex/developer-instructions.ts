@@ -5,7 +5,7 @@ import { parse } from 'smol-toml';
 
 export type TCodexInstructionsRead =
   | { ok: true; value: string | null }
-  | { ok: false; reason: 'parse-error' | 'ambiguous'; detail: string };
+  | { ok: false; reason: 'parse-error' | 'ambiguous' | 'project-defined'; detail: string };
 
 type TTomlTable = Record<string, unknown>;
 
@@ -40,19 +40,25 @@ const listProjectConfigPaths = (cwd: string): string[] => {
   }
 };
 
-const collect = (found: IFoundValue[], source: string, table: TTomlTable | null): void => {
+const readInstructions = (table: TTomlTable | null): string | null => {
   const value = table?.developer_instructions;
-  if (typeof value === 'string' && value.trim()) found.push({ source, value });
+  return typeof value === 'string' && value.trim() ? value : null;
 };
 
-// Codex's precedence between these layers is not guessed: two different values leave the guide out
-// rather than risk overriding the user's own instructions.
+const collect = (found: IFoundValue[], source: string, table: TTomlTable | null): void => {
+  const value = readInstructions(table);
+  if (value) found.push({ source, value });
+};
+
+// Codex loads project layers only for trusted projects, so a project value is never copied into the
+// command; finding one leaves the guide out. Codex's precedence between the user and profile values is
+// not guessed either: two different values also leave the guide out.
 export const readCodexDeveloperInstructions = async (input: {
   cwd: string;
   codexHome?: string;
 }): Promise<TCodexInstructionsRead> => {
   const codexHome = input.codexHome ?? process.env.CODEX_HOME ?? path.join(os.homedir(), '.codex');
-  const userConfigPath = path.join(codexHome, CONFIG_FILE);
+  const userConfigPath = path.resolve(codexHome, CONFIG_FILE);
   const found: IFoundValue[] = [];
   try {
     const user = await readTomlFile(userConfigPath);
@@ -61,7 +67,9 @@ export const readCodexDeveloperInstructions = async (input: {
       collect(found, `${userConfigPath} [profiles.${user.profile}]`, asTable(asTable(user.profiles)?.[user.profile]));
     }
     for (const filePath of listProjectConfigPaths(input.cwd)) {
-      collect(found, filePath, await readTomlFile(filePath));
+      if (filePath !== userConfigPath && readInstructions(await readTomlFile(filePath))) {
+        return { ok: false, reason: 'project-defined', detail: filePath };
+      }
     }
   } catch (err) {
     return { ok: false, reason: 'parse-error', detail: err instanceof Error ? err.message : String(err) };

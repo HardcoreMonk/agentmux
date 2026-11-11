@@ -74,15 +74,30 @@ describe('codex provider launch command', () => {
     }
   });
 
-  it('reads project config from the session cwd on an auto-resume launch', async () => {
-    await writeConfig(path.join(project, '.codex'), 'developer_instructions = "project rule"\n');
+  it('appends the guide to the user value on an auto-resume launch', async () => {
+    await writeConfig(codexHome, 'developer_instructions = "user rule"\n');
 
     const command = await codexProvider.buildResumeCommand(threadId, tab);
 
     expect(mocks.getSessionCwd).toHaveBeenCalledWith(tab.sessionName);
     expect(command.startsWith(`AMUX_WORKSPACE_ID='ws-1' AMUX_TAB_ID='tab-1' PATH=`)).toBe(true);
-    expect(command).toContain(`${quotedConfig(`project rule\n\n${buildDelegationGuide('codex')}`)} resume ${threadId}`);
+    expect(command).toContain(`${quotedConfig(`user rule\n\n${buildDelegationGuide('codex')}`)} resume ${threadId}`);
     expect(command).not.toContain('--cd');
+  });
+
+  it('never copies a project value found from the session cwd into the command', async () => {
+    await writeConfig(codexHome, 'developer_instructions = "project rule"\n');
+    await writeConfig(path.join(project, '.codex'), 'developer_instructions = "project rule"\n');
+
+    const command = await codexProvider.buildResumeCommand(threadId, tab);
+
+    expect(mocks.getSessionCwd).toHaveBeenCalledWith(tab.sessionName);
+    expect(command).toContain("AMUX_TAB_ID='tab-1'");
+    expect(command).not.toContain('developer_instructions');
+    expect(command).not.toContain('project rule');
+    expect(mocks.warn).toHaveBeenCalledWith(
+      `codex developer_instructions project-defined: delegation guide skipped (${path.join(project, '.codex', 'config.toml')})`,
+    );
   });
 
   it('uses the given cwd without asking tmux and never passes it as --cd', async () => {
@@ -104,8 +119,7 @@ describe('codex provider launch command', () => {
   });
 
   it('skips the guide when the existing value is ambiguous', async () => {
-    await writeConfig(codexHome, 'developer_instructions = "user rule"\n');
-    await writeConfig(path.join(project, '.codex'), 'developer_instructions = "project rule"\n');
+    await writeConfig(codexHome, 'profile = "p"\ndeveloper_instructions = "user rule"\n\n[profiles.p]\ndeveloper_instructions = "x"\n');
 
     const command = await codexProvider.buildLaunchCommand(tab);
 

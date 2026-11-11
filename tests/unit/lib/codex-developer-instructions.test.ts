@@ -46,10 +46,20 @@ describe('readCodexDeveloperInstructions', () => {
     await expect(readCodexDeveloperInstructions({ cwd, codexHome })).resolves.toEqual({ ok: true, value: 'x' });
   });
 
-  it('accepts the same value set in user and project config', async () => {
+  it('reports a project value as project-defined', async () => {
+    await writeConfig(path.join(project, '.codex'), 'developer_instructions = "project rule"\n');
+    await expect(readCodexDeveloperInstructions({ cwd, codexHome })).resolves.toEqual({
+      ok: false,
+      reason: 'project-defined',
+      detail: path.join(project, '.codex', 'config.toml'),
+    });
+  });
+
+  it('reports a project value as project-defined even when the user value is the same', async () => {
     await writeConfig(codexHome, 'developer_instructions = "same"\n');
     await writeConfig(path.join(project, '.codex'), 'developer_instructions = "same"\n');
-    await expect(readCodexDeveloperInstructions({ cwd, codexHome })).resolves.toEqual({ ok: true, value: 'same' });
+    await expect(readCodexDeveloperInstructions({ cwd, codexHome }))
+      .resolves.toMatchObject({ ok: false, reason: 'project-defined' });
   });
 
   it('ignores empty values', async () => {
@@ -57,13 +67,6 @@ describe('readCodexDeveloperInstructions', () => {
     await writeConfig(path.join(project, '.codex'), 'developer_instructions = ""\n');
     await expect(readCodexDeveloperInstructions({ cwd, codexHome }))
       .resolves.toEqual({ ok: true, value: 'user rule' });
-  });
-
-  it('reports different values as ambiguous', async () => {
-    await writeConfig(codexHome, 'developer_instructions = "user rule"\n');
-    await writeConfig(path.join(project, '.codex'), 'developer_instructions = "project rule"\n');
-    await expect(readCodexDeveloperInstructions({ cwd, codexHome }))
-      .resolves.toMatchObject({ ok: false, reason: 'ambiguous' });
   });
 
   it('reports a profile value that differs from the top-level value as ambiguous', async () => {
@@ -84,10 +87,20 @@ describe('readCodexDeveloperInstructions', () => {
       .resolves.toMatchObject({ ok: false, reason: 'parse-error' });
   });
 
-  it('finds project config in a parent directory of cwd', async () => {
-    await writeConfig(path.join(project, '.codex'), 'developer_instructions = "project rule"\n');
-    await expect(readCodexDeveloperInstructions({ cwd, codexHome }))
-      .resolves.toEqual({ ok: true, value: 'project rule' });
+  it('detects project config in a parent directory of cwd', async () => {
+    await writeConfig(path.join(root, '.codex'), 'developer_instructions = "ancestor rule"\n');
+    await expect(readCodexDeveloperInstructions({ cwd, codexHome })).resolves.toEqual({
+      ok: false,
+      reason: 'project-defined',
+      detail: path.join(root, '.codex', 'config.toml'),
+    });
+  });
+
+  it('does not count the user config as a project layer when cwd is below CODEX_HOME', async () => {
+    const homeCodex = path.join(root, '.codex');
+    await writeConfig(homeCodex, 'developer_instructions = "user rule"\n');
+    await expect(readCodexDeveloperInstructions({ cwd, codexHome: homeCodex }))
+      .resolves.toEqual({ ok: true, value: 'user rule' });
   });
 });
 
