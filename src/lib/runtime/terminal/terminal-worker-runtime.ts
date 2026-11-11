@@ -121,6 +121,25 @@ const assertRuntimeSessionExists = async (sessionName: string): Promise<void> =>
   }
 };
 
+const createRuntimeSessionCommandError = (
+  sessionName: string,
+  action: string,
+  err: unknown,
+): Error & { code: string; retryable: false } => (
+  // capture-pane/send-keys target a pane, so tmux says "can't find pane" instead of "can't find session".
+  isMissingTmuxSessionError(err) || /can't find pane/i.test(errorMessage(err))
+    ? createRuntimeError(
+      'runtime-v2-terminal-session-not-found',
+      `Runtime v2 tmux session not found: ${sessionName}`,
+      err,
+    )
+    : createRuntimeError(
+      `runtime-v2-terminal-${action}-failed`,
+      `Runtime v2 tmux ${action} failed: ${sessionName}`,
+      err,
+    )
+);
+
 const hasRuntimeSession = async (sessionName: string): Promise<boolean> => {
   assertRuntimeSessionName(sessionName);
   try {
@@ -263,6 +282,35 @@ export const createTerminalWorkerRuntime = (): ITerminalWorkerRuntime => {
       if (!current) throw new Error(`session is not attached: ${sessionName}`);
       current.pty.write(data);
       return { written: data.length };
+    },
+
+    async capturePane(sessionName) {
+      assertRuntimeSessionName(sessionName);
+      try {
+        const { stdout } = await execFile('tmux', ['-L', RUNTIME_TMUX_SOCKET, 'capture-pane', '-p', '-t', sessionName], {
+          timeout: CMD_TIMEOUT,
+        });
+        return { sessionName, content: String(stdout) };
+      } catch (err) {
+        throw createRuntimeSessionCommandError(sessionName, 'capture', err);
+      }
+    },
+
+    async sendText(sessionName, text, enter) {
+      assertRuntimeSessionName(sessionName);
+      try {
+        await execFile('tmux', ['-L', RUNTIME_TMUX_SOCKET, 'send-keys', '-t', sessionName, '-l', text], {
+          timeout: CMD_TIMEOUT,
+        });
+        if (enter) {
+          await execFile('tmux', ['-L', RUNTIME_TMUX_SOCKET, 'send-keys', '-t', sessionName, 'Enter'], {
+            timeout: CMD_TIMEOUT,
+          });
+        }
+      } catch (err) {
+        throw createRuntimeSessionCommandError(sessionName, 'send-text', err);
+      }
+      return { sessionName, sent: true };
     },
 
     async resize(sessionName, cols, rows) {

@@ -12,6 +12,8 @@ const createFakeRuntime = (): ITerminalRuntimeAdapter => ({
   detach: async (sessionName) => ({ sessionName, detached: true }),
   killSession: async (sessionName) => ({ sessionName, killed: true }),
   hasSession: async (sessionName) => ({ sessionName, exists: true }),
+  capturePane: async (sessionName) => ({ sessionName, content: '' }),
+  sendText: async (sessionName) => ({ sessionName, sent: true }),
   writeStdin: async (_sessionName, data) => ({ written: data.length }),
   resize: async (sessionName, cols, rows) => ({ sessionName, cols, rows }),
 });

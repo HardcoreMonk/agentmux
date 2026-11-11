@@ -87,6 +87,8 @@ const createWorkers = () => {
   terminal.replies.set('terminal.kill-session', { sessionName: 'rtv2-ws-a-pane-b-tab-c', killed: true });
   terminal.replies.set('terminal.has-session', { sessionName: 'rtv2-ws-a-pane-b-tab-c', exists: true });
   terminal.replies.set('terminal.write-stdin', { written: 4 });
+  terminal.replies.set('terminal.capture-pane', { sessionName: 'rtv2-ws-a-pane-b-tab-c', content: 'screen' });
+  terminal.replies.set('terminal.send-text', { sessionName: 'rtv2-ws-a-pane-b-tab-c', sent: true });
   terminal.replies.set('terminal.resize', { sessionName: 'rtv2-ws-a-pane-b-tab-c', cols: 80, rows: 24 });
   timeline.replies.set('timeline.health', { ok: true });
   timeline.replies.set('timeline.list-sessions', { sessions: [], total: 0, hasMore: false });
@@ -1656,6 +1658,45 @@ describe('runtime supervisor', () => {
     expect(terminal.commands
       .filter((command) => command.type === 'terminal.attach' || command.type === 'terminal.detach')
       .map((command) => command.type)).toEqual(['terminal.attach', 'terminal.detach', 'terminal.attach']);
+  });
+
+  it('captures, types into, and checks ready terminal sessions without a subscriber', async () => {
+    const { storage, terminal, timeline, status } = createWorkers();
+    const supervisor = createRuntimeSupervisorForTest({ storage, terminal, timeline, status });
+
+    await expect(supervisor.captureTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' }))
+      .resolves.toEqual({ sessionName: 'rtv2-ws-a-pane-b-tab-c', content: 'screen' });
+    await supervisor.sendTerminalSessionText({ sessionName: 'rtv2-ws-a-pane-b-tab-c', text: 'echo p4', enter: true });
+    await expect(supervisor.hasTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' })).resolves.toBe(true);
+
+    expect(terminal.commands).toContainEqual({
+      type: 'terminal.send-text',
+      payload: { sessionName: 'rtv2-ws-a-pane-b-tab-c', text: 'echo p4', enter: true },
+    });
+    expect(terminal.commands.map((command) => command.type)).toContain('terminal.capture-pane');
+  });
+
+  it('treats a missing ready tab or tmux session as absent', async () => {
+    const { storage, terminal, timeline, status } = createWorkers();
+    storage.replies.set('storage.get-ready-terminal-tab-by-session', null);
+    const supervisor = createRuntimeSupervisorForTest({ storage, terminal, timeline, status });
+
+    await expect(supervisor.hasTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' })).resolves.toBe(false);
+    await expect(supervisor.captureTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' }))
+      .rejects.toMatchObject({ code: 'runtime-v2-terminal-session-not-found' });
+    await expect(supervisor.sendTerminalSessionText({ sessionName: 'rtv2-ws-a-pane-b-tab-c', text: 'x', enter: false }))
+      .rejects.toMatchObject({ code: 'runtime-v2-terminal-session-not-found' });
+    expect(terminal.commands.map((command) => command.type)).not.toContain('terminal.send-text');
+
+    storage.replies.set('storage.get-ready-terminal-tab-by-session', {
+      id: 'tab-a', sessionName: 'rtv2-ws-a-pane-b-tab-c', name: '', order: 0, panelType: 'terminal', lifecycleState: 'ready',
+    });
+    terminal.replies.set('terminal.has-session', { sessionName: 'rtv2-ws-a-pane-b-tab-c', exists: false });
+    await expect(supervisor.hasTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' })).resolves.toBe(false);
+    terminal.failures.set('terminal.has-session', Object.assign(new Error('gone'), {
+      code: 'runtime-v2-terminal-session-not-found', retryable: false,
+    }));
+    await expect(supervisor.hasTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' })).resolves.toBe(false);
   });
 
   it('rejects writes from missing subscribers before terminal worker IPC', async () => {

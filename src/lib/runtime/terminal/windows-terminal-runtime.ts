@@ -169,6 +169,20 @@ export const createWindowsTerminalRuntime = ({
       return { sessionName, killed: true };
     },
 
+    async capturePane() {
+      throw Object.assign(new Error('Runtime v2 terminal capture is not supported on Windows'), {
+        code: 'runtime-v2-terminal-capture-unsupported',
+        retryable: false,
+      });
+    },
+
+    async sendText() {
+      throw Object.assign(new Error('Runtime v2 terminal send-text is not supported on Windows'), {
+        code: 'runtime-v2-terminal-capture-unsupported',
+        retryable: false,
+      });
+    },
+
     async hasSession(sessionName) {
       assertWindowsPlatform();
       parseRuntimeSessionName(sessionName);
