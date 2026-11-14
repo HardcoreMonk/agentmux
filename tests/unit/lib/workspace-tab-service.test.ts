@@ -1,3 +1,4 @@
+import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -475,6 +476,45 @@ describe('waitForAgentReady', () => {
     });
 
     await expect(waitForAgentReady(agentTab(), { launchStartedAt, timeoutMs: 50, pollMs: 10 })).resolves.toBe(false);
+  });
+});
+
+describe('waitForAgentReady for Codex', () => {
+  const launchStartedAt = 1_000_000;
+  const screen = (name: string): string =>
+    fsSync.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
+  const codexTab = () => agentTab({ panelType: 'codex' });
+  const wait = () => waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs: 50, pollMs: 10 });
+
+  beforeEach(() => {
+    mocks.getSessionPanePid.mockResolvedValue(4242);
+    vi.spyOn(getProviderByPanelType('codex')!, 'isAgentRunning').mockResolvedValue(true);
+  });
+
+  it('is ready when the process runs and the TUI input box is shown, without a session-start entry', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+
+    await expect(wait()).resolves.toBe(true);
+    expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+  });
+
+  it('times out while the hook review is shown', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('hooks-review'));
+
+    await expect(wait()).resolves.toBe(false);
+  });
+
+  it('is not ready when only a shell prompt runs', async () => {
+    vi.spyOn(getProviderByPanelType('codex')!, 'isAgentRunning').mockResolvedValue(false);
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+
+    await expect(wait()).resolves.toBe(false);
+  });
+
+  it('is not ready when the screen cannot be read', async () => {
+    mocks.capturePaneContent.mockResolvedValue(null);
+
+    await expect(wait()).resolves.toBe(false);
   });
 });
 

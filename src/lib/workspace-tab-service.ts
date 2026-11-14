@@ -28,6 +28,7 @@ import {
 } from '@/lib/tmux';
 import { hasPermissionPrompt } from '@/lib/permission-prompt';
 import { matchAgentStartupScreen } from '@/lib/agent-startup-screen';
+import { isCodexBlockingScreen, isCodexTuiReadyContent } from '@/lib/codex-screen';
 import type { ITabLocation } from '@/lib/cli-utils';
 import type { IClientTabStatusEntry } from '@/types/status';
 import type { ITab, IWorkspace, TPanelType } from '@/types/terminal';
@@ -334,13 +335,22 @@ const isAgentReadyEntry = (entry: IClientTabStatusEntry | null, launchStartedAt:
   && entry.lastEvent?.name === 'session-start'
   && entry.lastEvent.at >= launchStartedAt;
 
+const isCodexScreenReady = async (tab: ITab): Promise<boolean> => {
+  if (!(await isAgentProcessRunning(tab).catch(() => false))) return false;
+  const screen = await readTabScreen(tab).catch(() => null);
+  return screen !== null && isCodexTuiReadyContent(screen) && !isCodexBlockingScreen(screen);
+};
+
 export const waitForAgentReady = async (
   tab: ITab,
   options: { launchStartedAt: number; timeoutMs?: number; pollMs?: number },
 ): Promise<boolean> => {
   const { launchStartedAt, timeoutMs = AGENT_READY_TIMEOUT_MS, pollMs = AGENT_READY_POLL_MS } = options;
   const deadline = Date.now() + timeoutMs;
-  while (!isAgentReadyEntry(await readTabStatusEntry(tab).catch(() => null), launchStartedAt)) {
+  const isReady = tab.panelType === 'codex'
+    ? () => isCodexScreenReady(tab)
+    : async () => isAgentReadyEntry(await readTabStatusEntry(tab).catch(() => null), launchStartedAt);
+  while (!(await isReady())) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) return false;
     await sleep(Math.min(pollMs, remaining));

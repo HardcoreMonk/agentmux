@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import { matchAgentStartupScreen } from '@/lib/agent-startup-screen';
@@ -39,6 +41,11 @@ describe('matchAgentStartupScreen', () => {
 
   it('detects the Codex update screen', () => {
     expect(matchAgentStartupScreen(CODEX_UPDATE_SCREEN)).toBe('codex-update');
+  });
+
+  it('detects the Codex 0.169 update fixture', () => {
+    const screen = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens/update-prompt.txt'), 'utf-8');
+    expect(matchAgentStartupScreen(screen)).toBe('codex-update');
   });
 
   it('needs both update lines before calling it the Codex update screen', () => {
