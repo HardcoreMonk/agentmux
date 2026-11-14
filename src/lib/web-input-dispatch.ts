@@ -11,7 +11,8 @@ interface IDecideWebInputDispatchInput {
   hasAttachments: boolean;
 }
 
-// One decision for the plain send and the attachment send. Interrupt is never blocked.
+// One decision for the plain send and the attachment send. It covers interrupt mode too (a busy Codex
+// that is still starting must not take text); the interrupt key itself does not go through here.
 export const decideWebInputDispatch = ({
   mode,
   connected,
@@ -22,6 +23,6 @@ export const decideWebInputDispatch = ({
   if (mode === 'disabled') return 'disabled';
   if (!connected) return 'disconnected';
   if (!hasText && !hasAttachments) return 'empty';
-  if (sendBlocked && mode !== 'interrupt') return 'blocked';
+  if (sendBlocked) return 'blocked';
   return 'send';
 };

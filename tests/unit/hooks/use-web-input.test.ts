@@ -58,4 +58,20 @@ describe('useWebInput send while sendBlocked', () => {
     expect(setValueState).not.toHaveBeenCalled();
     expect(toastError).toHaveBeenCalledWith('terminal.inputNotReady');
   });
+
+  it('holds the send in interrupt mode (busy) but still sends the interrupt key', async () => {
+    vi.stubGlobal('localStorage', { getItem: () => 'hello', setItem: vi.fn(), removeItem: vi.fn() });
+    const { default: useWebInput } = await import('@/hooks/use-web-input');
+    const sendStdin = vi.fn();
+
+    const result = useWebInput('busy', sendStdin, true, { tabId: 'tab-a', panelType: 'codex', sendBlocked: true });
+    expect(result.mode).toBe('interrupt');
+    result.send();
+
+    expect(sendStdin).not.toHaveBeenCalled();
+    expect(setValueState).not.toHaveBeenCalled();
+
+    result.interrupt();
+    expect(sendStdin).toHaveBeenCalledTimes(1);
+  });
 });

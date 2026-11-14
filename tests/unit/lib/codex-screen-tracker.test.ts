@@ -72,6 +72,11 @@ describe('codex screen tracker', () => {
   describe('tuiReady while starting', () => {
     beforeEach(() => tracker.startScope('tab-a', true));
 
+    it('is ready right away when the first read of the new scope already shows the input box', () => {
+      tracker.startScope('tab-b', true);
+      expect(tracker.observe('tab-b', fixture('tui-ready')).tuiReady).toBe(true);
+    });
+
     it('is false on an empty screen', () => {
       expect(tracker.observe('tab-a', '').tuiReady).toBe(false);
     });

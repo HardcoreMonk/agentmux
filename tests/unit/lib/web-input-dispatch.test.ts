@@ -29,7 +29,7 @@ describe('decideWebInputDispatch', () => {
     expect(decideWebInputDispatch({ ...base, hasText: false })).toBe('empty');
   });
 
-  it('does not block interrupt mode', () => {
-    expect(decideWebInputDispatch({ ...base, mode: 'interrupt', sendBlocked: true })).toBe('send');
+  it('blocks a send in interrupt mode while sendBlocked', () => {
+    expect(decideWebInputDispatch({ ...base, mode: 'interrupt', sendBlocked: true })).toBe('blocked');
   });
 });

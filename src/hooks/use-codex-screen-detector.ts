@@ -79,7 +79,12 @@ const useCodexScreenDetector = ({
     }
     if (scopeKey === null) return;
     tracker.startScope(scopeKey, starting);
-    if (!enabled || !starting) return;
+    if (!enabled) return;
+    // Read the screen that is already there: an idle session that was reloaded repaints before this scope
+    // opens and may send no further data.
+    const first = { scopeKey, snapshot: tracker.observe(scopeKey, getBufferTextRef.current()) };
+    setDetected((prev) => (isSame(prev, first) ? prev : first));
+    if (!starting) return;
     // A silent screen still has to leave the starting state, so the time limit reads the buffer itself.
     const readyTimer = setTimeout(() => {
       const next = { scopeKey, snapshot: tracker.tick(scopeKey, getBufferTextRef.current()) };
