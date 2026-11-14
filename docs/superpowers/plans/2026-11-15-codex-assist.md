@@ -9,7 +9,7 @@
 
 **Architecture:** Codex hook 명령에서 탭·실행마다 바뀌는 값(session 이름, capability)을 빼고 실행 명령 앞의 환경 변수로 넘긴다. 그러면 명령이 고정돼 Codex의 hook trust가 유지된다. Codex 화면 판정(update 안내, hook 검토, TUI 준비)은 서버와 client가 함께 쓰는 순수 module에 둔다. 카드와 입력 잠금의 상태 기계는 순수 tracker에 두고, React hook은 그것을 감싸기만 한다. 이렇게 해야 이 repo의 vitest(`node` 환경, `renderToStaticMarkup`)로 test할 수 있다.
 
-**Tech Stack:** TypeScript, Next.js Pages Router custom server, React(zustand), next-intl(ko/en), shadcn/ui, vitest, Codex CLI `0.167.0`.
+**Tech Stack:** TypeScript, Next.js Pages Router custom server, React(zustand), next-intl(ko/en), shadcn/ui, vitest, Codex CLI `0.169.0`(Task 1에서 확인. 관련 source는 0.167과 같다).
 
 **Spec:** `docs/superpowers/specs/2026-11-15-codex-assist-design.md` (Approved 2026-11-15, plan-eng-review 뒤 Codex 0.167 문구와 보강 반영)
 
@@ -72,13 +72,14 @@
 4. **30초가 지나도 update 안내나 검토 화면이 떠 있을 때:** 첨부가 있어도 웹 입력이 열리지 않는다. → Task 5 `codex-screen-tracker.test.ts`, `web-input-dispatch.test.ts`
 5. **이미 실행 중인 Codex 탭을 새로고침할 때:** 입력이 잠기지 않고 timeline이 가려지지 않는다. → Task 5
 6. **좁은 terminal에서 줄이 바뀔 때:** 검토 화면과 update 안내를 알아본다. → Task 3 "wrapped"
+7. **Codex `tab create` 직후 아직 shell prompt만 보이거나 검토 화면이 떠 있을 때:** 위임 CLI가 준비로 답하지 않는다. → Task 3 `workspace-tab-service.test.ts` "codex readiness"
 
 ## Rulings (계획 작성과 plan-eng-review에서 결정)
 
 - **Task 1은 controller가 한다:** 사람 앞에서 Codex 화면을 다루고, 사용자의 로그인 단계가 있어서다.
 - **격리 `CODEX_HOME`:** `$HOME/.cache/agentmux-codex-check`. Task 1과 Task 6이 함께 쓰고, 끝나면 사용자가 지운다.
 - **hook 목록의 출처:** client가 import할 수 있는 `src/lib/codex-session-hook-spec.ts`. `session-hooks.ts`는 `agent-hooks.ts`(server 전용)를 import하므로 client가 쓸 수 없다.
-- **Key 기대값(Codex 0.167 source 기준, Task 1에서 확인만 한다):**
+- **Key 기대값(Codex 0.167 source 기준, Task 1에서 0.169.0으로 확인됨):**
   - hook 검토: trust `'2\r'`(`2`는 강조만 옮김), 그대로 계속 `'3'`(바로 확정)
   - update: `'1'`/`'2'`/`'3'`(바로 확정)
 - **trust fingerprint(I7, 사용자 규칙보다 보수적):**
@@ -96,6 +97,12 @@
   - Task 2의 trust 경로와 Task 4의 hook 검토 카드만 대체안으로 다시 쓴다.
   - Task 3, Task 4의 detector·update 카드, Task 5는 그대로 둔다.
   - env가 hook에 닿지 않으면 대체안도 성립하지 않으므로, 멈추고 사용자에게 보고한다.
+- **Task 1 결과(2026-11-15, Codex 0.169.0):** 성공. trust가 유지되고 env가 세 hook에 닿았다. Key는 기대값과 같다. update 안내는 뜨지 않아 fixture를 source snapshot으로 합성했다. 사용자 `~/.codex` sha256은 전후 같다. Codex prompt 1개를 썼다(env 전달 판정).
+- **Codex 위임 준비 판정은 화면 기준(Task 1 뒤 Ruling):**
+  - Task 1에서 Codex SessionStart hook이 TUI 시작이 아니라 첫 turn 때 실행됨을 확인했다(`core/src/session/turn.rs` `run_pending_session_start_hooks`, 0.167·0.169 같음).
+  - 그래서 `waitForAgentReady`의 `session-start` 조건은 Codex에서 첫 prompt 전에 맞지 않고, trust 뒤에도 `tab create -t codex`가 60초 뒤 `ready: false`다. spec 목표 5를 지키려고 수단을 바꾼다(spec 4절 개정).
+  - Codex 탭: agent process 실행 중 + 화면이 `isCodexTuiReadyContent` + `!isCodexBlockingScreen`이면 준비. Claude 탭은 그대로다. Task 3에 넣는다.
+  - 틀렸을 때 비용: 준비 판정 함수 하나와 test를 되돌리면 된다.
 
 ---
 
@@ -103,7 +110,7 @@
 
 **Files:**
 - Create(commit하지 않음): scratchpad `codex-check/probe-hook.cjs`, `codex-check/result.md`
-- Create(commit, 문서 branch): `tests/fixtures/codex-screens/hooks-review.txt`(개수 3), `hooks-review-one.txt`(개수 1), `hooks-trusting.txt`("Trusting hooks..."), `update-prompt.txt`(0.167 문구), `update-updating.txt`, `update-failed.txt`
+- Create(commit, 문서 branch): `tests/fixtures/codex-screens/hooks-review.txt`(개수 3), `hooks-review-one.txt`(개수 1), `hooks-review-wrapped.txt`(40칸 줄바꿈), `hooks-trusting.txt`("Trusting hooks...", 번호 없는 선택지), `update-prompt.txt`(0.167+ 문구), `update-updating.txt`, `update-success.txt`, `update-failed.txt`, `tui-ready.txt`(입력창)
   - 이번 실행에서 실제로 본 화면을 쓰되 경로·hash·계정은 지운다.
   - 실제로 보지 못한 화면은 Codex source snapshot(`startup_hooks_review` test snapshot)과 `update_prompt.rs`의 문구로 합성한다.
 - Modify(문서 branch): 이 계획의 Rulings "Key 기대값"과 Task 3 Interfaces. 실험 결과가 기대값과 다르면 고친다.
@@ -111,12 +118,12 @@
 **Interfaces:**
 - Produces: 실험 결과(유지 여부, env 전달, key, 화면 문구)와 fixture
 
-- [ ] **Step 1: 사용자 로그인**
+- [x] **Step 1: 사용자 로그인**
   - 사용자에게 `CODEX_HOME=$HOME/.cache/agentmux-codex-check codex login`(필요하면 `--device-auth`)을 사용자 terminal에서 직접 실행해 달라고 요청한다.
   - 로그인 뒤 그 디렉터리에 `auth.json`이 있는지만 확인하고, 내용은 읽지 않는다.
-- [ ] **Step 2: Probe hook 준비**
+- [x] **Step 2: Probe hook 준비**
   - `probe-hook.cjs`는 `argv[2]`(event)와 `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`를 한 줄 JSON으로 scratchpad log에 덧붙이고 exit 0한다.
-- [ ] **Step 3: 첫 실행**
+- [x] **Step 3: 첫 실행**
   - 실행 환경: 임시 `TMUX_TMPDIR`, 전용 socket(`-L cacheck`), 빈 임시 cwd.
   - 명령: `CODEX_HOME=… AMUX_HOOK_SESSION=s1 AMUX_HOOK_CAPABILITY=c1 codex -c '<SessionStart>' -c '<UserPromptSubmit>' -c '<Stop>'`.
   - 세 hook 설정은 Task 2가 만들 문자열과 같은 모양이다.
@@ -127,22 +134,22 @@
     - folder trust: 격리 home이므로 "Yes".
     - update 안내: 화면을 저장하고 `2`(Skip)만 누른다.
     - "Hooks need review": 화면 전체를 저장한다.
-- [ ] **Step 4: Trust**
+- [x] **Step 4: Trust**
   - `2`를 누르고 Enter를 누른다. `2`만으로 확정되지 않는지 확인한다.
   - "Trusting hooks..." 화면을 저장한다.
   - Probe log에 `session-start`와 `s1`/`c1`이 찍히는지 본다(env 전달).
   - Codex를 종료한다(`/exit` 또는 Ctrl+C 두 번).
-- [ ] **Step 5: 다시 실행**
+- [x] **Step 5: 다시 실행**
   - 같은 `-c` 문자열에 다른 env(`s2`, `c2`)로 띄운다.
   - 판정은 두 가지로 나눈다.
     - 검토 화면이 뜨지 않는다.
     - update 안내가 뜨면 Skip만 누른다.
   - Probe log에 `s2`가 찍힌다.
   - `CODEX_HOME/config.toml`의 `[hooks.state."<session-flags>/config.toml:…"]` key 모양만 기록한다(hash 값은 기록하지 않는다).
-- [ ] **Step 6: 명령이 바뀐 경우**
+- [x] **Step 6: 명령이 바뀐 경우**
   - probe 경로만 다른 명령(복사본)으로 띄우면 검토 화면이 다시 뜨는지 확인한다.
   - 거기서 `3`(Continue without trusting)을 누르고, 바뀐 hook이 실행되지 않는 것을 확인한다.
-- [ ] **Step 7: 정리와 판정**
+- [x] **Step 7: 정리와 판정**
   - tmux server, 임시 cwd, `TMUX_TMPDIR`를 지운다. 격리 `CODEX_HOME`은 남긴다.
   - `result.md`에 다음을 적는다.
     - 유지 여부
@@ -151,9 +158,9 @@
     - update 안내 문구와 그 처리
   - 사용자 `~/.codex/config.toml`과 `~/.codex/hooks.json`의 sha256이 실험 전후로 같은지 확인한다.
   - 기대값과 다르면 Rulings "Key 기대값"과 Task 3 Interfaces를 고친다.
-- [ ] **Step 8: Fixture commit(문서 branch)**
+- [x] **Step 8: Fixture commit(문서 branch)**
   - 메시지: `test(fixtures): add synthetic Codex hook review and update screens`
-- [ ] **Gate:** 유지되지 않거나 env가 hook에 닿지 않으면 Rulings의 "Task 1이 실패하면"을 따른다.
+- [x] **Gate:** 유지되지 않거나 env가 hook에 닿지 않으면 Rulings의 "Task 1이 실패하면"을 따른다.
 
 ---
 
@@ -251,8 +258,10 @@
 
 **Files:**
 - Create: `src/lib/codex-screen.ts`
-- Modify: `src/lib/agent-startup-screen.ts`(Codex update·hook 검토 판정을 이 module로 옮김, 중복 정규식 금지). 이 수정으로 이미 배포된 위임 CLI가 0.167 update 안내를 놓치는 문제도 함께 고친다.
-- Test: `tests/unit/lib/codex-screen.test.ts`(create), `tests/unit/lib/agent-startup-screen.test.ts`, `tests/unit/pages/cli-tabs-send-api.test.ts`(기존 그대로 통과)
+- Modify:
+  - `src/lib/agent-startup-screen.ts`(Codex update·hook 검토 판정을 이 module로 옮김, 중복 정규식 금지). 이 수정으로 이미 배포된 위임 CLI가 0.167 update 안내를 놓치는 문제도 함께 고친다.
+  - `src/lib/workspace-tab-service.ts`(`waitForAgentReady`의 Codex 준비 판정, Rulings "Codex 위임 준비 판정은 화면 기준")
+- Test: `tests/unit/lib/codex-screen.test.ts`(create), `tests/unit/lib/agent-startup-screen.test.ts`, `tests/unit/lib/workspace-tab-service.test.ts`, `tests/unit/pages/cli-tabs-send-api.test.ts`·`cli-tabs-create-api.test.ts`(기존 그대로 통과)
 
 **Interfaces:**
 - Consumes: Task 1 fixture(`tests/fixtures/codex-screens/*`)
@@ -282,7 +291,7 @@
   - `matchCodexHooksReview`
     - "Hooks need review"와 "Trust all and continue"가 함께 있을 때만 값을 돌려준다. 공백과 줄바꿈에는 관대하다.
     - `changedCount`는 "N hooks are new or changed"나 "1 hook is new or changed"에서 읽는다. 없으면 null이다.
-    - `options`와 `selectedIndex`는 `›` 표시 줄에서 읽는다.
+    - `options`와 `selectedIndex`는 `›` 표시 줄에서 읽는다. Trust 중에는 선택지 번호가 없다(`hooks-trusting.txt`).
     - `trusting`은 "Trusting hooks..."가 보이면 true다. 이때 카드는 버튼 없이 진행 표시만 보인다.
   - `codexHooksReviewKeys`
     - trust: "Trust all and continue" 번호 + `\r`(기본 `'2\r'`)
@@ -301,6 +310,10 @@
   - `agent-startup-screen.ts`의 `matchAgentStartupScreen`(반환 type은 그대로):
     - `'codex-update'`: `matchCodexUpdatePrompt`가 `prompt`·`updating`이다.
     - `'codex-hooks-review'`: `matchCodexHooksReview`가 값을 돌려준다.
+  - `workspace-tab-service.ts`의 `waitForAgentReady(tab, { launchStartedAt, timeoutMs?, pollMs? })`(signature 그대로):
+    - `tab.panelType === 'codex'`이면 poll마다 `isAgentProcessRunning(tab)`이 true이고, `readTabScreen(tab)`이 null이 아니며, 그 화면이 `isCodexTuiReadyContent`이고 `!isCodexBlockingScreen`일 때 준비다. `session-start` entry는 보지 않는다.
+    - 그 밖의 agent 탭은 지금 규칙(`idle` + launch 뒤 `session-start`) 그대로다.
+    - 시간 제한은 지금 값(`AGENT_READY_TIMEOUT_MS`)이다. 웹 입력의 30초 강제 준비는 쓰지 않는다.
 - [ ] **Step 1: Write the failing tests**(`codex-screen.test.ts`)
   - Hook 검토
     - 개수 3 fixture: `changedCount: 3`, 선택지 3개, `selectedIndex: 0`, `trusting: false`다. 개수 1 fixture: `1`이다. "Trusting hooks..." fixture: `trusting: true`다.
@@ -325,9 +338,15 @@
     - true: update `prompt`·`updating`, 검토, Codex folder trust
     - false: 입력창, `success`, `failed`
   - `agent-startup-screen.test.ts`: 0.167 update fixture → `'codex-update'`
+  - `workspace-tab-service.test.ts` "codex readiness"(Codex 탭, status entry 없음)
+    - process 실행 중 + `tui-ready.txt` 화면 → `true`
+    - process 실행 중 + `hooks-review.txt` 화면 → timeout 뒤 `false`
+    - process 없음(shell prompt만) + `tui-ready.txt` 화면 → `false`
+    - 화면을 읽지 못함(null) → `false`
+    - Claude 탭의 기존 `session-start` case는 그대로 통과한다.
 - [ ] **Step 2: Run** → FAIL
 - [ ] **Step 3: Implement**
-- [ ] **Step 4: Run** 위 test, `agent-startup-screen.test.ts`, `tests/unit/pages/cli-tabs-send-api.test.ts`, tsc → PASS
+- [ ] **Step 4: Run** 위 test, `agent-startup-screen.test.ts`, `workspace-tab-service.test.ts`, `tests/unit/pages/cli-tabs-send-api.test.ts`, `cli-tabs-create-api.test.ts`, tsc → PASS
 - [ ] **Step 5: Commit** — `feat(codex): read the Codex update, hook review, and ready screens in one module`
 
 ---
@@ -492,6 +511,7 @@
     - 카드의 trust 버튼은 개수와 fingerprint로 제한한다. 개수는 같지만 일부가 다른 출처인 경우는 남은 위험으로 받아들인다.
   - `docs/CLI.md`
     - Codex 위임은 hook trust 뒤에 동작한다.
+    - Codex `tab create`의 `ready`는 화면 기준이다(입력창이 보이고 차단 화면이 없음). Codex SessionStart hook은 첫 turn에 실행된다.
     - 처음 한 번 검토 카드가 뜬다.
     - node 경로나 data dir가 바뀌면 다시 한 번 뜬다.
     - 개발용 격리 server는 격리 `CODEX_HOME`을 쓴다.
@@ -523,7 +543,7 @@
      - `<data dir>/codex-hook-trust.json`이 생긴다.
   2. 탭을 닫고 새 Codex 탭을 연다. 검토 카드가 뜨지 않는다.
   3. 시작 직후 web 입력으로 보내면 toast로 막힌다. 준비된 뒤 보내면 Codex가 받는다(Codex prompt 1).
-  4. Claude 탭의 agent가 `agentmux tab create -t codex`로 `ready: true`를 받는다. `tab send 'Reply with the single word OK'`의 결과가 `tab result`에 "OK"로 온다(Claude prompt 1, Codex prompt 1).
+  4. Claude 탭의 agent가 `agentmux tab create -t codex`로 `ready: true`를 받는다(화면 기준, 60초 대기 없이). `tab send 'Reply with the single word OK'`의 결과가 `tab result`에 "OK"로 온다(Claude prompt 1, Codex prompt 1).
   5. 이미 실행 중인 Codex 탭에서 page를 새로고침한다. 입력이 잠기지 않고 timeline이 보인다.
   6. update 안내를 실제로 띄울 수 없으면 합성 화면 unit test로 대신하고 그 사실을 기록한다.
   7. 안전 확인

@@ -2,6 +2,7 @@
 
 - 작성일: 2026-11-15
 - 상태: Approved — 2026-11-15 사용자: "후속 작업 승인합니다." (설계 승인과 계획 진행)
+- 개정: 2026-11-15 Task 1 결과 반영(controller Ruling) — Codex 위임 준비 판정을 화면 기준으로 바꿈("Task 1 확인 결과", 4절). 목표 5를 지키기 위한 수단 변경이다.
 - Lifecycle: brainstorming(방식 선택 "1", 설계 요약 "승인 합니다.") → builder check(독립 subagent, 질문 3개 중 2개는
   사용자 답, 1개는 문서 수정으로 반영) → 승인. grill-me는 brainstorming 질문과 builder check로 대신한다. 설계 리뷰는
   계획을 쓴 뒤 plan-eng-review에서 코드와 함께 본다(controller 판단).
@@ -136,6 +137,18 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
 - 지금 배포된 위임 CLI의 화면 판정(`matchAgentStartupScreen` `'codex-update'`)은 옛 문구(`Update available!`)를 찾으므로
   0.167의 update 안내를 놓칠 수 있다. 이 설계에서 함께 고친다.
 
+### Task 1 확인 결과 (2026-11-15, Codex `0.169.0`)
+
+- Codex는 0.169.0으로 올라가 있었다. `update_prompt.rs`, `discovery.rs`, `command_runner.rs`는 0.167과 같고
+  `startup_hooks_review.rs`는 단축키 HUD만 더해졌다. 위 문구와 key는 그대로다.
+- 격리 `CODEX_HOME`에서 고정 `-c` hook 3개로 실행했다. 검토 화면에서 trust하자(`2` 뒤 Enter) 다시 띄워도 화면이 뜨지 않았다.
+  Hook 명령을 바꾸면 다시 떴고, `3`은 바로 확정됐다.
+- 실행 명령 앞의 `AMUX_HOOK_SESSION`·`AMUX_HOOK_CAPABILITY`가 세 hook에 모두 닿았다.
+- **SessionStart hook은 TUI가 뜰 때가 아니라 첫 turn이 시작될 때 실행된다.** 첫 prompt 때 `session-start`와
+  `prompt-submit`이 함께 왔다. Source(0.167·0.169): `core/src/session/turn.rs` → `run_pending_session_start_hooks`.
+  - 그래서 설계 1의 위임 준비 판정(launch 뒤 `session-start` + `idle`)은 Codex에서 첫 prompt 전에 맞지 않는다.
+    Trust 뒤에도 `tab create -t codex`는 60초를 기다린 뒤 `ready: false`를 돌려준다. 4절에서 고친다.
+
 ### purplemux 방식
 
 - `matchCodexUpdatePrompt(text)`: 공백을 접은 문구에서 `Update available! <cur> -> <latest>`,
@@ -175,7 +188,7 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
     적는다.
 - Trust하지 않으면("Continue without trusting") Codex는 agentmux hook을 실행하지 않는다.
   - 상태 판정은 JSONL reconcile만으로 돈다(설계 1 이전과 같은 정확도).
-  - 위임 준비 판정(`session-start`)은 오지 않아 `ready: false`다.
+  - 위임 준비 판정은 화면 기준(4절)이라 입력창이 보이면 `ready: true`다. 상태는 JSONL reconcile로만 바뀐다.
   - 다음 실행에 화면이 다시 뜬다.
 
 ### 2. Hook 검토 화면 웹 카드
@@ -232,7 +245,10 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
   선택지를 고를 수 있기 때문이다.
 - 시작 진행 표시는 지금 `busy` 보고가 오면 사라진다(`resolveAgentBootDisplay`). Codex는 TUI가 준비되기 전에도 `busy`가
   되므로, Codex 탭의 표시 종료 조건에 TUI 준비를 더한다.
-- 위임 CLI의 준비 판정은 설계 1대로 `session-start` hook이다. TUI 판정은 웹 입력과 표시용이다.
+- 위임 CLI의 Codex 준비 판정도 화면 기준으로 바꾼다(Task 1: SessionStart는 첫 turn에 실행된다).
+  - Agent process가 실행 중이고, 화면이 `isCodexTuiReadyContent`이며 차단 화면이 아니면 준비다.
+  - 웹 입력의 시작 중 latch와 30초 시간 제한은 쓰지 않는다. CLI는 화면으로 확인될 때만 준비라고 답한다.
+  - Claude 탭은 설계 1대로 `session-start` hook이다.
 - Claude 탭에도 같은 문제(첫 화면에 보낸 prompt 유실, 설계 1 단계 3 live 확인)가 있다. 이 설계는 Codex만 다룬다.
   Claude 쪽은 후속으로 남긴다(비목표 아님, 범위 밖 후속).
 
@@ -242,7 +258,7 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
 | --- | --- | --- | --- |
 | 1. 명령 고정 + 사용자가 한 번 trust | 탭·실행마다 바뀌는 값을 환경 변수로 옮겨 hook 명령을 같게 만들고, 처음 한 번 사용자가 trust | Codex의 안전 검토를 살림. agentmux는 설정을 쓰지 않음. 처음 한 번, hook 정의가 바뀔 때 한 번씩 사용자가 눌러야 함 | **선택** |
 | 2. agentmux가 자기 hook을 미리 trust | 실행마다 `-c hooks.state…trusted_hash=` 또는 `--dangerously-bypass-hook-trust` | 화면이 아예 안 뜸. agentmux hook에 대해 Codex 검토를 건너뜀. Bypass flag는 모든 hook(사용자 project hook 포함)의 검토를 끔 | 대체안: 확인 실험에서 1의 trust가 유지되지 않을 때만, `-c hooks.state` 형태로 agentmux 자기 session-flag hook에만 쓴다. Bypass flag는 쓰지 않는다 |
-| 3. Codex hook을 쓰지 않음 | 상태를 JSONL과 화면만으로 판정 | trust 문제 없음. busy·idle 판정이 늦고 위임 준비 판정(`session-start`)을 잃음 | 고르지 않음 |
+| 3. Codex hook을 쓰지 않음 | 상태를 JSONL과 화면만으로 판정 | trust 문제 없음. busy·idle 판정이 늦고 위임 준비 판정(`session-start`)을 잃음(Task 1 뒤 Codex 준비 판정은 어차피 화면 기준이 됐다) | 고르지 않음 |
 
 ## 인수 기준
 
