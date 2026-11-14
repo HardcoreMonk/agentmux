@@ -82,7 +82,7 @@ Codex 위임은 hook trust 뒤에 동작합니다. agentmux가 띄운 Codex는 �
 - cwd: `--cwd`(존재하는 directory, 아니면 400 `invalid-cwd`), 없으면 호출 탭의 현재 cwd. CLI는 상대 경로(`.`, `../other`)를 현재 directory 기준 절대 경로로 바꿔 보냅니다. HTTP API는 절대 경로만 받습니다.
 - active 탭은 바뀌지 않고 `createdByTabId`가 기록됩니다.
 - workspace당 agent가 만든 탭은 6개까지이며 넘으면 409 `delegation-limit`입니다. 확인과 생성은 workspace별 lock 안에서 합니다.
-- `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. Claude 탭은 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. Codex 탭의 `ready`는 화면 기준입니다(agent process 실행 + 입력창이 보임 + 차단 화면 없음). Codex는 SessionStart hook을 첫 turn에 실행하므로 `session-start`로는 첫 prompt 전 준비를 알 수 없습니다. 띄우기가 실패하면 201에 `ready: false`와 `launchError`(실패 이유 code, 띄우기가 예외로 끝나면 `launch-failed`)를 돌려줍니다. 탭은 남아 있으므로 돌려받은 `tabId`로 닫을 수 있습니다.
+- `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. Claude 탭은 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. Codex 탭의 `ready`는 화면 기준입니다(agent process 실행 + 입력창이 보임 + 차단 화면 없음). 입력창이 2초 동안 유지되어야 준비입니다(Codex는 검토 화면 전에 입력창을 잠깐 그립니다). Codex는 SessionStart hook을 첫 turn에 실행하므로 `session-start`로는 첫 prompt 전 준비를 알 수 없습니다. 띄우기가 실패하면 201에 `ready: false`와 `launchError`(실패 이유 code, 띄우기가 예외로 끝나면 `launch-failed`)를 돌려줍니다. 탭은 남아 있으므로 돌려받은 `tabId`로 닫을 수 있습니다.
 - 호출 탭이 없는 탭 id이면 404 `caller-tab-not-found`(create, send, close).
 - `-t terminal`도 만들 수 있지만 agent 호출은 그 탭에 `tab send`를 할 수 없습니다(아래 tab send).
 

@@ -59,8 +59,30 @@ const useCodexScreenDetector = ({
   const enabledRef = useRef(enabled);
   const scopeKeyRef = useRef(scopeKey);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const getBufferTextRef = useRef(getBufferText);
   const detectedRef = useRef<IDetected | null>(null);
+
+  // The input box must stay up before a starting scope is ready; read the screen again when that is due,
+  // because a quiet screen sends no data to trigger the read.
+  const scheduleSettleCheck = useCallback((key: string) => {
+    const schedule = (): void => {
+      if (settleRef.current) {
+        clearTimeout(settleRef.current);
+        settleRef.current = null;
+      }
+      const at = tracker.nextCheckAt(key);
+      if (at === null) return;
+      settleRef.current = setTimeout(() => {
+        settleRef.current = null;
+        if (!enabledRef.current || scopeKeyRef.current !== key) return;
+        const next = { scopeKey: key, snapshot: tracker.tick(key, getBufferTextRef.current()) };
+        setDetected((prev) => (isSame(prev, next) ? prev : next));
+        schedule();
+      }, Math.max(0, at - Date.now()));
+    };
+    schedule();
+  }, [tracker]);
 
   useEffect(() => {
     getBufferTextRef.current = getBufferText;
@@ -77,6 +99,10 @@ const useCodexScreenDetector = ({
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
+    if (settleRef.current) {
+      clearTimeout(settleRef.current);
+      settleRef.current = null;
+    }
     if (scopeKey === null) return;
     tracker.startScope(scopeKey, starting);
     if (!enabled) return;
@@ -86,23 +112,33 @@ const useCodexScreenDetector = ({
     const firstRead = setTimeout(() => {
       const first = { scopeKey, snapshot: tracker.observe(scopeKey, getBufferTextRef.current()) };
       setDetected((prev) => (isSame(prev, first) ? prev : first));
+      scheduleSettleCheck(scopeKey);
     }, DEBOUNCE_MS);
     if (!starting) return () => clearTimeout(firstRead);
     // A silent screen still has to leave the starting state, so the time limit reads the buffer itself.
     const readyTimer = setTimeout(() => {
       const next = { scopeKey, snapshot: tracker.tick(scopeKey, getBufferTextRef.current()) };
       setDetected((prev) => (isSame(prev, next) ? prev : next));
+      scheduleSettleCheck(scopeKey);
     }, CODEX_TUI_READY_TIMEOUT_MS);
     return () => {
       clearTimeout(firstRead);
       clearTimeout(readyTimer);
+      if (settleRef.current) {
+        clearTimeout(settleRef.current);
+        settleRef.current = null;
+      }
     };
-  }, [enabled, scopeKey, starting, tracker]);
+  }, [enabled, scopeKey, starting, tracker, scheduleSettleCheck]);
 
   useEffect(() => () => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
+    }
+    if (settleRef.current) {
+      clearTimeout(settleRef.current);
+      settleRef.current = null;
     }
   }, []);
 
@@ -114,8 +150,9 @@ const useCodexScreenDetector = ({
       if (!enabledRef.current || key === null) return;
       const next = { scopeKey: key, snapshot: tracker.observe(key, getBufferTextRef.current()) };
       setDetected((prev) => (isSame(prev, next) ? prev : next));
+      scheduleSettleCheck(key);
     }, DEBOUNCE_MS);
-  }, [tracker]);
+  }, [tracker, scheduleSettleCheck]);
 
   const hide = useCallback((key: 'hooksReview' | 'updatePrompt') => {
     setDetected((prev) => (prev ? { ...prev, snapshot: { ...prev.snapshot, [key]: null } } : prev));

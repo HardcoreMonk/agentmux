@@ -3,6 +3,7 @@ import path from 'path';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { CODEX_RESPONSE_SUPPRESS_MS, CODEX_TUI_READY_TIMEOUT_MS, createCodexScreenTracker } from '@/lib/codex-screen-tracker';
+import { CODEX_TUI_READY_SETTLE_MS } from '@/lib/codex-screen';
 
 const fixture = (name: string): string =>
   fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
@@ -53,6 +54,13 @@ describe('codex screen tracker', () => {
     expect(snapshot).toMatchObject({ hooksReview: null, updatePrompt: null, blocking: false, tuiReady: true });
   });
 
+  it('has no pending check for a scope that is not starting', () => {
+    tracker.startScope('tab-a', false);
+    tracker.observe('tab-a', fixture('tui-ready'));
+
+    expect(tracker.nextCheckAt('tab-a')).toBeNull();
+  });
+
   it('drops the earlier response when the scope changes', () => {
     tracker.observe('tab-a', fixture('hooks-review'));
     tracker.markResponded('tab-a');
@@ -72,18 +80,47 @@ describe('codex screen tracker', () => {
   describe('tuiReady while starting', () => {
     beforeEach(() => tracker.startScope('tab-a', true));
 
-    it('is ready right away when the first read of the new scope already shows the input box', () => {
+    it('waits for the settle time even when the first read already shows the input box', () => {
       tracker.startScope('tab-b', true);
-      expect(tracker.observe('tab-b', fixture('tui-ready')).tuiReady).toBe(true);
+      expect(tracker.observe('tab-b', fixture('tui-ready')).tuiReady).toBe(false);
+      now += CODEX_TUI_READY_SETTLE_MS;
+      expect(tracker.tick('tab-b', fixture('tui-ready')).tuiReady).toBe(true);
     });
 
     it('is false on an empty screen', () => {
       expect(tracker.observe('tab-a', '').tuiReady).toBe(false);
     });
 
-    it('turns true on the input screen, locks on a review screen, and latches back on a plain screen', () => {
-      expect(tracker.observe('tab-a', fixture('tui-ready')).tuiReady).toBe(true);
+    it('is not ready at first sight of the input box and reports when to check again', () => {
+      expect(tracker.nextCheckAt('tab-a')).toBeNull();
+      expect(tracker.observe('tab-a', fixture('tui-ready')).tuiReady).toBe(false);
+      expect(tracker.nextCheckAt('tab-a')).toBe(now + CODEX_TUI_READY_SETTLE_MS);
+
+      now += CODEX_TUI_READY_SETTLE_MS;
+      expect(tracker.tick('tab-a', fixture('tui-ready')).tuiReady).toBe(true);
+      expect(tracker.nextCheckAt('tab-a')).toBeNull();
+    });
+
+    it('drops the wait when a review screen covers the input box, then counts again', () => {
+      const start = now;
+      tracker.observe('tab-a', fixture('tui-ready'));
+      now = start + 500;
       expect(tracker.observe('tab-a', fixture('hooks-review')).tuiReady).toBe(false);
+      expect(tracker.nextCheckAt('tab-a')).toBeNull();
+
+      now = start + 1000;
+      tracker.observe('tab-a', fixture('tui-ready'));
+      expect(tracker.nextCheckAt('tab-a')).toBe(start + 1000 + CODEX_TUI_READY_SETTLE_MS);
+      now = start + 1000 + CODEX_TUI_READY_SETTLE_MS - 1;
+      expect(tracker.tick('tab-a', fixture('tui-ready')).tuiReady).toBe(false);
+      now += 1;
+      expect(tracker.tick('tab-a', fixture('tui-ready')).tuiReady).toBe(true);
+    });
+
+    it('stays latched on a later plain screen', () => {
+      tracker.observe('tab-a', fixture('tui-ready'));
+      now += CODEX_TUI_READY_SETTLE_MS;
+      expect(tracker.tick('tab-a', fixture('tui-ready')).tuiReady).toBe(true);
       expect(tracker.observe('tab-a', 'working...').tuiReady).toBe(true);
     });
 

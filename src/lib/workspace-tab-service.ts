@@ -28,7 +28,7 @@ import {
 } from '@/lib/tmux';
 import { hasPermissionPrompt } from '@/lib/permission-prompt';
 import { matchAgentStartupScreen } from '@/lib/agent-startup-screen';
-import { isCodexBlockingScreen, isCodexTuiReadyContent } from '@/lib/codex-screen';
+import { CODEX_TUI_READY_SETTLE_MS, isCodexBlockingScreen, isCodexTuiReadyContent } from '@/lib/codex-screen';
 import type { ITabLocation } from '@/lib/cli-utils';
 import type { IClientTabStatusEntry } from '@/types/status';
 import type { ITab, IWorkspace, TPanelType } from '@/types/terminal';
@@ -335,7 +335,7 @@ const isAgentReadyEntry = (entry: IClientTabStatusEntry | null, launchStartedAt:
   && entry.lastEvent?.name === 'session-start'
   && entry.lastEvent.at >= launchStartedAt;
 
-const isCodexScreenReady = async (tab: ITab): Promise<boolean> => {
+const isCodexScreenShowingInput = async (tab: ITab): Promise<boolean> => {
   if (!(await isAgentProcessRunning(tab).catch(() => false))) return false;
   const screen = await readTabScreen(tab).catch(() => null);
   return screen !== null && isCodexTuiReadyContent(screen) && !isCodexBlockingScreen(screen);
@@ -343,12 +343,26 @@ const isCodexScreenReady = async (tab: ITab): Promise<boolean> => {
 
 export const waitForAgentReady = async (
   tab: ITab,
-  options: { launchStartedAt: number; timeoutMs?: number; pollMs?: number },
+  options: { launchStartedAt: number; timeoutMs?: number; pollMs?: number; settleMs?: number },
 ): Promise<boolean> => {
-  const { launchStartedAt, timeoutMs = AGENT_READY_TIMEOUT_MS, pollMs = AGENT_READY_POLL_MS } = options;
+  const {
+    launchStartedAt,
+    timeoutMs = AGENT_READY_TIMEOUT_MS,
+    pollMs = AGENT_READY_POLL_MS,
+    settleMs = CODEX_TUI_READY_SETTLE_MS,
+  } = options;
   const deadline = Date.now() + timeoutMs;
+  // Codex paints its input box before the hook review covers it, so the box must stay up for settleMs.
+  let inputSince: number | null = null;
   const isReady = tab.panelType === 'codex'
-    ? () => isCodexScreenReady(tab)
+    ? async () => {
+      if (!(await isCodexScreenShowingInput(tab))) {
+        inputSince = null;
+        return false;
+      }
+      inputSince ??= Date.now();
+      return Date.now() - inputSince >= settleMs;
+    }
     : async () => isAgentReadyEntry(await readTabStatusEntry(tab).catch(() => null), launchStartedAt);
   while (!(await isReady())) {
     const remaining = deadline - Date.now();

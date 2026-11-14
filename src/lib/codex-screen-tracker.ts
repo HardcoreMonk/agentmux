@@ -1,4 +1,5 @@
 import {
+  CODEX_TUI_READY_SETTLE_MS,
   isCodexBlockingScreen,
   isCodexTuiReadyContent,
   matchCodexHooksReview,
@@ -30,6 +31,8 @@ interface IScopeState {
   starting: boolean;
   startedAt: number;
   readyLatched: boolean;
+  // When the input box was first seen in the current unbroken run; the latch waits CODEX_TUI_READY_SETTLE_MS from it.
+  readySince: number | null;
   last: ICodexScreenSnapshot | null;
   responded: IResponded | null;
 }
@@ -42,6 +45,7 @@ export const createCodexScreenTracker = (opts: { now: () => number }) => {
     starting,
     startedAt: opts.now(),
     readyLatched: false,
+    readySince: null,
     last: null,
     responded: null,
   });
@@ -59,13 +63,18 @@ export const createCodexScreenTracker = (opts: { now: () => number }) => {
     const suppressing = responded !== null && opts.now() - responded.at < CODEX_RESPONSE_SUPPRESS_MS;
     const blocking = isCodexBlockingScreen(text);
     let tuiReady = false;
-    if (!blocking) {
-      if (!current.starting) {
-        tuiReady = true;
+    if (blocking) {
+      current.readySince = null;
+    } else if (!current.starting) {
+      tuiReady = true;
+    } else {
+      if (isCodexTuiReadyContent(text)) {
+        current.readySince ??= opts.now();
+        if (opts.now() - current.readySince >= CODEX_TUI_READY_SETTLE_MS) current.readyLatched = true;
       } else {
-        if (isCodexTuiReadyContent(text)) current.readyLatched = true;
-        tuiReady = current.readyLatched || opts.now() - current.startedAt >= CODEX_TUI_READY_TIMEOUT_MS;
+        current.readySince = null;
       }
+      tuiReady = current.readyLatched || opts.now() - current.startedAt >= CODEX_TUI_READY_TIMEOUT_MS;
     }
     const snapshot: ICodexScreenSnapshot = {
       hooksReview: suppressing && responded.hooksReview ? null : hooksReview,
@@ -91,5 +100,10 @@ export const createCodexScreenTracker = (opts: { now: () => number }) => {
       };
     },
     tick: evaluate,
+    // When a pending latch is due, so the caller can read the screen then even if no more data arrives.
+    nextCheckAt(scopeKey: string): number | null {
+      if (state?.scopeKey !== scopeKey || !state.starting || state.readyLatched || state.readySince === null) return null;
+      return state.readySince + CODEX_TUI_READY_SETTLE_MS;
+    },
   };
 };

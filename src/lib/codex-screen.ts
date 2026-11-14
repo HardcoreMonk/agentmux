@@ -201,6 +201,10 @@ const hasInputLineInTail = (text: string): boolean => {
   return INPUT_LINE_RE.test(lines.slice(-INPUT_TAIL_LINES).join('\n'));
 };
 
+// Codex 0.169 paints its input box about 350ms after launch and keeps it for 0.4-0.9s before the hook review
+// screen covers it. The input box counts as ready only after it has stayed up for twice that gap.
+export const CODEX_TUI_READY_SETTLE_MS = 2000;
+
 export const isCodexTuiReadyContent = (text: string): boolean => {
   if (isUpdateBlocking(text) || matchCodexHooksReview(text) || INPUT_DISABLED_RE.test(text)) return false;
   return hasInputLineInTail(text);

@@ -247,6 +247,8 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
   되므로, Codex 탭의 표시 종료 조건에 TUI 준비를 더한다.
 - 위임 CLI의 Codex 준비 판정도 화면 기준으로 바꾼다(Task 1: SessionStart는 첫 turn에 실행된다).
   - Agent process가 실행 중이고, 화면이 `isCodexTuiReadyContent`이며 차단 화면이 아니면 준비다.
+  - 입력창이 2초(`CODEX_TUI_READY_SETTLE_MS`) 동안 유지되어야 준비다(Codex는 검토 화면 전에 입력창을 잠깐 그린다, live 확인).
+    웹 입력의 starting latch도 같은 시간을 기다린다.
   - 웹 입력의 시작 중 latch와 30초 시간 제한은 쓰지 않는다. CLI는 화면으로 확인될 때만 준비라고 답한다.
   - Claude 탭은 설계 1대로 `session-start` hook이다.
 - Claude 탭에도 같은 문제(첫 화면에 보낸 prompt 유실, 설계 1 단계 3 live 확인)가 있다. 이 설계는 Codex만 다룬다.

@@ -484,7 +484,9 @@ describe('waitForAgentReady for Codex', () => {
   const screen = (name: string): string =>
     fsSync.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
   const codexTab = () => agentTab({ panelType: 'codex' });
-  const wait = () => waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs: 50, pollMs: 10 });
+  const wait = () => waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs: 50, pollMs: 10, settleMs: 0 });
+  const waitSettled = (timeoutMs: number) =>
+    waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs, pollMs: 10, settleMs: 30 });
 
   beforeEach(() => {
     mocks.getSessionPanePid.mockResolvedValue(4242);
@@ -502,6 +504,34 @@ describe('waitForAgentReady for Codex', () => {
     mocks.capturePaneContent.mockResolvedValue(screen('hooks-review'));
 
     await expect(wait()).resolves.toBe(false);
+  });
+
+  it('is ready once the input box has stayed up for the settle time', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+
+    await expect(waitSettled(500)).resolves.toBe(true);
+  });
+
+  it('is not ready when the input box is replaced by the hook review after two polls', async () => {
+    mocks.capturePaneContent
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValue(screen('hooks-review'));
+
+    await expect(waitSettled(150)).resolves.toBe(false);
+  });
+
+  it('counts the settle time again from the last ready screen after a gap', async () => {
+    mocks.capturePaneContent
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValueOnce(screen('hooks-review'))
+      .mockResolvedValue(screen('tui-ready'));
+    const startedAt = Date.now();
+
+    await expect(waitSettled(1000)).resolves.toBe(true);
+    // Three polls (30ms) before the gap would already satisfy a settle that was not reset.
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(50);
   });
 
   it('is not ready when only a shell prompt runs', async () => {
