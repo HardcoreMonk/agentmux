@@ -1,6 +1,8 @@
+import { createHash } from 'crypto';
 import { createAgentHookCapability, STATUS_HOOK_BRIDGE_PATH } from '@/lib/agent-hooks';
 import {
   CODEX_HOOK_CAPABILITY_ENV,
+  CODEX_HOOK_FINGERPRINT_ENV,
   CODEX_HOOK_SESSION_ENV,
   CODEX_SESSION_HOOKS,
 } from '@/lib/codex-session-hook-spec';
@@ -27,6 +29,10 @@ export const buildCodexSessionHookConfigs = (options: ICodexSessionHookOptions =
     return `hooks.${event}=[{${matcherConfig}hooks=[${buildHandler(hookEvent, options)}]}]`;
   });
 
+export const getCodexHookFingerprint = (): string =>
+  createHash('sha256').update(buildCodexSessionHookConfigs().join('\n')).digest('hex');
+
 export const buildCodexHookEnvPrefix = ({ tabId, sessionName }: { tabId: string; sessionName: string }): string =>
   `${CODEX_HOOK_SESSION_ENV}=${shellQuote(sessionName)} ` +
-  `${CODEX_HOOK_CAPABILITY_ENV}=${shellQuote(createAgentHookCapability(tabId, sessionName))} `;
+  `${CODEX_HOOK_CAPABILITY_ENV}=${shellQuote(createAgentHookCapability(tabId, sessionName))} ` +
+  `${CODEX_HOOK_FINGERPRINT_ENV}=${shellQuote(getCodexHookFingerprint())} `;

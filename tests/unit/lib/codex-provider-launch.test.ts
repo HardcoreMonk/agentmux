@@ -83,7 +83,7 @@ describe('codex provider launch command', () => {
   it('orders the hook env vars before the delegation env vars when delegation is on', async () => {
     const command = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
 
-    expect(command).toMatch(/^AMUX_HOOK_SESSION='[^']+' AMUX_HOOK_CAPABILITY='[^']+' AMUX_WORKSPACE_ID='ws-1' /);
+    expect(command).toMatch(/^AMUX_HOOK_SESSION='[^']+' AMUX_HOOK_CAPABILITY='[^']+' AMUX_HOOK_FINGERPRINT='[0-9a-f]+' AMUX_WORKSPACE_ID='ws-1' /);
   });
 
   it('appends the guide to the user value on an auto-resume launch', async () => {

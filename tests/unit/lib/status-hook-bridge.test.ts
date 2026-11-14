@@ -339,6 +339,21 @@ describe('status hook bridge', () => {
 
       expect(body).toMatchObject({ session: 'pt-arg', capability: 'cap-arg' });
     });
+
+    it('sends the hook fingerprint from the environment', async () => {
+      const body = await captureBody({
+        args: [],
+        extraEnv: { AMUX_HOOK_SESSION: 'pt-x', AMUX_HOOK_CAPABILITY: 'cap-x', AMUX_HOOK_FINGERPRINT: 'fp-x' },
+      });
+
+      expect(body).toMatchObject({ hookFingerprint: 'fp-x' });
+    });
+
+    it('omits the hook fingerprint field when the environment has none', async () => {
+      const body = await captureBody({ args: ['pt-x', 'cap-x'], extraEnv: { AMUX_HOOK_FINGERPRINT: '' } });
+
+      expect(body).not.toHaveProperty('hookFingerprint');
+    });
   });
 
   it('stays dependency-free and avoids shell transport', () => {

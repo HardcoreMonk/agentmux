@@ -4,7 +4,11 @@ vi.mock('@/lib/cli-token', () => ({ getCliToken: () => 'test-token' }));
 
 import { verifyAgentHookCapability } from '@/lib/agent-hooks';
 import { CODEX_SESSION_HOOK_COUNT, CODEX_SESSION_HOOKS } from '@/lib/codex-session-hook-spec';
-import { buildCodexHookEnvPrefix, buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
+import {
+  buildCodexHookEnvPrefix,
+  buildCodexSessionHookConfigs,
+  getCodexHookFingerprint,
+} from '@/lib/providers/codex/session-hooks';
 
 describe('Codex session hooks', () => {
   beforeEach(() => vi.useRealTimers());
@@ -41,6 +45,14 @@ describe('Codex session hooks', () => {
       expect(capability).not.toBe('');
       expect(verifyAgentHookCapability(capability, tab.sessionName)).toMatchObject({ tabId: tab.tabId });
     }
+  });
+
+  it('adds the current hook fingerprint to the env prefix', () => {
+    const prefix = buildCodexHookEnvPrefix({ tabId: 'tab-a', sessionName: 'pt-ws-pane-tab-a' });
+    const fingerprint = /AMUX_HOOK_FINGERPRINT='([0-9a-f]+)'/.exec(prefix)?.[1];
+
+    expect(fingerprint).toBe(getCodexHookFingerprint());
+    expect(fingerprint).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('keeps the hook count and order in the spec', () => {

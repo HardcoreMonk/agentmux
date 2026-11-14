@@ -63,7 +63,14 @@ process.stdin.on('end', () => {
     const port = Number.parseInt(fs.readFileSync(path.join(baseDir, 'port'), 'utf8').trim(), 10);
     const token = fs.readFileSync(path.join(baseDir, 'cli-token'), 'utf8').trim();
     if (!Number.isInteger(port) || port < 1 || port > 65535 || !token) process.exit(0);
-    const body = JSON.stringify({ event, session, capability, ...readForwardedFields() });
+    const hookFingerprint = process.env.AMUX_HOOK_FINGERPRINT || '';
+    const body = JSON.stringify({
+      event,
+      session,
+      capability,
+      ...(hookFingerprint ? { hookFingerprint } : {}),
+      ...readForwardedFields(),
+    });
     const request = http.request({
       host: '127.0.0.1',
       port,

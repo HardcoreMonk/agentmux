@@ -9,7 +9,7 @@ import { getProviderByPanelType } from '@/lib/providers';
 import { isJsonlPathUnderRoots } from '@/lib/path-validation';
 import { parseSessionName, readLayoutFile, resolveLayoutFile } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
-import { recordCodexHookTrusted } from '@/lib/codex-hook-trust';
+import { getCodexHookFingerprint, recordCodexHookTrusted } from '@/lib/codex-hook-trust';
 import { recordPerfCounter } from '@/lib/perf-metrics';
 import type { ITab } from '@/types/terminal';
 
@@ -73,7 +73,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       log.warn({ event }, 'rejected status hook target');
       return res.status(403).json({ error: 'Invalid hook target' });
     }
-    if (tab.panelType === 'codex') {
+    // Only a hook launched with the current fixed command carries the matching fingerprint.
+    if (tab.panelType === 'codex' && body.hookFingerprint === getCodexHookFingerprint()) {
       recordCodexHookTrusted().catch((err) => {
         log.warn('codex hook trust not recorded: %s', err instanceof Error ? err.message : String(err));
       });

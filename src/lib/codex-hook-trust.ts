@@ -1,13 +1,12 @@
-import { createHash, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { getDataDir } from '@/lib/app-identity';
-import { buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
+import { getCodexHookFingerprint } from '@/lib/providers/codex/session-hooks';
 
 const getTrustFile = (): string => path.join(getDataDir(), 'codex-hook-trust.json');
 
-export const getCodexHookFingerprint = (): string =>
-  createHash('sha256').update(buildCodexSessionHookConfigs().join('\n')).digest('hex');
+export { getCodexHookFingerprint };
 
 const readRecordedFingerprint = async (): Promise<string | null> => {
   try {

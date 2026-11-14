@@ -101,7 +101,7 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
 | `backups/` | runtime v2 backup과 governance action의 private journal/preimage. projection DB backup 용도가 아님 |
 | `hooks.json` | 빈 `hooks`와 statusline 호환 설정을 담는 생성 파일. Codex tab 실행 config source는 아님 |
 | `status-hook.cjs` | session-scoped Codex hook override가 호출하는 standalone Node bridge. `argv[3]`/`argv[4]`(Claude 탭 hook)가 비어 있지 않으면 인자를, 아니면 환경 변수 `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`(Codex 탭 hook)를 읽음 |
-| `codex-hook-trust.json` | `{ fingerprint }`. agentmux hook 요청이 검증되면 server가 지금 hook 명령의 fingerprint(sha256)를 기록함. 웹 카드는 기록이 지금 fingerprint와 같으면 trust 버튼을 숨김(`GET /api/status/codex-hook-trust` → `{ trusted }`). Codex 자신의 trust 기록은 `$CODEX_HOME/config.toml`에 있고 agentmux는 쓰지 않음 |
+| `codex-hook-trust.json` | `{ fingerprint }`. agentmux hook 요청이 검증되고 그 요청이 지금 hook 명령의 fingerprint(`AMUX_HOOK_FINGERPRINT`, sha256)를 실어 오면 server가 그 fingerprint를 기록함(인자 방식 옛 명령과 다른 fingerprint는 기록하지 않음). 웹 카드는 기록이 지금 fingerprint와 같으면 trust 버튼을 숨김(`GET /api/status/codex-hook-trust` → `{ trusted }`). Codex 자신의 trust 기록은 `$CODEX_HOME/config.toml`에 있고 agentmux는 쓰지 않음 |
 | `status-hook.sh` | 이전 설치에 남을 수 있는 legacy bridge. 현재 생성하거나 호출하지 않음 |
 | `statusline.cjs` | Claude Code statusLine bridge(Node script). 탭 설정 파일의 statusLine이 호출하며 stdin을 server로 보내고 사용자 원래 statusLine 명령을 대신 실행 |
 | `statusline.sh` | 이전 shell statusline bridge. 현재 생성하거나 호출하지 않지만 기존 설치에는 남을 수 있음 |
