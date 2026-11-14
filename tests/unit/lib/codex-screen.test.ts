@@ -174,6 +174,85 @@ describe('quoted screens in the conversation', () => {
   });
 });
 
+describe('an indented quote with the Codex input box below it', () => {
+  const INPUT_BOX = ['', '› Ask Codex to do anything', '', '  gpt-model default · ~/work/demo'];
+  const cases: Record<string, string[]> = {
+    'an assistant code block': [
+      '• Codex showed this screen at startup:',
+      '',
+      '  Hooks need review',
+      '  3 hooks are new or changed.',
+      '',
+      '  1. Review hooks',
+      '  2. Trust all and continue',
+      "  3. Continue without trusting (hooks won't run)",
+      '',
+      '• Pick 2 to trust them.',
+    ],
+    'a pasted multi-line message': [
+      '› what does this mean?',
+      '  Hooks need review',
+      '  3 hooks are new or changed.',
+      '  › 1. Review hooks',
+      '    2. Trust all and continue',
+      "    3. Continue without trusting (hooks won't run)",
+      '',
+      '• It is the hook review screen.',
+    ],
+    'exec output under the tree mark': [
+      '• Ran cat notes/screen.txt',
+      '  └ ',
+      '      Hooks need review',
+      '      3 hooks are new or changed.',
+      '    … +3 lines',
+      '      2. Trust all and continue',
+      "      3. Continue without trusting (hooks won't run)",
+    ],
+  };
+
+  it.each(Object.entries(cases))('does not read %s as a hook review', (_name, lines) => {
+    const text = [...lines, ...INPUT_BOX].join('\n');
+    expect(matchCodexHooksReview(text)).toBeNull();
+    expect(isCodexBlockingScreen(text)).toBe(false);
+    expect(isCodexTuiReadyContent(text)).toBe(true);
+  });
+
+  it('does not read an indented update prompt quote', () => {
+    const text = [
+      '• The prompt looked like:',
+      '  Update available · 0.169.0 → 0.170.0',
+      '  1. Update now (runs `npm install -g @openai/codex`)',
+      '  2. Skip',
+      '  3. Skip until next version',
+      '',
+      '  enter continue · esc skip',
+      ...INPUT_BOX,
+    ].join('\n');
+    expect(matchCodexUpdatePrompt(text)).toBeNull();
+    expect(isCodexBlockingScreen(text)).toBe(false);
+  });
+
+  it('ignores an old success line above a restarted Codex input box', () => {
+    const text = `${fixture('update-success')}\n${fixture('tui-ready')}`;
+    expect(matchCodexUpdatePrompt(text)).toBeNull();
+  });
+
+  it('does not read a quoted Codex folder trust text as a blocking screen', () => {
+    const text = [
+      '• The screen said:',
+      FOLDER_TRUST_SCREEN,
+      '',
+      '• That is the folder trust prompt.',
+      ...INPUT_BOX,
+    ].join('\n');
+    expect(isCodexBlockingScreen(text)).toBe(false);
+  });
+
+  it('keeps the trusting screen, whose selected option is not an input box', () => {
+    expect(matchCodexHooksReview(fixture('hooks-trusting'))?.trusting).toBe(true);
+  });
+});
+
 describe('the latest update line wins', () => {
   it.each(['updating', 'success', 'failed'] as const)('reads %s below an old prompt', (status) => {
     const text = `${fixture('update-prompt')}\n${fixture(`update-${status}`)}`;

@@ -86,6 +86,18 @@ const findLastMarker = (
   return null;
 };
 
+// A real startup screen has no Codex input box under it, so an input line below a marker means the marker is a quote.
+const hasInputLineBelow = (lines: string[], index: number): boolean =>
+  lines.some((line, i) => i > index && INPUT_LINE_RE.test(line));
+
+const lastFooterWithin = (lines: string[], index: number): number => {
+  let last = index;
+  for (let i = index + 1; i < lines.length && i <= index + MARKER_MAX_EXTRA_LINES + 2; i += 1) {
+    if (HOOKS_FOOTER_RE.test(lines[i])) last = i;
+  }
+  return last;
+};
+
 export const matchCodexUpdatePrompt = (text: string): ICodexUpdatePromptInfo | null => {
   const lines = splitLines(text);
   const skip = findLastMarker(lines, HEAD_NUMBERED_RE, UPDATE_SKIP_VERSION_RE);
@@ -102,6 +114,8 @@ export const matchCodexUpdatePrompt = (text: string): ICodexUpdatePromptInfo | n
   ];
   const latest = markers.reduce((best, marker) => (marker.index > best.index ? marker : best));
   if (latest.index < 0) return null;
+  const markerEnd = latest.status === 'prompt' ? lastFooterWithin(lines, latest.index) : latest.index;
+  if (hasInputLineBelow(lines, markerEnd)) return null;
 
   const title = findLastMarker(lines, HEAD_PLAIN_RE, UPDATE_TITLE_RE)?.match.marker ?? null;
   const updateCommand = latest.status === 'prompt' ? now?.match.marker[1] : updating?.match.marker[1];
@@ -138,12 +152,25 @@ const readOptions = (lines: string[], titleIdx: number): { options: string[]; se
   return { options, selectedIndex };
 };
 
+// Last line of the final option (with its wrapped lines) and the footer under it.
+const optionsEnd = (lines: string[], titleIdx: number): number => {
+  const lastStart = lines.findLastIndex((_, i) => i > titleIdx && isOptionStart(lines, i));
+  if (lastStart < 0) return titleIdx;
+  let end = lastStart;
+  for (let j = lastStart + 1; j < lines.length; j += 1) {
+    if (!lines[j].trim() || HOOKS_FOOTER_RE.test(lines[j]) || isOptionStart(lines, j)) break;
+    end = j;
+  }
+  return lastFooterWithin(lines, end);
+};
+
 export const matchCodexHooksReview = (text: string): ICodexHooksReviewInfo | null => {
   const lines = splitLines(text);
   const titleIdx = lines.findLastIndex((_, i) => markerAt(lines, i, HEAD_PLAIN_RE, HOOKS_TITLE_RE) !== null);
   if (titleIdx < 0) return null;
   const hasTrust = lines.some((_, i) => i > titleIdx && markerAt(lines, i, HEAD_OPTION_RE, HOOKS_TRUST_OPTION_RE) !== null);
   if (!hasTrust) return null;
+  if (hasInputLineBelow(lines, optionsEnd(lines, titleIdx))) return null;
   const count = findLastMarker(lines, HEAD_PLAIN_RE, HOOKS_COUNT_RE)?.match.marker[1];
   return {
     changedCount: count ? Number(count) : null,
@@ -168,14 +195,18 @@ const isUpdateBlocking = (text: string): boolean => {
   return status === 'prompt' || status === 'updating';
 };
 
-export const isCodexTuiReadyContent = (text: string): boolean => {
-  if (isUpdateBlocking(text) || matchCodexHooksReview(text) || INPUT_DISABLED_RE.test(text)) return false;
+const hasInputLineInTail = (text: string): boolean => {
   const lines = text.split('\n');
   while (lines.length > 0 && !lines[lines.length - 1].trim()) lines.pop();
   return INPUT_LINE_RE.test(lines.slice(-INPUT_TAIL_LINES).join('\n'));
 };
 
+export const isCodexTuiReadyContent = (text: string): boolean => {
+  if (isUpdateBlocking(text) || matchCodexHooksReview(text) || INPUT_DISABLED_RE.test(text)) return false;
+  return hasInputLineInTail(text);
+};
+
 export const isCodexBlockingScreen = (text: string): boolean =>
   isUpdateBlocking(text)
   || matchCodexHooksReview(text) !== null
-  || matchTrustPrompt(text)?.agent === 'codex';
+  || (matchTrustPrompt(text)?.agent === 'codex' && !hasInputLineInTail(text));
