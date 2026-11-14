@@ -46,7 +46,8 @@ describe('updateTabAgentSession', () => {
 
   afterEach(async () => {
     vi.unstubAllEnvs();
-    await fs.rm(dataDir, { recursive: true, force: true });
+    // layout-store can still be finishing a background write into dataDir; retry like layout-store-add-tab.test.ts.
+    await fs.rm(dataDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
   });
 
   it('writes the new session id and clears the previous JSONL path in one layout write', async () => {

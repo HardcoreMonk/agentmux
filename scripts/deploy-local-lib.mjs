@@ -12,8 +12,12 @@ const exists = async (target) => {
   }
 };
 
+// `.next/cache` is the build cache and `.next/dev` is `next dev` output (gigabytes on a dev host); the
+// running service reads neither, so they are neither snapshotted nor removed on restore.
+const NEXT_ENTRIES_KEPT_IN_PLACE = new Set(['cache', 'dev']);
+
 const listNextEntries = async (nextDir) =>
-  (await readdir(nextDir)).filter((name) => name !== 'cache');
+  (await readdir(nextDir)).filter((name) => !NEXT_ENTRIES_KEPT_IN_PLACE.has(name));
 
 const copyNextEntries = async (from, to) => {
   await mkdir(to, { recursive: true });

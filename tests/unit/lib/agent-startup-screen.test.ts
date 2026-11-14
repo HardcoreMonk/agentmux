@@ -45,6 +45,40 @@ describe('matchAgentStartupScreen', () => {
     expect(matchAgentStartupScreen('Update available! 0.166.0 -> 0.167.0\n› ')).toBeNull();
   });
 
+  // Codex 0.167.0 `tui/src/update_prompt.rs`: "Update available · <current> → <latest>", and the default
+  // highlight is "Update now", so an Enter typed into this screen would start an update.
+  it('detects the Codex 0.167 update screen', () => {
+    const screen = [
+      '',
+      '  Update available · 0.167.0 → 0.169.0',
+      '  Release notes: https://github.com/openai/codex/releases/latest',
+      '',
+      '› 1. Update now (runs `npm install -g @openai/codex`)',
+      '  2. Skip',
+      '  3. Skip until next version',
+      '',
+      '  Press enter to continue · esc to skip',
+    ].join('\n');
+    expect(matchAgentStartupScreen(screen)).toBe('codex-update');
+  });
+
+  it('detects the Codex 0.167 update screen when narrow pane wrapping splits the lines', () => {
+    const wrapped = [
+      '  Update available ·',
+      '  0.167.0 → 0.169.0',
+      '› 1. Update now (runs',
+      '     `npm install -g @openai/codex`)',
+      '  2. Skip',
+      '  3. Skip until next',
+      '     version',
+    ].join('\n');
+    expect(matchAgentStartupScreen(wrapped)).toBe('codex-update');
+  });
+
+  it('does not treat an update notice in ordinary text as the Codex update screen', () => {
+    expect(matchAgentStartupScreen('• Update available · 0.169.0 is out, see the notes.\n\n› ')).toBeNull();
+  });
+
   it('detects the Codex hook review screen', () => {
     expect(matchAgentStartupScreen(CODEX_HOOKS_REVIEW_SCREEN)).toBe('codex-hooks-review');
   });
