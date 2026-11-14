@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -70,7 +70,7 @@ describe('deploy-local', () => {
 
     expect(calls).toEqual([
       ['corepack', 'pnpm', 'install', '--frozen-lockfile'],
-      ['corepack', 'pnpm', 'exec', 'tsc', '--noEmit'],
+      ['corepack', 'pnpm', 'exec', 'tsc', '--noEmit', '-p', 'tsconfig.deploy-check.json'],
       ['corepack', 'pnpm', 'build'],
       ['systemctl', '--user', 'restart', 'agentmux.service'],
     ]);
@@ -97,7 +97,7 @@ describe('deploy-local', () => {
 
     expect(calls.map((call) => call.join(' '))).toEqual([
       'corepack pnpm install --frozen-lockfile',
-      'corepack pnpm exec tsc --noEmit',
+      'corepack pnpm exec tsc --noEmit -p tsconfig.deploy-check.json',
     ]);
     expect(healthCalls).toBe(0);
     expect(readFileSync(p('.next/standalone/server.js'), 'utf8')).toBe('original-server');
@@ -128,6 +128,26 @@ describe('deploy-local', () => {
     );
   });
 
+  it('keeps failed restore details and the build status', async () => {
+    seedOutputs();
+
+    const code = await deploy({ build: 3 }, () => {
+      rmSync(p('.deploy-backup/next'), { recursive: true, force: true });
+      writeFile(p('.deploy-backup/next'), 'not a directory');
+    });
+
+    expect(code).toBe(3);
+    expect(calls.some((call) => call[0] === 'systemctl')).toBe(false);
+    expect(healthCalls).toBe(0);
+    expect(
+      logs.some((line) =>
+        line.startsWith(
+          '[deploy-local] build failed and restoring the previous build output also failed:',
+        ) && line.endsWith('recover manually from .deploy-backup/'),
+      ),
+    ).toBe(true);
+  });
+
   it('handles a first deploy without .next or dist', async () => {
     expect(await snapshotBuildOutputs(rootDir)).toEqual({ next: false, dist: false });
 
@@ -148,5 +168,26 @@ describe('deploy-local', () => {
     await restoreBuildOutputs(rootDir, snapshot);
 
     expect(lstatSync(p('.next/standalone/link.js')).isSymbolicLink()).toBe(true);
+  });
+
+  it('keeps dangling relative and absolute symlinks verbatim', async () => {
+    seedOutputs();
+    const links = {
+      '.next/standalone/node_modules/x': '../../../node_modules/.pnpm/x',
+      '.next/standalone/abs-link': '/nonexistent/deploy-local-target',
+    };
+    mkdirSync(p('.next/standalone/node_modules'), { recursive: true });
+    for (const [link, target] of Object.entries(links)) symlinkSync(target, p(link), 'dir');
+
+    const snapshot = await snapshotBuildOutputs(rootDir);
+    rmSync(p('.next/standalone'), { recursive: true, force: true });
+    await restoreBuildOutputs(rootDir, snapshot);
+
+    for (const [link, target] of Object.entries(links)) {
+      expect(lstatSync(p(link)).isSymbolicLink()).toBe(true);
+      expect(readlinkSync(p(link))).toBe(target);
+      const backup = link.replace('.next/', '.deploy-backup/next/');
+      expect(readlinkSync(p(backup))).toBe(target);
+    }
   });
 });

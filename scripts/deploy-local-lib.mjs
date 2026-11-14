@@ -67,15 +67,22 @@ export const runDeploy = async ({ rootDir, run, waitForHealth, buildEnv, log }) 
   const installStatus = await step('corepack', ['pnpm', 'install', '--frozen-lockfile']);
   if (installStatus !== 0) return installStatus;
 
-  const tscStatus = await step('corepack', ['pnpm', 'exec', 'tsc', '--noEmit']);
+  const tscStatus = await step('corepack', ['pnpm', 'exec', 'tsc', '--noEmit', '-p', 'tsconfig.deploy-check.json']);
   if (tscStatus !== 0) return tscStatus;
 
   const snapshot = await snapshotBuildOutputs(rootDir);
 
   const buildStatus = await step('corepack', ['pnpm', 'build'], { env: buildEnv });
   if (buildStatus !== 0) {
-    await restoreBuildOutputs(rootDir, snapshot);
-    log('[deploy-local] build failed; restored the previous build output; the service was not restarted');
+    try {
+      await restoreBuildOutputs(rootDir, snapshot);
+      log('[deploy-local] build failed; restored the previous build output; the service was not restarted');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      log(
+        `[deploy-local] build failed and restoring the previous build output also failed: ${message}; recover manually from .deploy-backup/`,
+      );
+    }
     return buildStatus;
   }
 
