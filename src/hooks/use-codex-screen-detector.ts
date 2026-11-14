@@ -81,16 +81,22 @@ const useCodexScreenDetector = ({
     tracker.startScope(scopeKey, starting);
     if (!enabled) return;
     // Read the screen that is already there: an idle session that was reloaded repaints before this scope
-    // opens and may send no further data.
-    const first = { scopeKey, snapshot: tracker.observe(scopeKey, getBufferTextRef.current()) };
-    setDetected((prev) => (isSame(prev, first) ? prev : first));
-    if (!starting) return;
+    // opens and may send no further data. The read waits one debounce so the terminal reset of a tab switch
+    // has run first; reading now would show the previous tab's buffer (and its card) for this scope.
+    const firstRead = setTimeout(() => {
+      const first = { scopeKey, snapshot: tracker.observe(scopeKey, getBufferTextRef.current()) };
+      setDetected((prev) => (isSame(prev, first) ? prev : first));
+    }, DEBOUNCE_MS);
+    if (!starting) return () => clearTimeout(firstRead);
     // A silent screen still has to leave the starting state, so the time limit reads the buffer itself.
     const readyTimer = setTimeout(() => {
       const next = { scopeKey, snapshot: tracker.tick(scopeKey, getBufferTextRef.current()) };
       setDetected((prev) => (isSame(prev, next) ? prev : next));
     }, CODEX_TUI_READY_TIMEOUT_MS);
-    return () => clearTimeout(readyTimer);
+    return () => {
+      clearTimeout(firstRead);
+      clearTimeout(readyTimer);
+    };
   }, [enabled, scopeKey, starting, tracker]);
 
   useEffect(() => () => {
