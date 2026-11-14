@@ -59,7 +59,8 @@ POST /api/cli/tabs
   cwd defaults to the caller tab's current directory (same workspace only), then to the
   workspace's first directory.
   codex and claude tabs start the agent right away and wait up to 60 seconds for it to be
-  ready (idle after its session-start). A tab stopped at a startup screen stays not ready
+  ready. For claude, ready means idle after its session-start. For codex, ready is read from
+  the screen: the agent process runs, its input box shows, and no blocking screen is up. A tab stopped at a startup screen stays not ready
   until the user handles it in the UI. If the launch fails, launchError holds the reason.
   Response (201): { "tabId", "workspaceId", "paneId", "sessionName", "name", "panelType",
                     "createdByTabId", "ready", "launchError"? }

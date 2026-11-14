@@ -528,7 +528,7 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 ## 설계 2-1: Codex 보조 (2026-11-15)
 
 - spec: `docs/superpowers/specs/2026-11-15-codex-assist-design.md`, plan: `docs/superpowers/plans/2026-11-15-codex-assist.md`
-  (eng review: `docs/superpowers/plans/2026-11-15-codex-assist-eng-review.md`). 설계 결정은 ADR-038.
+  (eng review: `docs/superpowers/reviews/2026-11-15-codex-assist-eng-review.md`). 설계 결정은 ADR-038.
 - Task 1(격리 Codex 실험) 결과: 고정 hook 명령은 한 번 trust하면 다음 실행에도 trust가 유지됐다. 실행 명령 앞의 환경 변수
   `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`는 세 hook 모두에 닿았다. Codex SessionStart hook은 첫 turn에 실행된다.
 - 구현 commit(branch `feat/codex-assist`):
