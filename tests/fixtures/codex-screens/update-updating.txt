@@ -1,0 +1,3 @@
+
+Updating Codex via `npm install -g @openai/codex`...
+
