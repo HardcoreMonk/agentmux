@@ -1,7 +1,10 @@
 # Codex 보조 설계 (설계 2-1: hook 검토, update 안내, TUI 준비 감지)
 
 - 작성일: 2026-11-15
-- 상태: Draft — 사용자 검토 대기
+- 상태: Approved — 2026-11-15 사용자: "후속 작업 승인합니다." (설계 승인과 계획 진행)
+- Lifecycle: brainstorming(방식 선택 "1", 설계 요약 "승인 합니다.") → builder check(독립 subagent, 질문 3개 중 2개는
+  사용자 답, 1개는 문서 수정으로 반영) → 승인. grill-me는 brainstorming 질문과 builder check로 대신한다. 설계 리뷰는
+  계획을 쓴 뒤 plan-eng-review에서 코드와 함께 본다(controller 판단).
 - 요청: 설계 2 = D(Codex 보조) + E(일반 UI) (사용자 순서 확정 2026-11-10). 이 문서는 D만 다룬다. E(Git side panel,
   모바일 Git 전체 화면, reload 복구)는 서로 독립이라 따로 설계한다(2026-11-15 brainstorming에서 나누기로 함).
 - 관련 문서: `2026-11-10-claude-code-provider-design.md`(설계 1), `../../PURPLEMUX-ADOPTION-AUDIT.md`
