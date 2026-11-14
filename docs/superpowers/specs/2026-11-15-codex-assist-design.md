@@ -123,6 +123,19 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
 - 시작 진행 표시: `agent-boot-view.tsx`(`agent-panel.tsx`가 띄움). 웹 입력 잠금: `web-input-bar.tsx`의
   `useWebInput` `mode`, `canSend`.
 
+### Codex `0.167.0` 화면 문구 (source `rust-v0.167.0`, plan-eng-review에서 확인)
+
+- update 안내(`tui/src/update_prompt.rs`): 제목 `Update available · <current> → <latest>`, "Release notes: …",
+  선택지 `Update now (runs \`<cmd>\`)`, `Skip`, `Skip until next version`. 번호 key `1`/`2`/`3`은 바로 확정된다. 기본
+  강조는 "Update now"라 Enter가 업데이트를 실행한다. 실패하면 "`<cmd>` failed with status …"가 남는다
+  (`cli/src/main.rs`). purplemux가 찾는 `Update available! x -> y`는 옛 문구다. 두 형식을 다 알아본다.
+- hook 검토(`tui/src/startup_hooks_review.rs`): "Hooks need review", "N hooks are new or changed.", "Hooks can run outside
+  the sandbox after you trust them.", 선택지 `1. Review hooks`, `2. Trust all and continue`, `3. Continue without trusting
+  (hooks won't run)`, "enter confirm · esc skip". `1`과 `3`은 바로 확정되고, `2`는 강조만 옮긴다(trust는 `2` 뒤 Enter).
+  Trust 중에는 "Trusting hooks..."가 보인다.
+- 지금 배포된 위임 CLI의 화면 판정(`matchAgentStartupScreen` `'codex-update'`)은 옛 문구(`Update available!`)를 찾으므로
+  0.167의 update 안내를 놓칠 수 있다. 이 설계에서 함께 고친다.
+
 ### purplemux 방식
 
 - `matchCodexUpdatePrompt(text)`: 공백을 접은 문구에서 `Update available! <cur> -> <latest>`,
@@ -174,7 +187,12 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
   - 버튼 "trust하지 않고 계속"은 늘 둔다.
   - 버튼 "모두 trust하고 계속"은 화면의 개수가 agentmux가 붙이는 hook 수와 같을 때만 둔다. 지금은 SessionStart,
     UserPromptSubmit, Stop의 3개이고, 값은 `session-hooks.ts`의 hook 목록에서 얻는다(하드코딩 금지).
-    - 개수가 같을 때만 "이 hook은 agentmux 상태 표시용"이라고 설명한다.
+    - 보강(controller 판단, 사용자 규칙보다 보수적): agentmux Codex hook이 한 번이라도 실행돼 server에 닿으면, server가
+      지금 hook 설정의 fingerprint를 agentmux 자기 data dir(`<dataDir>/codex-hook-trust.json`)에 "trust됨"으로 기록한다.
+      Codex 설정은 쓰지 않는다. 기록한 fingerprint가 지금 설정과 같으면 agentmux hook은 이미 trust된 것이다. 그때 뜬
+      검토 화면은 다른 출처의 hook이므로 개수가 맞아도 trust 버튼을 숨긴다.
+    - 설명은 출처를 단정하지 않는다: "agentmux가 붙이는 hook 수와 같습니다. 목록은 terminal의 Review hooks에서 확인할
+      수 있습니다." 
     - 개수가 다르거나 읽지 못하면 trust 버튼을 빼고 "agentmux 밖의 hook이 포함돼 있을 수 있습니다. terminal 화면의
       Review hooks에서 목록을 확인하세요"라고 안내한다.
   - "Review hooks"(목록 보기)는 terminal 화면에서 직접 하도록 안내하는 문구만 둔다.
@@ -192,12 +210,19 @@ purplemux에는 있고 agentmux에는 없는 Codex 보조 기능 두 가지도 �
   - 카드에 현재·최신 version, 실행될 명령(`npm install -g @openai/codex` 등 화면 문구 그대로)을 보인다.
   - 버튼은 Update now / Skip / Skip until next version이다.
 - `updating`이면 진행 중 표시만 보이고 버튼은 없다. `success`면 "Codex를 다시 시작하세요" 안내와 재시작 버튼을 보인다.
-  재시작 버튼은 기존 탭 재시작 기능을 쓴다(builder가 기존 restart 경로 확인).
+  `failed`("failed with status")면 실패 안내와 재시작 버튼을 보인다. 재시작은 기존 탭 재시작과 같은 `launch`다
+  (`pane-container.tsx`의 `handleRestartAgentSession`, `requestAgentLaunch`). resume은 쓰지 않는다. 직전 session을
+  잘못 재개할 수 있어서다.
+- 확인 작업(실험, live 확인)에서는 update 안내에 "Skip"만 고른다. "Update now"는 격리 밖에서 전역 `npm install -g`를
+  실행해 live Codex binary를 바꾸기 때문이다.
 - 위임 CLI는 지금처럼 이 화면에 입력하지 않는다(`target-not-ready`).
 
 ### 4. TUI 준비 감지
 
 - `isCodexTuiReadyContent`와 같은 판정을 agentmux에 둔다(update 판정 재사용).
+- "시작 중"은 그 탭에서 agent process가 없다가 생긴 것을 client가 본 뒤부터다. 이미 실행 중이고 상태를 보고한
+  session(새로고침, 탭 전환)은 시작 중이 아니다. 단, 차단 화면(hook 검토, update 안내, folder trust)이 보이는 동안은
+  시작 중 여부와 관계없이 보내기를 막는다.
 - Codex 탭이 시작 중이고(실행 뒤 아직 준비 표시 전) 화면이 준비가 아니면:
   - 시작 진행 표시(`agent-boot-view`)를 유지한다.
   - 웹 입력은 prompt를 보내지 않는다. 입력은 할 수 있고 보내기만 막는다.
