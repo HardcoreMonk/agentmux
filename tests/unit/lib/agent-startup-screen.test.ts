@@ -86,6 +86,24 @@ describe('matchAgentStartupScreen', () => {
     expect(matchAgentStartupScreen(wrapped)).toBe('codex-update');
   });
 
+  it('detects the Codex 0.167 update screen when narrow pane wrapping splits the lines', () => {
+    const wrapped = [
+      '  Update available ·',
+      '  0.167.0 → 0.169.0',
+      '› 1. Update now (runs',
+      '     `npm install -g @openai/codex`)',
+      '  2. Skip',
+      '  3. Skip until next',
+      '     version',
+    ].join('\n');
+    expect(matchAgentStartupScreen(wrapped)).toBe('codex-update');
+  });
+
+  it('detects the Codex hook review screen when narrow pane wrapping splits the lines', () => {
+    const wrapped = ['  hooks need', '  review', '› 1. Trust all and', '  continue'].join('\n');
+    expect(matchAgentStartupScreen(wrapped)).toBe('codex-hooks-review');
+  });
+
   it('does not treat an update notice in ordinary text as the Codex update screen', () => {
     expect(matchAgentStartupScreen('• Update available · 0.169.0 is out, see the notes.\n\n› ')).toBeNull();
   });

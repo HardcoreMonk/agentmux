@@ -189,3 +189,39 @@ describe('the latest update line wins', () => {
     expect(matchCodexUpdatePrompt(text)?.updateCommand).toBe('npm install -g @openai/codex');
   });
 });
+
+describe('screens the TUI wrapped in a narrow pane', () => {
+  const narrowUpdate = [
+    '  Update available ·',
+    '  0.167.0 → 0.169.0',
+    '› 1. Update now (runs',
+    '     `npm install -g @openai/codex`)',
+    '  2. Skip',
+    '  3. Skip until next',
+    '     version',
+  ].join('\n');
+  const narrowHooks = ['  Hooks need', '  review', '  2 hooks are new', '  or changed.', '› 1. Review hooks', '  2. Trust all and', '  continue'].join('\n');
+
+  it('reads a wrapped update prompt', () => {
+    expect(matchCodexUpdatePrompt(narrowUpdate)).toMatchObject({
+      status: 'prompt',
+      currentVersion: '0.167.0',
+      latestVersion: '0.169.0',
+      updateCommand: 'npm install -g @openai/codex',
+    });
+    expect(isCodexBlockingScreen(narrowUpdate)).toBe(true);
+  });
+
+  it('reads a wrapped hook review', () => {
+    const info = matchCodexHooksReview(narrowHooks);
+    expect(info).toMatchObject({ changedCount: 2, selectedIndex: 0, trusting: false });
+    expect(info?.options).toEqual(['1. Review hooks', '2. Trust all and continue']);
+    expect(codexHooksReviewKeys(info!, 'trust')).toBe('2\r');
+    expect(isCodexBlockingScreen(narrowHooks)).toBe(true);
+  });
+
+  it('still ignores diffed copies of the wrapped text', () => {
+    expect(matchCodexUpdatePrompt(diffed(narrowUpdate))).toBeNull();
+    expect(matchCodexHooksReview(diffed(narrowHooks))).toBeNull();
+  });
+});
