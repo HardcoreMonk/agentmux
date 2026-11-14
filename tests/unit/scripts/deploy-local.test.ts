@@ -27,6 +27,7 @@ describe('deploy-local', () => {
     writeFile(p('.next/standalone/server.js'), 'original-server');
     writeFile(p('.next/static/a.js'), 'original-static');
     writeFile(p('.next/cache/keep.txt'), 'keep');
+    writeFile(p('.next/dev/keep.txt'), 'dev-keep');
     writeFile(p('.next/BUILD_ID'), 'original-build-id');
     writeFile(p('dist/server.js'), 'original-dist');
   };
@@ -79,6 +80,8 @@ describe('deploy-local', () => {
     expect(readFileSync(p('.deploy-backup/next/standalone/server.js'), 'utf8')).toBe('original-server');
     expect(readFileSync(p('.deploy-backup/dist/server.js'), 'utf8')).toBe('original-dist');
     expect(existsSync(p('.deploy-backup/next/cache'))).toBe(false);
+    // `.next/dev` holds `next dev` output (2.2 GB on the live host); the running service never reads it.
+    expect(existsSync(p('.deploy-backup/next/dev'))).toBe(false);
   });
 
   it('stops at install failure without snapshotting', async () => {
@@ -123,6 +126,7 @@ describe('deploy-local', () => {
     expect(readFileSync(p('dist/server.js'), 'utf8')).toBe('original-dist');
     expect(existsSync(p('.next/standalone/partial.js'))).toBe(false);
     expect(readFileSync(p('.next/cache/keep.txt'), 'utf8')).toBe('keep');
+    expect(readFileSync(p('.next/dev/keep.txt'), 'utf8')).toBe('dev-keep');
     expect(logs).toContain(
       '[deploy-local] build failed; restored the previous build output; the service was not restarted',
     );

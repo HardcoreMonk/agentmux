@@ -689,7 +689,7 @@ corepack pnpm deploy:local
 curl -fsS http://127.0.0.1:8122/api/health
 ```
 
-`deploy:local`은 `pnpm install --frozen-lockfile`, `tsc --noEmit -p tsconfig.deploy-check.json` 순으로 먼저 검사하고(build 전에는 생성된 `.next/types`가 오래됐을 수 있어 제외), 통과하면 `.next`(`cache/` 제외)와 `dist`를 `.deploy-backup/`에 snapshot한 뒤 `pnpm build`를 실행합니다. build가 실패하면 snapshot을 복원하고 service를 restart하지 않으며, 성공했을 때만 `systemctl --user restart`와 health 확인을 진행합니다.
+`deploy:local`은 `pnpm install --frozen-lockfile`, `tsc --noEmit -p tsconfig.deploy-check.json` 순으로 먼저 검사하고(build 전에는 생성된 `.next/types`가 오래됐을 수 있어 제외), 통과하면 `.next`(`cache/`, `dev/` 제외)와 `dist`를 `.deploy-backup/`에 snapshot한 뒤 `pnpm build`를 실행합니다. build가 실패하면 snapshot을 복원하고 service를 restart하지 않으며, 성공했을 때만 `systemctl --user restart`와 health 확인을 진행합니다.
 
 Session Operations/Project Governance 배포에서는 위 Linux/browser gate와 worker health를
 먼저 확인합니다. 실제 service restart는 별도 운영 승인과, 기존 durable DB가 있으면 runtime
