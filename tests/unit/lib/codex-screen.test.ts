@@ -142,3 +142,50 @@ describe('isCodexBlockingScreen', () => {
     expect(isCodexBlockingScreen(text)).toBe(false);
   });
 });
+
+const diffed = (text: string): string =>
+  text.split('\n').map((line, i) => `  ${String(i + 1).padStart(3)} +${line}`).join('\n');
+
+describe('quoted screens in the conversation', () => {
+  const reproduction = [
+    '    2 +  Hooks need review',
+    '    3 +  3 hooks are new or changed.',
+    '    7 +› 1. Review hooks',
+    '    8 +  2. Trust all and continue',
+    "    9 +  3. Continue without trusting (hooks won't run)",
+    '',
+    '› Ask Codex to do anything',
+  ].join('\n');
+
+  it('does not read a diffed hook review as a card', () => {
+    expect(matchCodexHooksReview(reproduction)).toBeNull();
+    expect(isCodexBlockingScreen(reproduction)).toBe(false);
+    expect(isCodexTuiReadyContent(reproduction)).toBe(true);
+  });
+
+  it('does not read a sentence quoting the card text', () => {
+    const text = '• The screen says "Hooks need review" and offers "Trust all and continue".\n› Ask Codex';
+    expect(matchCodexHooksReview(text)).toBeNull();
+  });
+
+  it('does not read a diffed update prompt', () => {
+    expect(matchCodexUpdatePrompt(diffed(fixture('update-prompt')))).toBeNull();
+    expect(matchCodexUpdatePrompt(diffed(fixture('update-success')))).toBeNull();
+  });
+});
+
+describe('the latest update line wins', () => {
+  it.each(['updating', 'success', 'failed'] as const)('reads %s below an old prompt', (status) => {
+    const text = `${fixture('update-prompt')}\n${fixture(`update-${status}`)}`;
+    expect(matchCodexUpdatePrompt(text)?.status).toBe(status);
+  });
+
+  it('reads a wrapped update command', () => {
+    const text = [
+      '› 1. Update now (runs `npm install -g',
+      '  @openai/codex`)',
+      '  3. Skip until next version',
+    ].join('\n');
+    expect(matchCodexUpdatePrompt(text)?.updateCommand).toBe('npm install -g @openai/codex');
+  });
+});

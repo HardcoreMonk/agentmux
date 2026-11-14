@@ -20,85 +20,101 @@ export type TCodexHooksAnswer = 'trust' | 'skip';
 export type TCodexUpdateAnswer = 'update' | 'skip' | 'skip-version';
 
 // 0.167.0 draws "Update available · <cur> → <latest>"; older builds drew "Update available! <cur> -> <latest>".
-const UPDATE_TITLE_RE = /Update available\s*(?:!|·)\s*(\S+)\s*(?:→|->)\s*(\S+)/i;
-const UPDATE_NOW_RE = /Update now(?:\s*\(runs\s*`([^`]*)`\))?/i;
-const UPDATE_SKIP_VERSION_RE = /Skip until next version/i;
-const UPDATING_RE = /Updating Codex via\s*`([^`]*)`/i;
-const UPDATE_SUCCESS_RE = /Update ran successfully! Please restart Codex\./i;
+// Markers are matched against whole screen lines so a quoted or diffed copy in the conversation is not mistaken for a card.
+const UPDATE_TITLE_RE = /^\s*Update available\s*(?:!|·)\s*(\S+)\s*(?:→|->)\s*(\S+)\s*$/i;
+const UPDATE_NOW_RE = /^\s*(?:›\s*)?\d+\.\s+Update now\b/;
+const UPDATE_SKIP_VERSION_RE = /^\s*(?:›\s*)?\d+\.\s+Skip until next version\s*$/;
+const UPDATE_COMMAND_RE = /\(runs\s*`([^`]*)`\)/;
+const UPDATING_RE = /^\s*Updating Codex via\s+`([^`]*)`/;
+const UPDATE_SUCCESS_RE = /^\s*(?:🎉\s*)?Update ran successfully!/;
+const UPDATE_ERROR_RE = /^\s*Error:\s+/;
 const UPDATE_FAILED_RE = /failed with status/i;
 
-const HOOKS_TITLE_RE = /Hooks\s+need\s+review/i;
+const HOOKS_TITLE_RE = /^\s*Hooks need review\s*$/;
+const HOOKS_TRUST_LINE_RE = /^\s*(?:›\s*)?(?:\d+\.\s+)?Trust all and continue\s*$/;
+const HOOKS_OPTION_RE = /^\s*(?:›\s*)?(?:(\d+)\.\s+)?(Review hooks|Trust all and continue|Continue without trusting\b.*)$/;
 const HOOKS_TRUST_RE = /Trust\s+all\s+and\s+continue/i;
 const HOOKS_SKIP_RE = /Continue\s+without\s+trusting/i;
-const HOOKS_REVIEW_OPTION_RE = /Review\s+hooks/i;
-const HOOKS_COUNT_RE = /(\d+)\s+hooks?\s+(?:is|are)\s+new\s+or\s+changed/i;
-const HOOKS_TRUSTING_RE = /Trusting\s+hooks\.\.\./i;
+const HOOKS_COUNT_RE = /^\s*(\d+) hooks? (?:is|are) new or changed\.\s*$/;
+const HOOKS_TRUSTING_RE = /^\s*Trusting hooks\.\.\.\s*$/;
 const HOOKS_FOOTER_RE = /^\s*enter\s+\w+/i;
 
 const INPUT_DISABLED_RE = /^\s*›?\s*Input disabled\./m;
 const INPUT_LINE_RE = /^\s*›(?:\s*$|\s+(?!\d+\.)(?!\[[ x-]\])[^\n]*)$/m;
 const INPUT_TAIL_LINES = 8;
 
-const MARK_RE = /^\s*›?\s*/;
 const collapse = (text: string): string => text.replace(/\s+/g, ' ');
+const splitLines = (text: string): string[] => text.split('\n').map((line) => line.replace(/\r$/, ''));
+const collapseFrom = (lines: string[], index: number): string => collapse(lines.slice(index).join('\n'));
 
 export const matchCodexUpdatePrompt = (text: string): ICodexUpdatePromptInfo | null => {
-  const flat = collapse(text);
-  const title = UPDATE_TITLE_RE.exec(flat);
-  const now = UPDATE_NOW_RE.exec(flat);
-  const info = (status: TCodexUpdateStatus, updateCommand: string | null): ICodexUpdatePromptInfo => ({
-    status,
+  const lines = splitLines(text);
+  const skipIdx = lines.findLastIndex((line) => UPDATE_SKIP_VERSION_RE.test(line));
+  const nowIdx = lines.findLastIndex((line, i) => i < skipIdx && UPDATE_NOW_RE.test(line));
+  const updatingIdx = lines.findLastIndex((line) => UPDATING_RE.test(line));
+  const successIdx = lines.findLastIndex((line) => UPDATE_SUCCESS_RE.test(line));
+  const failedIdx = lines.findLastIndex(
+    (line, i) => UPDATE_ERROR_RE.test(line) && UPDATE_FAILED_RE.test(collapseFrom(lines, i)),
+  );
+
+  const markers: { status: TCodexUpdateStatus; index: number }[] = [
+    { status: 'prompt', index: nowIdx >= 0 ? skipIdx : -1 },
+    { status: 'updating', index: updatingIdx },
+    { status: 'success', index: successIdx },
+    { status: 'failed', index: failedIdx },
+  ];
+  const latest = markers.reduce((best, marker) => (marker.index > best.index ? marker : best));
+  if (latest.index < 0) return null;
+
+  const title = lines.map((line) => UPDATE_TITLE_RE.exec(line)).findLast((match) => match !== null) ?? null;
+  const updateCommand = latest.status === 'prompt'
+    ? UPDATE_COMMAND_RE.exec(collapseFrom(lines, nowIdx))?.[1] ?? null
+    : updatingIdx >= 0 ? UPDATING_RE.exec(lines[updatingIdx])?.[1] ?? null : null;
+  return {
+    status: latest.status,
     currentVersion: title?.[1] ?? null,
     latestVersion: title?.[2] ?? null,
     updateCommand,
-  });
-
-  if (now && UPDATE_SKIP_VERSION_RE.test(flat)) return info('prompt', now[1] ?? null);
-  const updating = UPDATING_RE.exec(flat);
-  // The result lines follow the "Updating Codex via" line, so they are checked first.
-  if (UPDATE_SUCCESS_RE.test(flat)) return info('success', updating?.[1] ?? null);
-  if (updating && UPDATE_FAILED_RE.test(flat)) return info('failed', updating[1]);
-  if (updating) return info('updating', updating[1]);
-  return null;
+  };
 };
 
-const readOptions = (lines: string[]): { options: string[]; selectedIndex: number } => {
-  const labelRes = [HOOKS_REVIEW_OPTION_RE, HOOKS_TRUST_RE, HOOKS_SKIP_RE];
-  const titleIdx = lines.findIndex((line) => HOOKS_TITLE_RE.test(line));
+const readOptions = (lines: string[], titleIdx: number): { options: string[]; selectedIndex: number } => {
+  const isOptionLine = (line: string): boolean => HOOKS_OPTION_RE.test(line);
   const options: string[] = [];
   let selectedIndex = 0;
 
-  for (let i = Math.max(0, titleIdx); i < lines.length; i += 1) {
-    const line = lines[i];
-    if (!labelRes.some((re) => re.test(line)) || HOOKS_TITLE_RE.test(line)) continue;
-    let label = line.replace(MARK_RE, '').trim();
+  for (let i = titleIdx + 1; i < lines.length; i += 1) {
+    const match = HOOKS_OPTION_RE.exec(lines[i]);
+    if (!match) continue;
+    let label = match[1] ? `${match[1]}. ${match[2].trim()}` : match[2].trim();
     for (let j = i + 1; j < lines.length; j += 1) {
       const next = lines[j];
-      if (!next.trim() || HOOKS_FOOTER_RE.test(next) || labelRes.some((re) => re.test(next))) break;
+      if (!next.trim() || HOOKS_FOOTER_RE.test(next) || isOptionLine(next)) break;
       label = `${label} ${next.trim()}`;
     }
-    if (/^\s*›/.test(line)) selectedIndex = options.length;
+    if (/^\s*›/.test(lines[i])) selectedIndex = options.length;
     options.push(label);
   }
   return { options, selectedIndex };
 };
 
 export const matchCodexHooksReview = (text: string): ICodexHooksReviewInfo | null => {
-  const flat = collapse(text);
-  if (!HOOKS_TITLE_RE.test(flat) || !HOOKS_TRUST_RE.test(flat)) return null;
-  const count = HOOKS_COUNT_RE.exec(flat);
+  const lines = splitLines(text);
+  const titleIdx = lines.findLastIndex((line) => HOOKS_TITLE_RE.test(line));
+  if (titleIdx < 0 || !lines.some((line, i) => i > titleIdx && HOOKS_TRUST_LINE_RE.test(line))) return null;
+  const count = lines.map((line) => HOOKS_COUNT_RE.exec(line)).find((match) => match !== null);
   return {
     changedCount: count ? Number(count[1]) : null,
-    ...readOptions(text.split('\n')),
-    trusting: HOOKS_TRUSTING_RE.test(flat),
+    ...readOptions(lines, titleIdx),
+    trusting: lines.some((line) => HOOKS_TRUSTING_RE.test(line)),
   };
 };
 
 export const codexHooksReviewKeys = (info: ICodexHooksReviewInfo, answer: TCodexHooksAnswer): string | null => {
   if (info.trusting) return null;
-  const index = info.options.findIndex((option) => (answer === 'trust' ? HOOKS_TRUST_RE : HOOKS_SKIP_RE).test(option));
-  if (index < 0) return null;
-  const number = /^(\d+)\./.exec(info.options[index])?.[1] ?? String(index + 1);
+  const option = info.options.find((candidate) => (answer === 'trust' ? HOOKS_TRUST_RE : HOOKS_SKIP_RE).test(candidate));
+  const number = option ? /^(\d+)\./.exec(option)?.[1] : undefined;
+  if (!number) return null;
   return answer === 'trust' ? `${number}\r` : number;
 };
 

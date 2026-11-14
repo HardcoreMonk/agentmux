@@ -48,6 +48,12 @@ describe('matchAgentStartupScreen', () => {
     expect(matchAgentStartupScreen(screen)).toBe('codex-update');
   });
 
+  it('detects the Codex hook review fixture and ignores the update result', () => {
+    const read = (name: string) => fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
+    expect(matchAgentStartupScreen(read('hooks-review'))).toBe('codex-hooks-review');
+    expect(matchAgentStartupScreen(read('update-success'))).toBeNull();
+  });
+
   it('needs both update lines before calling it the Codex update screen', () => {
     expect(matchAgentStartupScreen('Update available! 0.166.0 -> 0.167.0\n› ')).toBeNull();
   });
@@ -69,15 +75,13 @@ describe('matchAgentStartupScreen', () => {
     expect(matchAgentStartupScreen(screen)).toBe('codex-update');
   });
 
-  it('detects the Codex 0.167 update screen when narrow pane wrapping splits the lines', () => {
+  it('detects the Codex 0.167 update screen when a 40-column pane wraps the command', () => {
     const wrapped = [
-      '  Update available ·',
-      '  0.167.0 → 0.169.0',
+      '  Update available · 0.167.0 → 0.169.0',
       '› 1. Update now (runs',
       '     `npm install -g @openai/codex`)',
       '  2. Skip',
-      '  3. Skip until next',
-      '     version',
+      '  3. Skip until next version',
     ].join('\n');
     expect(matchAgentStartupScreen(wrapped)).toBe('codex-update');
   });
@@ -90,8 +94,8 @@ describe('matchAgentStartupScreen', () => {
     expect(matchAgentStartupScreen(CODEX_HOOKS_REVIEW_SCREEN)).toBe('codex-hooks-review');
   });
 
-  it('detects the Codex hook review screen when narrow pane wrapping splits the lines', () => {
-    const wrapped = ['  hooks need', '  review', '› 1. Trust all and', '  continue'].join('\n');
+  it('detects the Codex hook review screen when a 40-column pane wraps the description', () => {
+    const wrapped = ['  Hooks need review', '  Hooks can run outside', '  the sandbox.', '› 1. Trust all and continue'].join('\n');
     expect(matchAgentStartupScreen(wrapped)).toBe('codex-hooks-review');
   });
 
