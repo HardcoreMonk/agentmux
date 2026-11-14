@@ -42,6 +42,13 @@ describe('codex hook trust', () => {
     }
   });
 
+  it('merges concurrent records without leaving temp files', async () => {
+    await Promise.all([recordCodexHookTrusted(), recordCodexHookTrusted()]);
+
+    expect(await isCodexHookFingerprintTrusted()).toBe(true);
+    expect((await fs.readdir(dataDir)).filter((name) => name.endsWith('.tmp'))).toEqual([]);
+  });
+
   it('does not rewrite an unchanged fingerprint', async () => {
     await recordCodexHookTrusted();
     const file = path.join(dataDir, 'codex-hook-trust.json');

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/cli-token', () => ({ getCliToken: () => 'test-token' }));
 
-import { createAgentHookCapability, verifyAgentHookCapability } from '@/lib/agent-hooks';
+import { verifyAgentHookCapability } from '@/lib/agent-hooks';
 import { CODEX_SESSION_HOOK_COUNT, CODEX_SESSION_HOOKS } from '@/lib/codex-session-hook-spec';
 import { buildCodexHookEnvPrefix, buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
 
@@ -41,7 +41,6 @@ describe('Codex session hooks', () => {
       expect(capability).not.toBe('');
       expect(verifyAgentHookCapability(capability, tab.sessionName)).toMatchObject({ tabId: tab.tabId });
     }
-    expect(createAgentHookCapability(a.tabId, a.sessionName)).toBeTruthy();
   });
 
   it('keeps the hook count and order in the spec', () => {
