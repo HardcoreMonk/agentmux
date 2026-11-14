@@ -33,8 +33,7 @@ const UPDATE_NOW_RE = /^Update now(?: \(runs `([^`]*)`\))?$/i;
 const UPDATE_SKIP_VERSION_RE = /^Skip until next version$/i;
 const UPDATING_RE = /^Updating Codex via `([^`]*)`/;
 const UPDATE_SUCCESS_RE = /^Update ran successfully!/;
-const UPDATE_ERROR_RE = /^Error: /;
-const UPDATE_FAILED_RE = /failed with status/i;
+const UPDATE_FAILED_LINE_RE = /^Error: `[^`]*` failed with status/i;
 
 const HOOKS_TITLE_RE = /^Hooks need review$/i;
 const HOOKS_REVIEW_OPTION_RE = /^Review hooks$/i;
@@ -52,7 +51,6 @@ const INPUT_TAIL_LINES = 8;
 
 const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim();
 const splitLines = (text: string): string[] => text.split('\n').map((line) => line.replace(/\r$/, ''));
-const collapseFrom = (lines: string[], index: number): string => collapse(lines.slice(index).join('\n'));
 
 interface IMarkerMatch {
   head: RegExpExecArray;
@@ -94,9 +92,7 @@ export const matchCodexUpdatePrompt = (text: string): ICodexUpdatePromptInfo | n
   const now = skip ? findLastMarker(lines, HEAD_NUMBERED_RE, UPDATE_NOW_RE, skip.index) : null;
   const updating = findLastMarker(lines, HEAD_PLAIN_RE, UPDATING_RE);
   const success = findLastMarker(lines, HEAD_SUCCESS_RE, UPDATE_SUCCESS_RE);
-  const failedIdx = lines.findLastIndex(
-    (line, i) => markerAt(lines, i, HEAD_PLAIN_RE, UPDATE_ERROR_RE) !== null && UPDATE_FAILED_RE.test(collapseFrom(lines, i)),
-  );
+  const failedIdx = lines.findLastIndex((_, i) => markerAt(lines, i, HEAD_PLAIN_RE, UPDATE_FAILED_LINE_RE) !== null);
 
   const markers: { status: TCodexUpdateStatus; index: number }[] = [
     { status: 'prompt', index: now && skip ? skip.index : -1 },

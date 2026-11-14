@@ -225,3 +225,14 @@ describe('screens the TUI wrapped in a narrow pane', () => {
     expect(matchCodexHooksReview(diffed(narrowHooks))).toBeNull();
   });
 });
+
+describe('update failure line', () => {
+  it('does not read a failure from text below an unrelated error line', () => {
+    expect(matchCodexUpdatePrompt('  Error: boom\n• ran cmd\n  npm failed with status 1\n› ')).toBeNull();
+  });
+
+  it('reads the failure fixture and a failure below an old prompt', () => {
+    expect(matchCodexUpdatePrompt(fixture('update-failed'))?.status).toBe('failed');
+    expect(matchCodexUpdatePrompt(`${fixture('update-prompt')}\n${fixture('update-failed')}`)?.status).toBe('failed');
+  });
+});
