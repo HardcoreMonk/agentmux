@@ -87,7 +87,7 @@ server/running 상태, browser와 diff panel을 작업으로 세지 않습니다
 
 ## Hook event 경로
 
-Codex tab launch/resume은 `hooks={path="~/.agentmux/hooks.json"}`(legacy `~/.codexmux/hooks.json`)를 사용하지 않습니다. Browser는 workspace/pane/tab과 action만 server에 보내고, `agent-launch-service`가 현재 layout ownership, panel type, terminal process, Codex `0.144.1+` compatibility를 확인합니다. 검증된 server provider만 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override를 만들어 `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출합니다.
+Codex tab launch/resume은 `hooks={path="~/.agentmux/hooks.json"}`(legacy `~/.codexmux/hooks.json`)를 사용하지 않습니다. Browser는 workspace/pane/tab과 action만 server에 보내고, `agent-launch-service`가 현재 layout ownership, panel type, terminal process, Codex `0.144.1+` compatibility를 확인합니다. 검증된 server provider만 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override를 만들어 `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출합니다. Hook 명령은 탭과 실행에 무관하게 고정입니다(`ELECTRON_RUN_AS_NODE=1 '<node>' '<dataDir>/status-hook.cjs' '<event>'`, Windows `commandWindows`도 인자 없음). 탭 값은 실행 명령 앞에 붙는 환경 변수 `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`로 넘깁니다(위임 설정과 무관하게 늘 붙고 위임 환경 변수보다 앞). Bridge는 `argv[3]`/`argv[4]`가 비어 있지 않으면 인자를, 아니면 이 환경 변수를 씁니다. 그래서 Codex가 hook 정의 hash로 기록하는 trust가 탭이 바뀌어도 유지됩니다. Trust는 사용자가 Codex 검토 화면(또는 웹 카드)에서 한 번 줍니다. agentmux는 Codex 설정에 trust를 쓰지 않고 `--dangerously-bypass-hook-trust`도 쓰지 않으며, Node 경로, data dir, hook 구성이 바뀌면 검토 화면이 한 번 더 뜹니다(ADR-038).
 
 각 handler에는 HMAC capability로 canonical tab id, terminal session name, expiry가 묶입니다. Hook API는 CLI token, capability, 현재 layout ownership을 모두 확인한 event만 reducer에 전달합니다. Bridge는 bounded stdin을 읽고 loopback으로만 1초 요청하며 모든 장애에서 성공 종료하는 best-effort observer입니다. Hook 관찰 누락은 JSONL/process polling이 보정하고 Codex action 자체를 막지 않습니다.
 
@@ -105,7 +105,7 @@ agentmux hook이 붙지 않습니다.
 - 탭 설정 파일은 `<data dir>/claude-tabs/<tabId>.json`(파일 `0600`, directory `0700`)입니다. 실행·재개할 때마다 새
   HMAC capability로 다시 쓰고, 탭을 닫으면 provider `cleanupTab`이 지웁니다.
 - 모든 hook은 `async: true`, `timeout: 3`이며 `ELECTRON_RUN_AS_NODE=1 <node> status-hook.cjs <event> <session>
-  <capability>`를 실행합니다. Codex와 같은 bridge와 capability 형식을 씁니다.
+  <capability>`를 실행합니다(인자 방식). Codex와 같은 bridge와 capability 형식을 쓰지만, Codex hook은 인자 대신 환경 변수로 탭 값을 받습니다.
 
 | Claude hook | Bridge event | 상태 처리 |
 | --- | --- | --- |

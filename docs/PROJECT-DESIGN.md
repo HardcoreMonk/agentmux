@@ -26,7 +26,7 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
 - 데이터 디렉터리는 `~/.agentmux`(legacy 실제 경로 `~/.codexmux`), tmux socket은 `-L codexmux` 및 `codexmux-runtime-v2`, CLI header는 `x-agentmux-token`(legacy `x-cmux-token` 호환)입니다.
 - provider registry에는 `codex` panel type만 등록합니다.
 - Browser는 Codex command를 직접 조립하지 않고 workspace/pane/tab launch intent만 보냅니다. Server는 layout ownership, 안전한 shell, Codex `0.144.1+` preflight를 확인한 뒤 실행 또는 `codex resume <sessionId>` command를 만듭니다.
-- Codex hook event는 native session-layer TOML override와 HMAC tab/session capability를 사용해 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)로 전달합니다. User/project/managed/plugin hook은 Codex native discovery가 보존합니다.
+- Codex hook event는 native session-layer TOML override와 HMAC tab/session capability를 사용해 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)로 전달합니다. Hook 명령은 탭과 무관하게 고정이고 탭 값은 환경 변수(`AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`)로 넘겨 사용자가 한 번 준 Codex hook trust가 유지됩니다(ADR-038). User/project/managed/plugin hook은 Codex native discovery가 보존합니다.
 - process detection은 tmux pane 아래의 `codex` process를 찾고 session id, process start time, live process cwd fallback 순서로 JSONL path를 연결합니다.
 - timeline, history, stats, daily report와 rate-limit observation은 `~/.codex/sessions/**/*.jsonl`을 읽어 구성합니다.
 - Timeline은 exec, web search, MCP, patch, error/warning, context compaction을 semantic row로 표시합니다. Detail은 secret-like redaction, field 4KiB, entry 16KiB 상한을 적용하고 full output/download/local image serving은 제공하지 않습니다.

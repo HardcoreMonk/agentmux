@@ -100,8 +100,8 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
 | `governance/index.db` | Managed Project 문서 metadata, heading, fingerprint, lint와 link projection. 본문 미저장 |
 | `backups/` | runtime v2 backup과 governance action의 private journal/preimage. projection DB backup 용도가 아님 |
 | `hooks.json` | 빈 `hooks`와 statusline 호환 설정을 담는 생성 파일. Codex tab 실행 config source는 아님 |
-| `status-hook.cjs` | session-scoped Codex hook override가 호출하는 standalone Node bridge |
-| `codex-hook-trust.json` | 마지막으로 Codex가 실행한 hook 명령의 fingerprint(`{ fingerprint }`). 지금 hook 명령과 같으면 trust된 것으로 본다 |
+| `status-hook.cjs` | session-scoped Codex hook override가 호출하는 standalone Node bridge. `argv[3]`/`argv[4]`(Claude 탭 hook)가 비어 있지 않으면 인자를, 아니면 환경 변수 `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`(Codex 탭 hook)를 읽음 |
+| `codex-hook-trust.json` | `{ fingerprint }`. agentmux hook 요청이 검증되면 server가 지금 hook 명령의 fingerprint(sha256)를 기록함. 웹 카드는 기록이 지금 fingerprint와 같으면 trust 버튼을 숨김(`GET /api/status/codex-hook-trust` → `{ trusted }`). Codex 자신의 trust 기록은 `$CODEX_HOME/config.toml`에 있고 agentmux는 쓰지 않음 |
 | `status-hook.sh` | 이전 설치에 남을 수 있는 legacy bridge. 현재 생성하거나 호출하지 않음 |
 | `statusline.cjs` | Claude Code statusLine bridge(Node script). 탭 설정 파일의 statusLine이 호출하며 stdin을 server로 보내고 사용자 원래 statusLine 명령을 대신 실행 |
 | `statusline.sh` | 이전 shell statusline bridge. 현재 생성하거나 호출하지 않지만 기존 설치에는 남을 수 있음 |
@@ -197,7 +197,7 @@ manifest와 preimage는 `0600`이며 pending/recovery/rollback dependency가 있
 
 `~/.codex/`는 Codex CLI 소유 영역입니다. agentmux는 이 디렉터리에 앱 상태를 쓰지 않습니다.
 
-Codex launch/resume command는 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)을 `hooks={path=...}` 형태로 넘기지 않습니다. Server provider가 만든 session-scoped inline TOML override는 `status-hook.cjs`를 직접 호출합니다. 이 bridge는 project package를 import하지 않고 `port`, `cli-token`, HMAC capability만 사용해 loopback hook API에 bounded request를 보냅니다. `hooks.json`을 삭제해도 서버 재시작 때 빈 hooks/statusline 설정으로 다시 생성됩니다.
+Codex launch/resume command는 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)을 `hooks={path=...}` 형태로 넘기지 않습니다. Server provider가 만든 session-scoped inline TOML override는 `status-hook.cjs`를 직접 호출합니다. 이 bridge는 project package를 import하지 않고 `port`, `cli-token`, HMAC capability(인자 또는 환경 변수)만 사용해 loopback hook API에 bounded request를 보냅니다. `hooks.json`을 삭제해도 서버 재시작 때 빈 hooks/statusline 설정으로 다시 생성됩니다.
 
 | 경로 | agentmux 처리 |
 | --- | --- |

@@ -313,7 +313,8 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 
 | 항목 | 내용 |
 | --- | --- |
-| Codex 위임 대상이 hook 검토 화면에서 멈춤 | 2026-11-11 격리 live 확인: agentmux가 띄운 Codex `0.167.0`이 "Hooks need review"(3 hooks new or changed)에서 멈춰 `tab create -t codex`가 `ready: false`. 위임 CLI는 이 화면에 입력하지 않음(`target-not-ready`). Codex를 위임 대상으로 쓰려면 hook 정의를 실행마다 같게 만드는 설계 2 작업(capability를 환경 변수로)이 먼저 필요 |
+| Claude 첫 화면 prompt 유실 | 설계 1 단계 3 live 확인: Claude 탭에도 TUI가 준비되기 전에 보낸 prompt가 사라지는 문제가 있음. 설계 2-1은 Codex만 다룸(Claude 탭은 `session-start` 기준 `ready` 그대로) |
+| Codex hook trust 버튼 범위 | 검토 화면의 hook 개수가 3으로 같아도 그중 일부가 agentmux hook이 아닌 경우는 화면만으로 구분할 수 없음(예: agentmux hook 2개를 trust한 뒤 project hook 1개와 바뀐 agentmux hook 2개). 버튼은 개수 3, fingerprint 기록 없음, trust 번호 읽힘일 때만 보이지만 이 경우는 받아들인 위험(ADR-038) |
 | needs-input live 재현 | 격리 live 확인에서 Claude 권한 요청을 띄우지 못해(사용자 설정 아래 `touch`가 확인 없이 실행) needs-input 대상 `tab send` 거절은 unit test로만 확인. 다음 live 확인에서 확실히 권한을 묻는 동작으로 재시도 |
 | 만든 탭 이름 title | 만든 agent 탭 표시의 title이 creator 이름 대신 일반 fallback 문구 |
 | TOML `U+007F` | `JSON.stringify`가 `U+007F`를 이스케이프하지 않음. 사용자 TOML이 `\u007F`를 이스케이프한 경우에만 해당 |

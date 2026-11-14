@@ -525,6 +525,19 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   통과했다. session 확인 실패 0건, 오래된 탭 1개는 "failed"로 정리됐다(ready 9). 백업은 148 MB, tmux server `78309`는
   유지됐다.
 
+## 설계 2-1: Codex 보조 (2026-11-15)
+
+- spec: `docs/superpowers/specs/2026-11-15-codex-assist-design.md`, plan: `docs/superpowers/plans/2026-11-15-codex-assist.md`
+  (eng review: `docs/superpowers/plans/2026-11-15-codex-assist-eng-review.md`). 설계 결정은 ADR-038.
+- Task 1(격리 Codex 실험) 결과: 고정 hook 명령은 한 번 trust하면 다음 실행에도 trust가 유지됐다. 실행 명령 앞의 환경 변수
+  `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`는 세 hook 모두에 닿았다. Codex SessionStart hook은 첫 turn에 실행된다.
+- 구현 commit(branch `feat/codex-assist`):
+  - `9d3ec02b` hook 명령 고정, `95f87407` trust 기록 쓰기 직렬화와 route test
+  - `9ede2139` Codex 화면 판정 module, `0b7094f1`, `1a33fe56`, `31427a81` 화면 판정 보완
+  - `fa783e3c` hook 검토·update 웹 카드, `aafcdd40` update 카드 재시작 한 번
+  - `f57636c7` 웹 입력 잠금, `91a4fbc6`, `ef967a78` 잠금 보완
+- 남은 확인: gate, 격리 live 확인, 배포와 배포 뒤 확인은 controller가 이 절에 채운다(자리 표시).
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
