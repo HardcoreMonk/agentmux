@@ -2,6 +2,7 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { runDeploy } from './deploy-local-lib.mjs';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = process.env.PORT || '8122';
@@ -20,15 +21,12 @@ const readGit = (args) => {
 };
 
 const run = (cmd, args, options = {}) => {
-  console.log(`[deploy-local] ${cmd} ${args.join(' ')}`);
   const result = spawnSync(cmd, args, {
     cwd: rootDir,
     stdio: 'inherit',
     env: options.env ? { ...process.env, ...options.env } : process.env,
   });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  return result.status ?? 1;
 };
 
 const waitForHealth = async () => {
@@ -56,8 +54,5 @@ const buildEnv = {
   NEXT_PUBLIC_BUILD_TIME: process.env.NEXT_PUBLIC_BUILD_TIME || new Date().toISOString(),
 };
 
-run('corepack', ['pnpm', 'build'], { env: buildEnv });
-run('systemctl', ['--user', 'restart', 'agentmux.service']);
-
-const health = await waitForHealth();
-console.log(`[deploy-local] healthy ${JSON.stringify(health)}`);
+const code = await runDeploy({ rootDir, run, waitForHealth, buildEnv, log: console.log });
+process.exit(code);
