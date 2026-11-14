@@ -298,6 +298,30 @@ describe('terminal worker runtime', () => {
     expect(ptySpawnMock).not.toHaveBeenCalled();
   });
 
+  // After a host reboot the runtime tmux server and its socket file are gone; tmux then reports
+  // "error connecting to <socket> (No such file or directory)" instead of "no server running".
+  it('returns false when the runtime tmux socket file no longer exists', async () => {
+    execFileFailure('Command failed: tmux -L codexmux-runtime-v2 has-session -t rtv2-ws-a-pane-b-tab-c\n'
+      + 'error connecting to /tmp/tmux-1000/codexmux-runtime-v2 (No such file or directory)');
+    const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');
+    const runtime = createTerminalWorkerRuntime();
+
+    await expect(runtime.hasSession('rtv2-ws-a-pane-b-tab-c')).resolves.toEqual({
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      exists: false,
+    });
+  });
+
+  it('keeps other socket connection failures as presence check failures', async () => {
+    execFileFailure('error connecting to /tmp/tmux-1000/codexmux-runtime-v2 (Permission denied)');
+    const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');
+    const runtime = createTerminalWorkerRuntime();
+
+    await expect(runtime.hasSession('rtv2-ws-a-pane-b-tab-c')).rejects.toMatchObject({
+      code: 'runtime-v2-terminal-presence-check-failed',
+    });
+  });
+
   it('preserves unexpected tmux session presence failures', async () => {
     execFileFailure('permission denied');
     const { createTerminalWorkerRuntime } = await import('@/lib/runtime/terminal/terminal-worker-runtime');

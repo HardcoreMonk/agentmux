@@ -35,8 +35,11 @@ const createRuntimeError = (
   })
 );
 
+// "error connecting to <socket> (No such file or directory)" is what tmux prints when the server's socket
+// file is gone, for example after a host reboot; other connection errors (such as permissions) stay failures.
 const isMissingTmuxSessionError = (err: unknown): boolean =>
-  /can't find session|missing session|no server running|failed to connect to server/i.test(errorMessage(err));
+  /can't find session|missing session|no server running|failed to connect to server|error connecting to .+\(No such file or directory\)/i
+    .test(errorMessage(err));
 
 const sourceRuntimeTmuxConfig = async (): Promise<void> => {
   const tmuxConfigPath = resolveRuntimeTmuxConfigPath();
