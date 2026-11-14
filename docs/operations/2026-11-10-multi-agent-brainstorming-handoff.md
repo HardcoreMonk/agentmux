@@ -502,6 +502,29 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   `~/.codexmux/delegation/claude.md`(0600) 생성, live shim으로 `tab list` 동작, 7개 workspace의 탭 목록과 active 탭이 배포
   전과 같음, live tmux server `43870` 유지(새 PID 2개는 새 service의 attach client).
 
+## 배포 도구 보완과 hotfix (2026-11-15)
+
+- PR #51(`768a4ea4`, agy 구현·Claude 검증): `deploy:local`은 다음 순서로 동작한다.
+  1. `pnpm install --frozen-lockfile`
+  2. `tsc --noEmit -p tsconfig.deploy-check.json`
+  3. `.next`(cache 제외)와 `dist` snapshot
+  4. build. 실패하면 snapshot을 복원하고 재시작하지 않는다.
+- PR #52(`d01b8ca2`): 위임 CLI 화면 보호가 Codex 0.167 update 안내(`Update available · <cur> → <latest>`, 기본 강조
+  "Update now")를 알아본다. 이전에는 옛 문구만 찾아 놓쳤다. 설계 2-1 plan-eng-review C1에서 찾았다.
+- 배포(02:11, 사용자 실행): 새 `deploy:local`로 처음 배포했고 health는 `d01b8ca2`였다. 이 배포 뒤 확인에서 두 문제를 찾았다.
+  - 2026-11-14 15:10 재부팅 뒤 Runtime v2 tmux server와 socket이 사라졌다. 그런데 사용자 workspace
+    `PureCvisor_Claude`의 Runtime v2 탭이 storage에 "ready"로 남았다. tmux의 "error connecting to <socket> (No such file
+    or directory)"를 session 없음으로 알아보지 못해 status live 시작이 실패했다. 그 뒤 상태 구독이 2초마다 실패했다
+    (이전 build에서 37,273회).
+  - 새 snapshot이 `.next/dev`(2.2 GB)까지 복사해 백업이 2.4 GB였다.
+- PR #53(`c2f8166b`): 두 문제를 고쳤다.
+  - CI가 기존 test(`layout-store-agent-session.test.ts`)의 정리 race로 한 번 실패했다. test 정리를 재시도하게 고친 뒤 통과했다.
+  - Claude가 CI 결과를 보기 전에 로컬 merge를 만들었다가 되돌렸다. 원격 반영은 없었다.
+  - 사용자가 main push 전에 브랜치를 지워 PR #53은 GitHub에서 "Closed"로 남았다. 코드는 main에 있다.
+- 배포(02:33, 사용자 실행): health `c2f8166b`, PID `2891644`. Runtime v2 health는 모든 worker ok이고 시작 진단을
+  통과했다. session 확인 실패 0건, 오래된 탭 1개는 "failed"로 정리됐다(ready 9). 백업은 148 MB, tmux server `78309`는
+  유지됐다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
