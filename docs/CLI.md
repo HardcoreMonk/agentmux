@@ -38,7 +38,7 @@
 
 Shim과 안내 파일은 server 시작 때 auto-resume 전에 쓰고, 이후 agent를 띄울 때마다 내용이 바뀐 경우에만 다시 씁니다. Claude 안내 파일이 없으면 flag를 빼고 log에 warning을 남깁니다. 안내 문장에는 workspace id와 탭 id를 넣지 않고 환경 변수로만 전달합니다.
 
-설정을 끄면 실행 명령은 이전과 byte 단위로 같습니다(환경 변수, 안내, `permissions.allow` 모두 없음). agentmux 밖에서 돈 Claude Code·Codex에는 아무것도 붙지 않습니다.
+설정을 끄면 위임 관련 값(위임 환경 변수, 안내, `permissions.allow`)이 붙지 않습니다. Codex hook 환경 변수는 상태 표시용으로 늘 붙습니다. agentmux 밖에서 돈 Claude Code·Codex에는 아무것도 붙지 않습니다.
 
 ### Claude Code
 

@@ -19,7 +19,7 @@ vi.mock('@/lib/logger', () => ({
 import { buildCodexLaunchCommand, buildCodexResumeCommand, CODEX_COMMAND_SAFE_BYTES } from '@/lib/codex-command';
 import { buildDelegationGuide } from '@/lib/delegation-guide';
 import { codexProvider } from '@/lib/providers/codex';
-import { buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
+import { buildCodexHookEnvPrefix, buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
 
 const threadId = '019dcf1f-3a02-73a0-a79e-8703b99a2f30';
 const tab = { workspaceId: 'ws-1', tabId: 'tab-1', sessionName: 'pt-ws-1-pane-1-tab-1' };
@@ -57,10 +57,14 @@ describe('codex provider launch command', () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  it('builds the previous command when delegation is off', async () => {
+  it('keeps only the hook env vars when delegation is off', async () => {
     mocks.getConfig.mockResolvedValue({ agentDelegationGuideEnabled: false });
     vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-11T00:00:00Z') });
-    const expectedOptions = { search: false, hookConfigs: buildCodexSessionHookConfigs(tab) };
+    const expectedOptions = {
+      search: false,
+      hookConfigs: buildCodexSessionHookConfigs(),
+      hookEnvPrefix: buildCodexHookEnvPrefix(tab),
+    };
 
     const launch = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
     const resume = await codexProvider.buildResumeCommand(threadId, { ...tab, cwd: project });
@@ -69,9 +73,17 @@ describe('codex provider launch command', () => {
     expect(resume).toBe(buildCodexResumeCommand(threadId, expectedOptions));
     for (const command of [launch, resume]) {
       expect(command).not.toContain('--cd');
-      expect(command).not.toContain('AMUX_');
+      expect(command.startsWith('AMUX_HOOK_SESSION=')).toBe(true);
+      expect(command).not.toContain('AMUX_TAB_ID=');
+      expect(command).not.toContain('AMUX_WORKSPACE_ID=');
       expect(command).not.toContain('developer_instructions');
     }
+  });
+
+  it('orders the hook env vars before the delegation env vars when delegation is on', async () => {
+    const command = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
+
+    expect(command).toMatch(/^AMUX_HOOK_SESSION='[^']+' AMUX_HOOK_CAPABILITY='[^']+' AMUX_WORKSPACE_ID='ws-1' /);
   });
 
   it('appends the guide to the user value on an auto-resume launch', async () => {
@@ -80,7 +92,7 @@ describe('codex provider launch command', () => {
     const command = await codexProvider.buildResumeCommand(threadId, tab);
 
     expect(mocks.getSessionCwd).toHaveBeenCalledWith(tab.sessionName);
-    expect(command.startsWith(`AMUX_WORKSPACE_ID='ws-1' AMUX_TAB_ID='tab-1' PATH=`)).toBe(true);
+    expect(command).toContain(`AMUX_WORKSPACE_ID='ws-1' AMUX_TAB_ID='tab-1' PATH=`);
     expect(command).toContain(`${quotedConfig(`user rule\n\n${buildDelegationGuide('codex')}`)} resume ${threadId}`);
     expect(command).not.toContain('--cd');
   });

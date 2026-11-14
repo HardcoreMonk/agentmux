@@ -65,6 +65,7 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
     claude.md
   hooks.json
   status-hook.cjs
+  codex-hook-trust.json
   statusline.cjs
   rate-limits.json
   claude-tabs/
@@ -100,6 +101,7 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
 | `backups/` | runtime v2 backup과 governance action의 private journal/preimage. projection DB backup 용도가 아님 |
 | `hooks.json` | 빈 `hooks`와 statusline 호환 설정을 담는 생성 파일. Codex tab 실행 config source는 아님 |
 | `status-hook.cjs` | session-scoped Codex hook override가 호출하는 standalone Node bridge |
+| `codex-hook-trust.json` | 마지막으로 Codex가 실행한 hook 명령의 fingerprint(`{ fingerprint }`). 지금 hook 명령과 같으면 trust된 것으로 본다 |
 | `status-hook.sh` | 이전 설치에 남을 수 있는 legacy bridge. 현재 생성하거나 호출하지 않음 |
 | `statusline.cjs` | Claude Code statusLine bridge(Node script). 탭 설정 파일의 statusLine이 호출하며 stdin을 server로 보내고 사용자 원래 statusLine 명령을 대신 실행 |
 | `statusline.sh` | 이전 shell statusline bridge. 현재 생성하거나 호출하지 않지만 기존 설치에는 남을 수 있음 |
@@ -229,7 +231,7 @@ statusLine은 탭별 `claude-tabs/<tab-id>.json`을 `--settings`로 넘겨서만
 | `server` | Electron local/remote server mode |
 | `claudeModel` | Claude Code 탭 실행 시 `--model` 값. 없으면 사용자 Claude 설정을 따름 |
 | `claudePermissionMode` | Claude Code 탭 실행 시 `--permission-mode` 값. 없으면 사용자 Claude 설정을 따름 |
-| `agentDelegationGuideEnabled` | 위임 안내, 탭 환경 변수, `permissions.allow` 사용 여부. 기본 켬. 끄면 agent 실행 명령이 이전과 byte 단위로 같음. 자세한 내용은 `CLI.md` |
+| `agentDelegationGuideEnabled` | 위임 안내, 탭 환경 변수, `permissions.allow` 사용 여부. 기본 켬. 끄면 위임 관련 값이 붙지 않음(Codex hook 환경 변수는 상태 표시용으로 늘 붙음). 자세한 내용은 `CLI.md` |
 
 `config.json` missing은 최초 startup에서만 새 empty config를 만들고 setup을 시작합니다.
 Malformed JSON, 읽기 오류, valid scrypt hash만 있고 `authSecret`이 없는 상태는 자동

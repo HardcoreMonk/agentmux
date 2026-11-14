@@ -22,8 +22,8 @@ const path = require('path');
 const MAX_STDIN_BYTES = 64 * 1024;
 const baseDir = ${JSON.stringify(baseDir)};
 const event = typeof process.argv[2] === 'string' ? process.argv[2] : 'poll';
-const session = typeof process.argv[3] === 'string' ? process.argv[3] : '';
-const capability = typeof process.argv[4] === 'string' ? process.argv[4] : '';
+const session = process.argv[3] || process.env.AMUX_HOOK_SESSION || '';
+const capability = process.argv[4] || process.env.AMUX_HOOK_CAPABILITY || '';
 let received = 0;
 let chunks = [];
 

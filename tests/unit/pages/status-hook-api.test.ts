@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   updateTabFromHook: vi.fn(),
   isValidSessionId: vi.fn((id: unknown) => typeof id === 'string' && id.startsWith('sid-')),
   tabPanelType: 'codex' as string,
+  recordCodexHookTrusted: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/lib/cli-token', () => ({ verifyCliToken: () => true }));
@@ -40,6 +41,7 @@ vi.mock('@/lib/providers', () => ({
     ? { isValidSessionId: mocks.isValidSessionId, jsonlRoots: () => PROVIDER_ROOTS[panelType] }
     : null),
 }));
+vi.mock('@/lib/codex-hook-trust', () => ({ recordCodexHookTrusted: mocks.recordCodexHookTrusted }));
 vi.mock('@/lib/perf-metrics', () => ({ recordPerfCounter: vi.fn() }));
 vi.mock('@/lib/logger', () => ({
   createLogger: () => ({ debug: vi.fn(), warn: vi.fn(), error: vi.fn(), info: vi.fn() }),
@@ -63,6 +65,7 @@ const base = { event: 'session-start', session: 'pt-ws-a-pane-a-tab-a', capabili
 describe('status hook api', () => {
   beforeEach(() => {
     mocks.updateTabFromHook.mockReset();
+    mocks.recordCodexHookTrusted.mockClear();
     mocks.tabPanelType = 'claude';
   });
 
@@ -127,5 +130,28 @@ describe('status hook api', () => {
     expect(mocks.updateTabFromHook).toHaveBeenCalledWith('pt-ws-a-pane-a-tab-a', 'session-start', {
       transcriptPath: '/home/test/.codex/sessions/2026/11/10/rollout-x.jsonl',
     });
+  });
+
+  it('records the hook trust for a verified Codex tab request', async () => {
+    mocks.tabPanelType = 'codex';
+    await post(base);
+
+    expect(mocks.recordCodexHookTrusted).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fail the request when recording the hook trust fails', async () => {
+    mocks.tabPanelType = 'codex';
+    mocks.recordCodexHookTrusted.mockRejectedValueOnce(new Error('disk full'));
+    const res = await post(base);
+
+    expect(res.status).toHaveBeenCalledWith(204);
+    expect(mocks.updateTabFromHook).toHaveBeenCalled();
+  });
+
+  it('does not record the hook trust for a Claude tab request', async () => {
+    mocks.tabPanelType = 'claude';
+    await post(base);
+
+    expect(mocks.recordCodexHookTrusted).not.toHaveBeenCalled();
   });
 });

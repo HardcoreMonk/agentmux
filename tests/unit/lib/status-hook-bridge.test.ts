@@ -22,9 +22,13 @@ const makeHome = async (layout: 'legacy' | 'fresh' = 'legacy'): Promise<string> 
 const runBridge = async ({
   homeDir,
   input = '',
+  args = ['session-a', 'capability-a'],
+  extraEnv = {},
 }: {
   homeDir: string;
   input?: string;
+  args?: string[];
+  extraEnv?: Record<string, string>;
 }): Promise<{ code: number | null; stderr: string }> => {
   vi.stubEnv('HOME', homeDir);
   vi.stubEnv('USERPROFILE', homeDir);
@@ -34,9 +38,10 @@ const runBridge = async ({
   await fs.writeFile(scriptPath, getStatusHookBridgeSource(), { mode: 0o700 });
 
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [scriptPath, 'stop', 'session-a', 'capability-a'], {
+    const child = spawn(process.execPath, [scriptPath, 'stop', ...args], {
       env: {
         ...process.env,
+        ...extraEnv,
         HOME: homeDir,
         USERPROFILE: homeDir,
       },
@@ -282,6 +287,58 @@ describe('status hook bridge', () => {
     await fs.writeFile(path.join(homeDir, '.codexmux', 'cli-token'), 'token-a');
 
     await expect(runBridge({ homeDir })).resolves.toEqual({ code: 0, stderr: '' });
+  });
+
+  describe('session and capability input', () => {
+    const captureBody = async (
+      options: { args?: string[]; extraEnv?: Record<string, string> },
+    ): Promise<Record<string, unknown>> => {
+      const homeDir = await makeHome('legacy');
+      const dataDir = path.join(homeDir, '.codexmux');
+      const received = new Promise<string>((resolve) => {
+        const server = http.createServer((request, response) => {
+          const chunks: Buffer[] = [];
+          request.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+          request.on('end', () => {
+            response.end();
+            server.close();
+            resolve(Buffer.concat(chunks).toString('utf-8'));
+          });
+        });
+        server.listen(0, '127.0.0.1', async () => {
+          const address = server.address();
+          if (!address || typeof address === 'string') throw new Error('hook test port missing');
+          await fs.writeFile(path.join(dataDir, 'cli-token'), 'token-a');
+          await fs.writeFile(path.join(dataDir, 'port'), String(address.port));
+        });
+      });
+      await runBridge({ homeDir, ...options });
+      return JSON.parse(await received);
+    };
+
+    it('reads session and capability from the arguments', async () => {
+      const body = await captureBody({ args: ['pt-x', 'cap-x'] });
+
+      expect(body).toMatchObject({ session: 'pt-x', capability: 'cap-x' });
+    });
+
+    it('reads session and capability from the environment when no arguments are given', async () => {
+      const body = await captureBody({
+        args: [],
+        extraEnv: { AMUX_HOOK_SESSION: 'pt-x', AMUX_HOOK_CAPABILITY: 'cap-x' },
+      });
+
+      expect(body).toMatchObject({ session: 'pt-x', capability: 'cap-x' });
+    });
+
+    it('prefers the arguments over the environment', async () => {
+      const body = await captureBody({
+        args: ['pt-arg', 'cap-arg'],
+        extraEnv: { AMUX_HOOK_SESSION: 'pt-env', AMUX_HOOK_CAPABILITY: 'cap-env' },
+      });
+
+      expect(body).toMatchObject({ session: 'pt-arg', capability: 'cap-arg' });
+    });
   });
 
   it('stays dependency-free and avoids shell transport', () => {

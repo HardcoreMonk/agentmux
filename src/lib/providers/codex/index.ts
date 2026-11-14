@@ -43,7 +43,7 @@ import {
   mergeCodexDeveloperInstructions,
   readCodexDeveloperInstructions,
 } from '@/lib/providers/codex/developer-instructions';
-import { buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
+import { buildCodexHookEnvPrefix, buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hooks';
 
 const log = createLogger('delegation');
 
@@ -77,7 +77,11 @@ const readLaunchOptions = async ({
   const config = await getConfig();
   const commandOptions = readCodexCommandOptions(config);
   if (!tabId || !sessionName) return commandOptions;
-  const launchOptions = { ...commandOptions, hookConfigs: buildCodexSessionHookConfigs({ tabId, sessionName }) };
+  const launchOptions = {
+    ...commandOptions,
+    hookConfigs: buildCodexSessionHookConfigs(),
+    hookEnvPrefix: buildCodexHookEnvPrefix({ tabId, sessionName }),
+  };
   if (!workspaceId || !isDelegationGuideEnabled(config)) return launchOptions;
 
   try {

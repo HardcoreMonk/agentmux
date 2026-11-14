@@ -9,6 +9,7 @@ import { getProviderByPanelType } from '@/lib/providers';
 import { isJsonlPathUnderRoots } from '@/lib/path-validation';
 import { parseSessionName, readLayoutFile, resolveLayoutFile } from '@/lib/layout-store';
 import { findPane } from '@/lib/layout-tree';
+import { recordCodexHookTrusted } from '@/lib/codex-hook-trust';
 import { recordPerfCounter } from '@/lib/perf-metrics';
 import type { ITab } from '@/types/terminal';
 
@@ -71,6 +72,11 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
       recordPerfCounter('status.hook_bridge.rejected');
       log.warn({ event }, 'rejected status hook target');
       return res.status(403).json({ error: 'Invalid hook target' });
+    }
+    if (tab.panelType === 'codex') {
+      recordCodexHookTrusted().catch((err) => {
+        log.warn('codex hook trust not recorded: %s', err instanceof Error ? err.message : String(err));
+      });
     }
     const options = sanitizeHookOptions(body, tab);
     const type = options.notificationType;

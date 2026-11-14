@@ -410,11 +410,11 @@
 ## ADR-035: 사용자 agent 설정은 고치지 않고 실행 시점 flag와 탭 환경 변수로만 붙인다
 
 - 상태: Accepted (2026-11-11)
-- 결정: agentmux는 `~/.claude/`, `~/.claude.json`, `$CODEX_HOME`(기본 `~/.codex/`) 아래 사용자 설정 파일과 project `.codex/config.toml`을 읽기만 하고 쓰거나 지우지 않습니다. Hook, 위임 안내, 허용 규칙은 agentmux가 띄운 agent의 실행 명령에만 붙입니다. Claude Code는 `--settings <dataDir>/claude-tabs/<tab-id>.json`과 `--append-system-prompt-file <dataDir>/delegation/claude.md`, Codex는 `-c` override(`hooks`, `developer_instructions`)를 사용하고, 두 agent 모두 탭 환경 변수(`AMUX_WORKSPACE_ID`, `AMUX_TAB_ID`, `<dataDir>/bin`을 앞에 붙인 `PATH`)를 받습니다. Workspace id와 탭 id는 안내 문장에 넣지 않고 환경 변수로만 전달합니다(Claude 재개 시 system prompt snapshot이 옛 id를 고정하기 때문). Codex 사용자 `developer_instructions`가 있으면 그 값을 안내 앞에 보존하고, 값이 여럿이거나 TOML을 읽지 못하거나 project `.codex/config.toml`이 값을 정의하거나 cwd를 모르거나 명령이 12,288 byte를 넘으면 안내를 넣지 않고 log warn만 남깁니다. Project 값은 복사하지 않습니다. Codex는 신뢰한 project의 config만 읽으므로 복사하면 사용자의 trust 거절을 우회하게 됩니다. 설정 `agentDelegationGuideEnabled`(기본 켬)를 끄면 실행 명령은 이전과 byte 단위로 같습니다.
+- 결정: agentmux는 `~/.claude/`, `~/.claude.json`, `$CODEX_HOME`(기본 `~/.codex/`) 아래 사용자 설정 파일과 project `.codex/config.toml`을 읽기만 하고 쓰거나 지우지 않습니다. Hook, 위임 안내, 허용 규칙은 agentmux가 띄운 agent의 실행 명령에만 붙입니다. Claude Code는 `--settings <dataDir>/claude-tabs/<tab-id>.json`과 `--append-system-prompt-file <dataDir>/delegation/claude.md`, Codex는 `-c` override(`hooks`, `developer_instructions`)를 사용하고, 두 agent 모두 탭 환경 변수(`AMUX_WORKSPACE_ID`, `AMUX_TAB_ID`, `<dataDir>/bin`을 앞에 붙인 `PATH`)를 받습니다. Workspace id와 탭 id는 안내 문장에 넣지 않고 환경 변수로만 전달합니다(Claude 재개 시 system prompt snapshot이 옛 id를 고정하기 때문). Codex 사용자 `developer_instructions`가 있으면 그 값을 안내 앞에 보존하고, 값이 여럿이거나 TOML을 읽지 못하거나 project `.codex/config.toml`이 값을 정의하거나 cwd를 모르거나 명령이 12,288 byte를 넘으면 안내를 넣지 않고 log warn만 남깁니다. Project 값은 복사하지 않습니다. Codex는 신뢰한 project의 config만 읽으므로 복사하면 사용자의 trust 거절을 우회하게 됩니다. 설정 `agentDelegationGuideEnabled`(기본 켬)를 끄면 위임 관련 값(위임 환경 변수, 안내, 미리 허용)이 붙지 않습니다. Codex hook 환경 변수(`AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`)는 상태 표시용으로 늘 붙고, hook 명령 자체는 탭과 무관하게 고정해 한 번 한 trust가 유지됩니다.
 - 이유: 사용자 설정 파일을 고치면 agentmux 밖에서 돈 agent(터미널 직접 실행, 다른 multiplexer)까지 영향을 받고, 제거와 rollback이 어렵고, 사용자가 직접 쓴 값과 충돌합니다. 실행 시점 flag는 agentmux 탭에서만 유효하고 탭을 닫으면 사라집니다.
 - trade-off: 명령이 길어지고 Codex 안내는 조건이 맞을 때만 들어갑니다. Codex `shell_environment_policy`가 `inherit = "core"`/`"none"`이면 환경 변수가 Codex shell에 닿지 않아 CLI가 호출 탭을 모릅니다(사용자가 직접 실행한 CLI처럼 동작).
 - 영향: `src/lib/delegation-guide.ts`, `src/lib/codex-command.ts`, Claude/Codex provider 실행 명령 조립, `docs/CLI.md`.
-- 검증 조건: 설정을 끄면 실행 명령이 이전과 byte 단위로 같고, 사용자 설정 파일 hash가 실행 전후 같으며, 환경 변수와 flag가 agentmux 실행 명령에만 붙어야 합니다.
+- 검증 조건: 설정을 끄면 위임 관련 값이 붙지 않고, 사용자 설정 파일 hash가 실행 전후 같으며, 환경 변수와 flag가 agentmux 실행 명령에만 붙어야 합니다.
 
 ## ADR-036: 위임은 확인 없이 진행하고 신뢰 경계는 Unix 사용자로 둔다
 
