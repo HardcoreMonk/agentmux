@@ -14,11 +14,18 @@ const BUTTON_CLASS = 'flex min-h-11 w-full items-center justify-center gap-2 rou
 const CodexUpdateCard = ({ info, onRespond, onRestart }: ICodexUpdateCardProps) => {
   const t = useTranslations('terminal');
   const [sending, setSending] = useState<TCodexUpdateAnswer | null>(null);
+  const [restarting, setRestarting] = useState(false);
 
   const handle = (answer: TCodexUpdateAnswer) => {
     if (sending) return;
     setSending(answer);
     onRespond(answer);
+  };
+
+  const handleRestart = () => {
+    if (restarting) return;
+    setRestarting(true);
+    onRestart();
   };
 
   const title = info.currentVersion && info.latestVersion
@@ -66,7 +73,7 @@ const CodexUpdateCard = ({ info, onRespond, onRestart }: ICodexUpdateCardProps) 
             {info.status === 'success' ? <CircleCheck size={14} className="mt-0.5 shrink-0" /> : <CircleAlert size={14} className="mt-0.5 shrink-0" />}
             <span>{info.status === 'success' ? t('codexUpdateSuccess') : t('codexUpdateFailed')}</span>
           </div>
-          <button type="button" onClick={onRestart} className={BUTTON_CLASS}>
+          <button type="button" disabled={restarting} onClick={handleRestart} className={BUTTON_CLASS}>
             <RotateCw size={14} />
             <span>{t('codexUpdateRestart')}</span>
           </button>
