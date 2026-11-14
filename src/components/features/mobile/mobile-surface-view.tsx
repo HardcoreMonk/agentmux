@@ -22,6 +22,7 @@ import AgentViewPrompt from '@/components/features/workspace/agent-view-prompt';
 import { acceptAgentViewPrompt, agentViewPromptRegistry, shouldOfferAgentView } from '@/lib/agent-view-prompt-state';
 import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
 import useCodexScreenDetector from '@/hooks/use-codex-screen-detector';
+import useCodexLaunch from '@/hooks/use-codex-launch';
 import { CODEX_SESSION_HOOK_COUNT } from '@/lib/codex-session-hook-spec';
 import MobileTerminalToolbar from '@/components/features/mobile/mobile-terminal-toolbar';
 import { formatTabTitle, isShellProcess, parseCurrentCommand } from '@/lib/tab-title';
@@ -286,6 +287,7 @@ const MobileSurfaceView = ({
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });
+  const { launchKey: codexLaunchKey, starting: codexStarting } = useCodexLaunch(activeTabId, agentProcess);
   const codexScreenDataRef = useRef<() => void>(() => {});
   const {
     snapshot: codexScreen,
@@ -295,10 +297,13 @@ const MobileSurfaceView = ({
     respondUpdate: respondCodexUpdate,
   } = useCodexScreenDetector({
     enabled: panelType === 'codex',
-    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}` : null,
+    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}:${codexLaunchKey}` : null,
+    starting: codexStarting,
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });
+  // Only a Codex tab is gated; the web input and the boot display of other agents stay as they were.
+  const codexInputReady = panelType !== 'codex' || codexScreen.tuiReady;
   useEffect(() => {
     trustDataRef.current = onTrustTerminalData;
     codexScreenDataRef.current = onCodexScreenData;
@@ -619,6 +624,7 @@ const MobileSurfaceView = ({
           panelType={panelType}
           cwd={activeTabCwd}
           trustPromptVisible={!!trustPrompt}
+          agentInputReady={codexInputReady}
           onCheckTerminal={() => {
             if (activeTabId) onUpdateTabPanelType(paneId, activeTabId, 'terminal');
           }}

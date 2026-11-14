@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { CODEX_RESPONSE_SUPPRESS_MS, createCodexScreenTracker } from '@/lib/codex-screen-tracker';
+import { CODEX_RESPONSE_SUPPRESS_MS, CODEX_TUI_READY_TIMEOUT_MS, createCodexScreenTracker } from '@/lib/codex-screen-tracker';
 
 const fixture = (name: string): string =>
   fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
@@ -67,5 +67,39 @@ describe('codex screen tracker', () => {
     tracker.startScope('tab-a', true);
 
     expect(tracker.observe('tab-a', fixture('hooks-review')).hooksReview).not.toBeNull();
+  });
+
+  describe('tuiReady while starting', () => {
+    beforeEach(() => tracker.startScope('tab-a', true));
+
+    it('is false on an empty screen', () => {
+      expect(tracker.observe('tab-a', '').tuiReady).toBe(false);
+    });
+
+    it('turns true on the input screen, locks on a review screen, and latches back on a plain screen', () => {
+      expect(tracker.observe('tab-a', fixture('tui-ready')).tuiReady).toBe(true);
+      expect(tracker.observe('tab-a', fixture('hooks-review')).tuiReady).toBe(false);
+      expect(tracker.observe('tab-a', 'working...').tuiReady).toBe(true);
+    });
+
+    it('turns true after the timeout with no screen data', () => {
+      now += CODEX_TUI_READY_TIMEOUT_MS - 1;
+      expect(tracker.tick('tab-a', '').tuiReady).toBe(false);
+      now += 1;
+      expect(tracker.tick('tab-a', '').tuiReady).toBe(true);
+    });
+
+    it('stays locked after the timeout on an update prompt or a review screen', () => {
+      now += CODEX_TUI_READY_TIMEOUT_MS;
+      expect(tracker.tick('tab-a', fixture('update-prompt')).tuiReady).toBe(false);
+      expect(tracker.tick('tab-a', fixture('hooks-review')).tuiReady).toBe(false);
+    });
+  });
+
+  it('treats a screen of an already running session as ready unless it is blocking', () => {
+    tracker.startScope('tab-a', false);
+
+    expect(tracker.observe('tab-a', 'Do you want to continue?\n› 1. Yes\n  2. No').tuiReady).toBe(true);
+    expect(tracker.observe('tab-a', fixture('hooks-review')).tuiReady).toBe(false);
   });
 });

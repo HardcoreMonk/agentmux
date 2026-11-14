@@ -5,7 +5,11 @@ import {
   type TCodexHooksAnswer,
   type TCodexUpdateAnswer,
 } from '@/lib/codex-screen';
-import { createCodexScreenTracker, type ICodexScreenSnapshot } from '@/lib/codex-screen-tracker';
+import {
+  CODEX_TUI_READY_TIMEOUT_MS,
+  createCodexScreenTracker,
+  type ICodexScreenSnapshot,
+} from '@/lib/codex-screen-tracker';
 
 const DEBOUNCE_MS = 200;
 
@@ -13,7 +17,10 @@ const EMPTY_SNAPSHOT: ICodexScreenSnapshot = { hooksReview: null, updatePrompt: 
 
 interface IUseCodexScreenDetectorOptions {
   enabled: boolean;
+  // Include the launch counter so a relaunch in the same tab starts a new scope.
   scopeKey: string | null;
+  // The agent process was started after this screen opened, so the TUI is not ready yet.
+  starting: boolean;
   getBufferText: () => string;
   sendStdin: (data: string) => void;
 }
@@ -38,6 +45,7 @@ const isSame = (a: IDetected | null, b: IDetected | null): boolean =>
 const useCodexScreenDetector = ({
   enabled,
   scopeKey,
+  starting,
   getBufferText,
   sendStdin,
 }: IUseCodexScreenDetectorOptions): IUseCodexScreenDetectorReturn => {
@@ -69,8 +77,16 @@ const useCodexScreenDetector = ({
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
-    if (scopeKey !== null) tracker.startScope(scopeKey, false);
-  }, [enabled, scopeKey, tracker]);
+    if (scopeKey === null) return;
+    tracker.startScope(scopeKey, starting);
+    if (!enabled || !starting) return;
+    // A silent screen still has to leave the starting state, so the time limit reads the buffer itself.
+    const readyTimer = setTimeout(() => {
+      const next = { scopeKey, snapshot: tracker.tick(scopeKey, getBufferTextRef.current()) };
+      setDetected((prev) => (isSame(prev, next) ? prev : next));
+    }, CODEX_TUI_READY_TIMEOUT_MS);
+    return () => clearTimeout(readyTimer);
+  }, [enabled, scopeKey, starting, tracker]);
 
   useEffect(() => () => {
     if (debounceRef.current) {
@@ -114,7 +130,12 @@ const useCodexScreenDetector = ({
   }, [tracker, hide, sendStdin]);
 
   const active = enabled && detected !== null && detected.scopeKey === scopeKey;
-  const snapshot = active ? detected.snapshot : EMPTY_SNAPSHOT;
+  // Before the first screen is read, a screen that opened on a running session is ready and a launch is not.
+  const snapshot = active
+    ? detected.snapshot
+    : enabled && scopeKey !== null
+      ? { ...EMPTY_SNAPSHOT, tuiReady: !starting }
+      : EMPTY_SNAPSHOT;
 
   const reviewVisible = snapshot.hooksReview !== null;
   const [seenVisible, setSeenVisible] = useState(reviewVisible);

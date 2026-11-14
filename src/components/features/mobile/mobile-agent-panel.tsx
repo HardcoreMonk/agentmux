@@ -44,6 +44,8 @@ interface IMobileAgentPanelProps {
   cwd?: string;
   // The parent draws the trust card; the panel only hides its boot progress while it is up.
   trustPromptVisible?: boolean;
+  // False while Codex is still starting or on a blocking screen; keeps the wait display up and the input held.
+  agentInputReady?: boolean;
   // Switches the tab to the terminal view (recovery action once boot takes too long).
   onCheckTerminal?: () => void;
   sendStdin: (data: string) => void;
@@ -67,6 +69,7 @@ const MobileAgentPanel = ({
   panelType = DEFAULT_AGENT_PANEL_TYPE,
   cwd,
   trustPromptVisible = false,
+  agentInputReady = true,
   onCheckTerminal,
   sendStdin,
   terminalWsConnected,
@@ -214,6 +217,7 @@ const MobileAgentPanel = ({
     startingPrompt: !!startingPromptOptions && !bypassPrompt,
     cliState: storeCliState,
     elapsedMs: bootElapsedMs,
+    agentInputReady,
   });
 
   useEffect(() => {
@@ -410,6 +414,7 @@ const MobileAgentPanel = ({
           sessionName={sessionName}
           agentSessionId={agentSessionId}
           cliState={storeCliState}
+          sendBlocked={!agentInputReady}
           sendStdin={sendStdin}
           terminalWsConnected={terminalWsConnected}
           visible={isInputVisible}

@@ -24,6 +24,7 @@ import AgentViewPrompt from '@/components/features/workspace/agent-view-prompt';
 import { acceptAgentViewPrompt, agentViewPromptRegistry, shouldOfferAgentView } from '@/lib/agent-view-prompt-state';
 import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
 import useCodexScreenDetector from '@/hooks/use-codex-screen-detector';
+import useCodexLaunch from '@/hooks/use-codex-launch';
 import { CODEX_SESSION_HOOK_COUNT } from '@/lib/codex-session-hook-spec';
 import WebInputBar from '@/components/features/workspace/web-input-bar';
 import QuickPromptBar from '@/components/features/workspace/quick-prompt-bar';
@@ -441,6 +442,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });
+  const { launchKey: codexLaunchKey, starting: codexStarting } = useCodexLaunch(activeTabId, agentProcess);
   const codexScreenDataRef = useRef<() => void>(() => {});
   const {
     snapshot: codexScreen,
@@ -450,10 +452,13 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     respondUpdate: respondCodexUpdate,
   } = useCodexScreenDetector({
     enabled: activePanelType === 'codex',
-    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}` : null,
+    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}:${codexLaunchKey}` : null,
+    starting: codexStarting,
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });
+  // Only a Codex tab is gated; the web input and the boot display of other agents stay as they were.
+  const codexInputReady = activePanelType !== 'codex' || codexScreen.tuiReady;
   useEffect(() => {
     trustDataRef.current = onTrustTerminalData;
     codexScreenDataRef.current = onCodexScreenData;
@@ -1006,6 +1011,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   panelType={activePanelType}
                   cwd={activeTabCwd || activeTab.cwd}
                   trustPromptVisible={!!trustPrompt}
+                  agentInputReady={codexInputReady}
                   onClose={() => handleSwitchPanelType('terminal')}
                   onNewSession={handleNewAgentSession}
                   onResumeOtherProvider={handleResumeOtherProvider}
@@ -1047,6 +1053,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   sessionName={activeTab?.sessionName}
                   agentSessionId={activeTab ? readAgentSessionId(activeTab) : null}
                   cliState={agentCliState}
+                  sendBlocked={!codexInputReady}
                   sendStdin={sendWebStdin}
                   terminalWsConnected={status === 'connected'}
                   visible

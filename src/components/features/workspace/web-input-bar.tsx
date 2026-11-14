@@ -13,6 +13,7 @@ import InterruptDialog from '@/components/features/workspace/interrupt-dialog';
 import MessageHistoryPicker from '@/components/features/workspace/message-history-picker';
 import { isImageFile, uploadImage } from '@/lib/upload-image-client';
 import { uploadFile } from '@/lib/upload-file-client';
+import { decideWebInputDispatch } from '@/lib/web-input-dispatch';
 import { countImageRefs, waitForImageAttachments } from '@/lib/image-attach-detector';
 import { isTerminalEofShortcut, TERMINAL_EOF_INPUT } from '@/lib/keyboard-shortcuts';
 import type { TCliState } from '@/types/timeline';
@@ -43,6 +44,8 @@ interface IWebInputBarProps {
   sessionName?: string;
   agentSessionId?: string | null;
   cliState: TCliState;
+  // The agent is starting or shows a blocking screen: keep the text and attachments, send nothing.
+  sendBlocked?: boolean;
   sendStdin: (data: string) => void;
   terminalWsConnected: boolean;
   visible: boolean;
@@ -65,6 +68,7 @@ const WebInputBar = ({
   sessionName,
   agentSessionId,
   cliState,
+  sendBlocked = false,
   sendStdin,
   terminalWsConnected,
   visible,
@@ -104,7 +108,7 @@ const WebInputBar = ({
     cliState,
     sendStdin,
     terminalWsConnected,
-    { tabId, panelType, onRestartSession, onMessageSent: handleMessageSent },
+    { tabId, panelType, onRestartSession, onMessageSent: handleMessageSent, sendBlocked },
   );
   const isMobileDevice = useIsMobileDevice();
 
@@ -165,6 +169,19 @@ const WebInputBar = ({
     const hasText = trimmed.length > 0;
     const hasAttach = attachments.length > 0;
     if (!hasText && !hasAttach) return;
+
+    // Checked before anything leaves the bar, so the text, attachments and draft stay as typed.
+    const decision = decideWebInputDispatch({
+      mode,
+      connected: terminalWsConnected,
+      sendBlocked,
+      hasText,
+      hasAttachments: hasAttach,
+    });
+    if (decision === 'blocked') {
+      toast.error(t('inputNotReady', { agent: agentLabel }));
+      return;
+    }
 
     if (!hasAttach) {
       onSend?.();
@@ -250,7 +267,7 @@ const WebInputBar = ({
     } finally {
       setIsDispatching(false);
     }
-  }, [canSend, isDispatching, value, attachments, send, sendStdin, setValue, onSend, agentSessionId, sessionName, tabId, handleMessageSent, onAddPendingMessage, onRemovePendingMessage, t, agentLabel]);
+  }, [canSend, isDispatching, mode, terminalWsConnected, sendBlocked, value, attachments, send, sendStdin, setValue, onSend, agentSessionId, sessionName, tabId, handleMessageSent, onAddPendingMessage, onRemovePendingMessage, t, agentLabel]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;

@@ -27,6 +27,7 @@
   "cannotSwitch": "전환할 수 없습니다",
   "newWorkspace": "새 Workspace 만들기",
   "inputDisabledPlaceholder": "{agent}가 실행 중이 아닙니다",
+  "inputNotReady": "{agent}가 아직 준비 중입니다. 잠시 뒤 보내세요",
   "inputPlaceholder": "메시지를 입력하세요...",
   "inputAriaLabel": "{agent} 메시지 입력",
   "agentConnecting": "{agent} 연결 중...",

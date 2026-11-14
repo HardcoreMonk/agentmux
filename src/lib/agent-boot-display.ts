@@ -15,6 +15,8 @@ interface IResolveAgentBootDisplayInput {
   startingPrompt: boolean;
   cliState: TCliState | undefined;
   elapsedMs: number;
+  // False while the agent TUI cannot take a prompt yet (Codex booting or on a blocking screen).
+  agentInputReady?: boolean;
 }
 
 // Claude writes no transcript before the first prompt, so once the agent has reported a state
@@ -43,11 +45,15 @@ export const resolveAgentBootDisplay = ({
   startingPrompt,
   cliState,
   elapsedMs,
+  agentInputReady = true,
 }: IResolveAgentBootDisplayInput): TAgentBootDisplay => {
   if (trustPrompt) return 'trust';
   if (view === 'check' && bypassPrompt) return 'bypass';
   if (view === 'check' && startingPrompt) return 'recover';
-  if (view === 'timeline' && hasReportedState(cliState)) return null;
+  if (view === 'timeline' && hasReportedState(cliState)) {
+    // With entries the timeline and approval cards must stay visible.
+    return !agentInputReady && !hasEntries ? 'waiting-session' : null;
+  }
   if (elapsedMs >= AGENT_BOOT_RECOVER_MS && !hasEntries) return 'recover';
   if (view === 'check') return 'starting';
   if (view === 'timeline' && agentProcess === true && !hasEntries) return 'waiting-session';

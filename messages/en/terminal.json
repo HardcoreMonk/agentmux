@@ -27,6 +27,7 @@
   "cannotSwitch": "Cannot switch",
   "newWorkspace": "New Workspace",
   "inputDisabledPlaceholder": "{agent} is not running",
+  "inputNotReady": "{agent} is not ready yet. Try again in a moment",
   "inputPlaceholder": "Type a message...",
   "inputAriaLabel": "{agent} message input",
   "agentConnecting": "{agent} connecting...",

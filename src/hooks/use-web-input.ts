@@ -4,6 +4,7 @@ import { t } from '@/lib/i18n';
 import type { TCliState } from '@/types/timeline';
 import { isCliIdle } from '@/hooks/use-tab-store';
 import { getAgentLabel, getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { decideWebInputDispatch } from '@/lib/web-input-dispatch';
 import type { TPanelType } from '@/types/terminal';
 
 type TWebInputMode = 'input' | 'interrupt' | 'disabled';
@@ -69,6 +70,8 @@ interface IUseWebInputOptions {
   panelType?: TPanelType;
   onRestartSession?: () => void;
   onMessageSent?: (message: string) => void;
+  // Holds back prompts while the agent is starting or shows a blocking screen.
+  sendBlocked?: boolean;
 }
 
 const useWebInput = (
@@ -92,6 +95,7 @@ const useWebInput = (
 
   const onRestartSession = options?.onRestartSession;
   const onMessageSent = options?.onMessageSent;
+  const sendBlocked = options?.sendBlocked ?? false;
 
   const setValue = useCallback((next: string) => {
     setValueState(next);
@@ -99,17 +103,26 @@ const useWebInput = (
   }, [tabId]);
 
   const send = useCallback(() => {
-    if (mode === 'disabled') {
+    const decision = decideWebInputDispatch({
+      mode,
+      connected: terminalWsConnected,
+      sendBlocked,
+      hasText: value.trim() !== '',
+      hasAttachments: false,
+    });
+    if (decision === 'disabled') {
       toast.error(t('terminal', 'inputDisabledPlaceholder', { agent: agentLabel }));
       return;
     }
-
-    if (!terminalWsConnected) {
+    if (decision === 'disconnected') {
       toast.error(t('connection', 'terminalDisconnected'));
       return;
     }
-
-    if (value.trim() === '') return;
+    if (decision === 'blocked') {
+      toast.error(t('terminal', 'inputNotReady', { agent: agentLabel }));
+      return;
+    }
+    if (decision === 'empty') return;
 
     if (restartCommands.includes(value.trim().toLowerCase())) {
       onRestartSession?.();
@@ -133,7 +146,7 @@ const useWebInput = (
 
     setValue('');
     if (tabId) clearDraft(tabId);
-  }, [mode, value, sendStdin, terminalWsConnected, onRestartSession, onMessageSent, tabId, setValue, restartCommands, agentLabel]);
+  }, [mode, value, sendBlocked, sendStdin, terminalWsConnected, onRestartSession, onMessageSent, tabId, setValue, restartCommands, agentLabel]);
 
   const interrupt = useCallback(() => {
     if (!terminalWsConnected) {
