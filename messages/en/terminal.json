@@ -84,5 +84,21 @@
   "agentSwitchLocked": "{agent} is working or waiting for input, so you can't switch to another agent now.",
   "switchToAgentView": "{agent} is running here. Switch to the agent view?",
   "switchToAgentViewAccept": "Switch view",
-  "switchToAgentViewDismiss": "Dismiss"
+  "switchToAgentViewDismiss": "Dismiss",
+  "codexHooksTitle": "Codex hook review",
+  "codexHooksChanged": "{count, plural, one {# hook is new or changed} other {# hooks are new or changed}}",
+  "codexHooksTrusting": "Trusting hooks…",
+  "codexHooksTrustButton": "Trust all and continue",
+  "codexHooksSkipButton": "Continue without trusting",
+  "codexHooksTrustDescription": "This matches the number of hooks agentmux adds. You can see the list under Review hooks in the terminal. Trusting makes Codex record it in your settings.",
+  "codexHooksReviewOutside": "Hooks from outside agentmux may be included. Check the list under Review hooks in the terminal.",
+  "codexUpdateTitle": "Codex update: {current} → {latest}",
+  "codexUpdateTitleNoVersion": "Codex update",
+  "codexUpdateNow": "Update now",
+  "codexUpdateSkip": "Skip",
+  "codexUpdateSkipVersion": "Skip until next version",
+  "codexUpdating": "Updating Codex…",
+  "codexUpdateSuccess": "Updated. Restart Codex",
+  "codexUpdateFailed": "The update failed. Check the error in the terminal",
+  "codexUpdateRestart": "Restart"
 }

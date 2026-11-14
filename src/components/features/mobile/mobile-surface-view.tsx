@@ -16,9 +16,13 @@ import TerminalContainer from '@/components/features/workspace/terminal-containe
 import ConnectionStatus from '@/components/features/workspace/connection-status';
 import MobileAgentPanel from '@/components/features/mobile/mobile-agent-panel';
 import TrustPromptCard from '@/components/features/workspace/trust-prompt-card';
+import CodexHooksReviewCard from '@/components/features/workspace/codex-hooks-review-card';
+import CodexUpdateCard from '@/components/features/workspace/codex-update-card';
 import AgentViewPrompt from '@/components/features/workspace/agent-view-prompt';
 import { acceptAgentViewPrompt, agentViewPromptRegistry, shouldOfferAgentView } from '@/lib/agent-view-prompt-state';
 import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
+import useCodexScreenDetector from '@/hooks/use-codex-screen-detector';
+import { CODEX_SESSION_HOOK_COUNT } from '@/lib/codex-session-hook-spec';
 import MobileTerminalToolbar from '@/components/features/mobile/mobile-terminal-toolbar';
 import { formatTabTitle, isShellProcess, parseCurrentCommand } from '@/lib/tab-title';
 import {
@@ -282,8 +286,22 @@ const MobileSurfaceView = ({
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });
+  const codexScreenDataRef = useRef<() => void>(() => {});
+  const {
+    snapshot: codexScreen,
+    fingerprintTrusted: codexFingerprintTrusted,
+    onTerminalData: onCodexScreenData,
+    respondHooks: respondCodexHooks,
+    respondUpdate: respondCodexUpdate,
+  } = useCodexScreenDetector({
+    enabled: panelType === 'codex',
+    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}` : null,
+    getBufferText,
+    sendStdin: (data) => wsActionsRef.current.sendStdin(data),
+  });
   useEffect(() => {
     trustDataRef.current = onTrustTerminalData;
+    codexScreenDataRef.current = onCodexScreenData;
   });
 
   const {
@@ -300,6 +318,7 @@ const MobileSurfaceView = ({
     onData: (data) => {
       termActionsRef.current.write(data);
       trustDataRef.current();
+      codexScreenDataRef.current();
     },
     onConnected: () => {
       setHasEverConnected(true);
@@ -461,6 +480,12 @@ const MobileSurfaceView = ({
     sendStdin(`${(getAgentProviderMeta(panelType) ?? AGENT_PROVIDER_META[DEFAULT_AGENT_PANEL_TYPE]).exitCommand}\r`);
   }, [status, sendStdin, activeTabId, panelType]);
 
+  // After an update Codex has already exited, so a restart must launch instead of typing /exit into the shell.
+  const handleCodexUpdateRestart = useCallback(() => {
+    if (agentProcess === true) handleRestartAgentSession();
+    else handleNewAgentSession();
+  }, [agentProcess, handleRestartAgentSession, handleNewAgentSession]);
+
   useEffect(() => {
     if (!pendingRestartRef.current || agentProcess === true) return;
     if (status !== 'connected') return;
@@ -613,6 +638,27 @@ const MobileSurfaceView = ({
       {isAgentPanel && trustPrompt && (
         <div className="flex shrink-0 justify-center p-3">
           <TrustPromptCard folderPath={trustPrompt.folderPath} onRespond={onTrustResponse} />
+        </div>
+      )}
+
+      {isAgentPanel && !trustPrompt && codexScreen.hooksReview && (
+        <div className="flex shrink-0 justify-center p-3">
+          <CodexHooksReviewCard
+            info={codexScreen.hooksReview}
+            hookCount={CODEX_SESSION_HOOK_COUNT}
+            fingerprintTrusted={codexFingerprintTrusted}
+            onRespond={respondCodexHooks}
+          />
+        </div>
+      )}
+
+      {isAgentPanel && !trustPrompt && !codexScreen.hooksReview && codexScreen.updatePrompt && (
+        <div className="flex shrink-0 justify-center p-3">
+          <CodexUpdateCard
+            info={codexScreen.updatePrompt}
+            onRespond={respondCodexUpdate}
+            onRestart={handleCodexUpdateRestart}
+          />
         </div>
       )}
 
