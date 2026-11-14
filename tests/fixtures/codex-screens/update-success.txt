@@ -1,0 +1,7 @@
+
+Updating Codex via `npm install -g @openai/codex`...
+
+changed 1 package in 3s
+
+🎉 Update ran successfully! Please restart Codex.
+user@host:~/work/demo$ 
