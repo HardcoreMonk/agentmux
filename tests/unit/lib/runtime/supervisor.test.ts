@@ -1708,7 +1708,7 @@ describe('runtime supervisor', () => {
     await expect(supervisor.hasTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' })).resolves.toBe(false);
   });
 
-  it('reads terminal session info for ready tabs and returns null when missing', async () => {
+  it('reads terminal session info from the terminal worker and returns null when missing', async () => {
     const { storage, terminal, timeline, status } = createWorkers();
     const supervisor = createRuntimeSupervisorForTest({ storage, terminal, timeline, status });
 
@@ -1723,13 +1723,13 @@ describe('runtime supervisor', () => {
         metadataSource: 'terminal-runtime',
       });
 
+    // A Runtime v2 terminal tab switched to Diff mode is not a ready *terminal* tab in storage,
+    // but its session is alive and its folder is what Diff mode needs.
     storage.replies.set('storage.get-ready-terminal-tab-by-session', null);
     await expect(supervisor.getTerminalSessionInfo({ sessionName: 'rtv2-ws-a-pane-b-tab-c' }))
-      .resolves.toBeNull();
+      .resolves.toMatchObject({ exists: true, cwd: '/tmp/repo-a' });
+    expect(storage.commands.map((command) => command.type)).not.toContain('storage.get-ready-terminal-tab-by-session');
 
-    storage.replies.set('storage.get-ready-terminal-tab-by-session', {
-      id: 'tab-a', sessionName: 'rtv2-ws-a-pane-b-tab-c', name: '', order: 0, panelType: 'terminal', lifecycleState: 'ready',
-    });
     terminal.failures.set('terminal.session-info', Object.assign(new Error('gone'), {
       code: 'runtime-v2-terminal-session-not-found', retryable: false,
     }));

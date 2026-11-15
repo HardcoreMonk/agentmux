@@ -40,8 +40,8 @@
    - 없으면 `hasSession` 결과로 `exists`를 채우고, 나머지는 null, `metadataSource: 'unavailable'`로 둔다.
 3. **supervisor**(`supervisor.ts`)
    - `getTerminalSessionInfo(input: { sessionName: string }): Promise<ITerminalRuntimeSessionInfo | null>`를 더한다.
-   - `hasTerminalSession`과 같은 순서다: storage의 ready terminal 탭 확인 → terminal worker 요청.
-   - 탭이 없거나 `runtime-v2-terminal-session-not-found`이면 null이다.
+   - `ensureStarted()` 뒤 terminal worker에 바로 묻는다. `runtime-v2-terminal-session-not-found`이면 null이다.
+   - storage의 ready terminal 탭은 확인하지 않는다(구현 중 controller 결정, 격리 확인에서 찾음). 그 조회는 `panel_type = 'terminal'`만 찾아서, Diff mode로 바꾼 Runtime v2 탭이 404가 된다. 폴더 읽기는 읽기 전용이고 worker가 이름 형식과 session 존재를 확인한다.
 4. **server helper**(새 파일 `src/lib/session-cwd.ts`)
    - `resolveSessionCwd(sessionName: string, deps?): Promise<{ exists: boolean; cwd: string | null }>`
    - session 이름이 `RUNTIME_SESSION_PREFIX`(`rtv2-`)로 시작하는 경우

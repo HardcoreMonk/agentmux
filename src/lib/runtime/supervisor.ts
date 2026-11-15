@@ -1618,15 +1618,13 @@ export const createRuntimeSupervisorForTest = (
       }
     },
 
+    // Read-only folder and process info for the Git API. Unlike attach or write it does not require a
+    // ready *terminal* tab in storage: a Runtime v2 terminal tab switched to Diff mode keeps its session.
+    // The terminal worker validates the name and reports a missing session.
     async getTerminalSessionInfo(input) {
       await this.ensureStarted();
-      const { storage, terminal } = getClients();
+      const { terminal } = getClients();
       const sessionName = parseRuntimeSessionName(input.sessionName);
-      const tab = await storage.request<{ sessionName: string }, IRuntimeTerminalTab | null>(
-        'storage.get-ready-terminal-tab-by-session',
-        { sessionName },
-      );
-      if (!tab) return null;
       try {
         return await terminal.request<{ sessionName: string }, IRuntimeTerminalSessionInfo>(
           'terminal.session-info',
