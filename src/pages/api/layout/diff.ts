@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 import { promisify } from 'util';
 import { readFile, stat } from 'fs/promises';
 import { resolve, sep } from 'path';
-import { getSessionCwd, hasSession } from '@/lib/tmux';
+import { resolveSessionCwd } from '@/lib/session-cwd';
 import { createLogger } from '@/lib/logger';
 import { getPerfNow, recordPerfCounter, recordPerfDuration } from '@/lib/perf-metrics';
 
@@ -286,12 +286,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(400).json({ error: 'session parameter required' });
   }
 
-  const exists = await hasSession(session);
+  const { exists, cwd } = await resolveSessionCwd(session);
   if (!exists) {
     return res.status(404).json({ error: 'Session not found' });
   }
-
-  const cwd = await getSessionCwd(session);
   if (!cwd) {
     return res.status(500).json({ error: 'Failed to get CWD' });
   }

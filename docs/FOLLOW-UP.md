@@ -337,7 +337,7 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 
 | 항목 | 내용 |
 | --- | --- |
-| Runtime v2 terminal 탭의 Git | Git API(`/api/layout/diff`, `cwd`, `git-log`, `commit-diff`, `file-content`, `/api/git/sync`)가 예전 tmux socket의 session만 찾아 Runtime v2 terminal 탭(`rtv2-…`)에는 404. live 설정(`new-tabs`)에서 웹으로 새로 연 일반 terminal 탭이 해당. Git side panel과 기존 Diff mode 모두 영향. Runtime v2 worker를 거쳐 session 폴더를 읽어야 하므로(지금 `RUNTIME_TMUX_SOCKET`은 terminal worker만 씀) Runtime v2 agent 탭 지원과 묶음. 사용자 결정(2026-11-15): 설계 2-2는 그대로 merge하고 후속으로 기록 |
+| Runtime v2 terminal 탭의 Git | 해결(branch `fix/runtime-v2-terminal-git`): terminal worker에 `terminal.session-info` 명령과 supervisor `getTerminalSessionInfo`를 추가하고, Git API 6곳(`/api/layout/diff`, `cwd`, `git-log`, `commit-diff`, `file-content`, `/api/git/sync`)이 `resolveSessionCwd`를 통해 Runtime v2 terminal 탭(`rtv2-…`)의 현재 폴더를 읽음 |
 | CLI로 만든 Codex 탭의 첫 화면 | 격리 live 확인: `agentmux tab create -t codex`로 만든 탭에서 folder trust와 hook trust를 웹 카드로 마친 뒤, 첫 turn 전까지 `cliState`가 `busy`로 남고 웹은 "Codex 시작이 오래 걸리고 있습니다" 화면이었음. 첫 turn(terminal에서 입력) 뒤 timeline과 입력창으로 정상 전환. 설계 2-1 영역 |
 | "…에게 묻기" focus 지연 | 입력창 focus를 350ms 뒤에 줌(sonner 2.0.7이 toast 밖으로 focus가 나갈 때와 unmount 때 원래 요소로 focus를 되돌림). sonner를 올리면 다시 확인 |
 | 가로 모드 폰의 새로고침 banner | 해결(branch `feat/ipad-touch-layout`): `useIsMobile`에 `(hover: none) and (pointer: coarse)`를 더해 손가락이 주 입력인 기기는 화면 폭과 상관없이 모바일 화면(`mobile-surface-view`)을 유지함 |
