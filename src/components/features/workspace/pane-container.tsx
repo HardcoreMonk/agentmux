@@ -96,6 +96,7 @@ const TERMINAL_FONT_SIZES: Record<string, { normal: number; agent: number }> = {
 };
 
 const EMPTY_TABS: ITab[] = [];
+const ASK_AGENT_FOCUS_DELAY_MS = 350;
 
 const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   const t = useTranslations('terminal');
@@ -745,8 +746,9 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
       if (isAgentPanelType(activePanelType)) {
         if (agentInputVisible && sessionView === 'timeline') {
           setInputValueRef.current?.(detail.text);
-          // The toast that fired this hands focus back to its trigger as it closes; focus after that.
-          window.setTimeout(() => focusInputRef.current?.(), 100);
+          // The sonner toast that fired this pulls focus back to the element focused before it, both when focus
+          // leaves the toast and when the toast unmounts 200 ms after closing. Focus once it is gone.
+          window.setTimeout(() => focusInputRef.current?.(), ASK_AGENT_FOCUS_DELAY_MS);
           return;
         }
         toast.info(tDiff('askAgentNoInput', { agent: getAgentLabel(activePanelType) }));
