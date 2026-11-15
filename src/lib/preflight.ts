@@ -2,6 +2,7 @@ import { execFile as execFileCb } from 'child_process';
 import { access } from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { getCodexHomeDir } from '@/lib/path-validation';
 import { promisify } from 'util';
 import type {
   IPreflightResult,
@@ -247,7 +248,7 @@ export const getPreflightStatus = async (): Promise<IPreflightResult> => {
   let codexLoggedIn = false;
   if (codex.installed || codexBinaryPath) {
     try {
-      await access(path.join(os.homedir(), '.codex'));
+      await access(getCodexHomeDir());
       codexLoggedIn = true;
     } catch {
       // not logged in yet

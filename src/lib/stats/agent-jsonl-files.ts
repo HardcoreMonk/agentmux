@@ -1,10 +1,9 @@
 import fs from 'fs/promises';
 import { createReadStream } from 'fs';
 import path from 'path';
-import os from 'os';
 import readline from 'readline';
 import dayjs from 'dayjs';
-import { getClaudeProjectsDir } from '@/lib/path-validation';
+import { getClaudeProjectsDir, getCodexHomeDir } from '@/lib/path-validation';
 import { isClaudeTranscriptPath } from '@/lib/providers/claude/transcript-path';
 
 export type TAgentJsonlSource = 'codex' | 'claude';
@@ -15,7 +14,6 @@ export interface IAgentJsonlFile {
   project: string;
 }
 
-const CODEX_SESSIONS_DIR = path.join(os.homedir(), '.codex', 'sessions');
 const SESSION_ID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const isAgentFile = (filename: string): boolean => /^agent-/.test(filename);
@@ -136,7 +134,7 @@ const collectJsonlPaths = async (
 };
 
 const collectCodexJsonlFiles = async (): Promise<IAgentJsonlFile[]> => {
-  const files = await collectJsonlPaths(CODEX_SESSIONS_DIR, 5);
+  const files = await collectJsonlPaths(path.join(getCodexHomeDir(), 'sessions'), 5);
   return files.map((filePath) => ({
     filePath,
     source: 'codex' as const,

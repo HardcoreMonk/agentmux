@@ -1,21 +1,20 @@
 import fs from 'fs/promises';
 import { watch, type FSWatcher } from 'fs';
 import path from 'path';
-import os from 'os';
 import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
 import type { ISessionInfo } from '@/types/timeline';
 import type { ISessionWatcher } from '@/lib/session-detection';
 import { getChildPids, getDescendantPids, getProcessCommandLine, getProcessCwd, getProcessStartTime, isProcessRunning } from '@/lib/session-detection';
 import { getShellPath } from '@/lib/preflight';
+import { getCodexHomeDir } from '@/lib/path-validation';
 import { findIndexedCodexSessionJsonl } from '@/lib/session-index';
 import { parseCodexJsonlContent } from '@/lib/codex-session-parser';
 import type { IAgentPromptClaim } from '@/lib/providers/types';
 
 const execFile = promisify(execFileCb);
 
-const CODEX_DIR = path.join(os.homedir(), '.codex');
-const CODEX_SESSIONS_DIR = path.join(CODEX_DIR, 'sessions');
+const getCodexSessionsRoot = (): string => path.join(getCodexHomeDir(), 'sessions');
 const SESSION_SCAN_LIMIT = 100;
 const WATCH_POLL_INTERVAL = 1500;
 const INSTALL_CHECK_INTERVAL = 60_000;
@@ -199,7 +198,7 @@ export const findCodexSessionJsonl = async (
   const indexed = await findIndexedCodexSessionJsonl(sessionId, cwd, options);
   if (indexed) return indexed;
 
-  const files = await collectJsonlFiles(CODEX_SESSIONS_DIR);
+  const files = await collectJsonlFiles(getCodexSessionsRoot());
   const metas = (await Promise.all(files.map(readSessionMeta)))
     .filter((meta): meta is ICodexSessionMeta => !!meta)
     .sort((a, b) => b.mtimeMs - a.mtimeMs);
@@ -239,7 +238,7 @@ export const findCodexSessionJsonlByPromptClaim = async (
 
   const lowerBound = claim.sentAt - PROMPT_CLAIM_PAST_TOLERANCE_MS;
   const upperBound = claim.sentAt + PROMPT_CLAIM_FUTURE_WINDOW_MS;
-  const files = await collectJsonlFiles(CODEX_SESSIONS_DIR);
+  const files = await collectJsonlFiles(getCodexSessionsRoot());
   const metas = (await Promise.all(files.map(readSessionMeta)))
     .filter((meta): meta is ICodexSessionMeta => !!meta && meta.cwd === cwd)
     .sort((a, b) => b.mtimeMs - a.mtimeMs)
@@ -279,7 +278,7 @@ export const detectActiveCodexSession = async (
   preloadedChildPids?: number[],
 ): Promise<ISessionInfo> => {
   try {
-    await fs.access(CODEX_DIR);
+    await fs.access(getCodexHomeDir());
   } catch {
     const installed = await isCodexInstalled();
     return {
@@ -344,7 +343,7 @@ export const watchCodexSessions = (
   const tryWatch = () => {
     if (stopped) return;
     try {
-      sessionWatcher = watch(CODEX_SESSIONS_DIR, { recursive: true }, () => {
+      sessionWatcher = watch(getCodexSessionsRoot(), { recursive: true }, () => {
         emitIfChanged().catch(() => {});
       });
       sessionWatcher.on('error', () => {});
@@ -356,7 +355,7 @@ export const watchCodexSessions = (
       if (!installCheckTimer) {
         installCheckTimer = setInterval(async () => {
           try {
-            await fs.access(CODEX_SESSIONS_DIR);
+            await fs.access(getCodexSessionsRoot());
             tryWatch();
             await emitIfChanged();
           } catch {

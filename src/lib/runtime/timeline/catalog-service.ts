@@ -18,7 +18,7 @@ import type {
 import type { TSessionCatalogMode } from '@/lib/runtime/session-catalog-mode';
 import { getProviderByPanelType, type IAgentProvider } from '@/lib/providers';
 import { isClaudeTranscriptPath } from '@/lib/providers/claude/transcript-path';
-import { getClaudeProjectsDir } from '@/lib/path-validation';
+import { getClaudeProjectsDir, getCodexHomeDir } from '@/lib/path-validation';
 import type { TAgentPanelType } from '@/types/terminal';
 
 export interface ICatalogRoot {
@@ -37,7 +37,7 @@ export interface ICreateTimelineCatalogServiceOptions {
 const defaultHomeDir = (): string => process.env.HOME || process.env.USERPROFILE || os.homedir();
 
 const defaultRoots = (): ICatalogRoot[] => [
-  { root: path.join(defaultHomeDir(), '.codex', 'sessions'), provider: 'codex' },
+  { root: path.join(getCodexHomeDir(defaultHomeDir()), 'sessions'), provider: 'codex' },
   { root: getClaudeProjectsDir(defaultHomeDir()), provider: 'claude' },
 ];
 

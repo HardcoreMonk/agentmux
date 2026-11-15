@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import { createReadStream } from 'fs';
 import path from 'path';
+import { getCodexHomeDir } from '@/lib/path-validation';
 import readline from 'readline';
 import os from 'os';
 import { getDataDir } from '@/lib/app-identity';
@@ -86,7 +87,7 @@ const getHomeDir = (): string =>
   process.env.HOME || process.env.USERPROFILE || os.homedir() || '/';
 
 const getCodexSessionsDir = (): string =>
-  path.join(getHomeDir(), '.codex', 'sessions');
+  path.join(getCodexHomeDir(getHomeDir()), 'sessions');
 
 const getIndexFilePath = (): string =>
   path.join(getDataDir(), 'session-index.json');

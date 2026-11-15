@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
-import os from 'os';
 import path from 'path';
+import { getCodexHomeDir } from '@/lib/path-validation';
 import { parse } from 'smol-toml';
 
 export type TCodexInstructionsRead =
@@ -57,7 +57,7 @@ export const readCodexDeveloperInstructions = async (input: {
   cwd: string;
   codexHome?: string;
 }): Promise<TCodexInstructionsRead> => {
-  const codexHome = input.codexHome ?? process.env.CODEX_HOME ?? path.join(os.homedir(), '.codex');
+  const codexHome = input.codexHome ?? getCodexHomeDir();
   const userConfigPath = path.resolve(codexHome, CONFIG_FILE);
   const found: IFoundValue[] = [];
   try {

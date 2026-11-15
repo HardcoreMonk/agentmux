@@ -1,6 +1,6 @@
 # `~/.agentmux/` (legacy 실제 경로 `~/.codexmux/`) 데이터 디렉터리
 
-agentmux의 앱 상태는 기본 별칭 경로 `~/.agentmux/`(기존 설치의 legacy 실제 경로 `~/.codexmux/`)에 저장합니다. Codex CLI 원본 세션은 `~/.codex/sessions/`에서 읽기 전용으로 참조합니다.
+agentmux의 앱 상태는 기본 별칭 경로 `~/.agentmux/`(기존 설치의 legacy 실제 경로 `~/.codexmux/`)에 저장합니다. Codex CLI 원본 세션은 `CODEX_HOME`(없으면 `~/.codex`)의 `sessions/`에서 읽기 전용으로 참조합니다.
 
 ## 경로 해석과 호환 별칭 규칙
 

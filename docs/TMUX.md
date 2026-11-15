@@ -197,6 +197,8 @@ directory의 최신 JSONL 순으로 찾습니다(`STATUS.md` "Session 다시 묶
 
 Windows path에서는 Windows process inspector와 local `.codex/sessions` JSONL mapping smoke를 기준으로 삼습니다.
 
+탭 shell은 `env -i`로 뜨며 `src/lib/shell-env.ts`의 허용 목록(`HOME`, `PATH`, `TMUX_TMPDIR`, `LANG`, `LC_*`, `CODEX_HOME` 등)만 상속합니다. server에 `CODEX_HOME`을 주면 탭의 Codex도 같은 위치를 쓰고, agentmux도 `getCodexHomeDir()`(`src/lib/path-validation.ts`)로 같은 위치(`CODEX_HOME`, 없으면 `~/.codex`)에서 Codex session을 읽습니다.
+
 ## 타임라인 WebSocket
 
 Timeline WebSocket은 terminal output replay가 아니라 Codex JSONL과 live prompt projection을 제공합니다. Terminal stdout은 ephemeral stream이므로 durable timeline source가 아닙니다. Exec command, web search, MCP call, patch apply, error/warning, context compaction은 semantic row로 투영하되 field 4KiB, entry 16KiB 상한과 secret-like redaction을 적용합니다. Full output, download, local image serving은 제공하지 않습니다.
