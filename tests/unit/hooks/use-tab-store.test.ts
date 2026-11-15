@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import useTabStore from '@/hooks/use-tab-store';
+import useTabStore, { shouldOpenNewConversation } from '@/hooks/use-tab-store';
 
 describe('useTabStore status sync readiness', () => {
   beforeEach(() => {
@@ -145,5 +145,78 @@ describe('useTabStore agent process view state', () => {
 
     expect(useTabStore.getState().tabs['tab-active']?.sessionView).toBe('timeline');
     expect(useTabStore.getState().tabs['tab-check']?.sessionView).toBe('check');
+  });
+
+  it('opens a new conversation when status sync discovers a running Codex tab without agentSessionId', () => {
+    useTabStore.getState().syncAllFromServer({
+      'tab-cli-codex': {
+        workspaceId: 'ws-test',
+        panelType: 'codex',
+        cliState: 'idle',
+        agentSessionId: null,
+      },
+    });
+
+    expect(useTabStore.getState().tabs['tab-cli-codex']).toMatchObject({
+      sessionView: 'check',
+      sessionViewAuto: false,
+    });
+
+    useTabStore.getState().setAgentProcess('tab-cli-codex', true, Date.now());
+
+    expect(useTabStore.getState().tabs['tab-cli-codex']).toMatchObject({
+      agentProcess: true,
+      sessionView: 'timeline',
+    });
+  });
+
+  it('keeps an inactive status-synced Codex tab on session-list until cliState becomes running', () => {
+    useTabStore.getState().syncAllFromServer({
+      'tab-cli-inactive': {
+        workspaceId: 'ws-test',
+        panelType: 'codex',
+        cliState: 'inactive',
+        agentSessionId: null,
+      },
+    });
+
+    expect(useTabStore.getState().tabs['tab-cli-inactive']).toMatchObject({
+      sessionView: 'session-list',
+      sessionViewAuto: true,
+    });
+
+    useTabStore.getState().updateFromServer('tab-cli-inactive', {
+      cliState: 'idle',
+    });
+
+    expect(useTabStore.getState().tabs['tab-cli-inactive']).toMatchObject({
+      sessionView: 'check',
+      sessionViewAuto: false,
+    });
+  });
+
+  it('keeps session-list open when initTab or setSessionView explicitly chose session-list', () => {
+    useTabStore.getState().initTab('tab-explicit', {
+      workspaceId: 'ws-test',
+      panelType: 'codex',
+      sessionView: 'session-list',
+    });
+
+    useTabStore.getState().updateFromServer('tab-explicit', {
+      cliState: 'idle',
+    });
+
+    expect(useTabStore.getState().tabs['tab-explicit']).toMatchObject({
+      sessionView: 'session-list',
+      sessionViewAuto: false,
+    });
+
+    expect(shouldOpenNewConversation({
+      panelType: 'codex',
+      agentSessionId: null,
+      sessionViewAuto: false,
+      sessionView: 'session-list',
+      cliState: 'idle',
+    })).toBe(false);
   });
 });
