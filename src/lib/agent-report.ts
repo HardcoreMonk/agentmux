@@ -34,8 +34,9 @@ const formatDoneBodyLines = (childTabId: string, lastMessage: string | null): st
   if (lastMessage === null) {
     return [`(no final message; see agentmux tab result ${childTabId})`];
   }
-  if (lastMessage.length > AGENT_REPORT_MAX_MESSAGE_CHARS) {
-    const sliced = `${lastMessage.slice(0, AGENT_REPORT_MAX_MESSAGE_CHARS)}…`;
+  const codePoints = Array.from(lastMessage);
+  if (codePoints.length > AGENT_REPORT_MAX_MESSAGE_CHARS) {
+    const sliced = `${codePoints.slice(0, AGENT_REPORT_MAX_MESSAGE_CHARS).join('')}…`;
     return [
       hardenReportBody(sliced),
       `full result: agentmux tab result ${childTabId}`,

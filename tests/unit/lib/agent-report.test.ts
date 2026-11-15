@@ -38,6 +38,18 @@ describe('agent-report', () => {
       expect(report.split('\n')[0]).toBe('[agentmux report · tab-c1 (claude) · done]');
     });
 
+    it('truncates by code point so an emoji at the boundary stays whole', () => {
+      const message = `${'a'.repeat(AGENT_REPORT_MAX_MESSAGE_CHARS - 1)}😀tail`;
+      const report = buildAgentReport({
+        childTabId: 'tab-c9',
+        childName: null,
+        provider: 'claude',
+        event: 'done',
+        lastMessage: message,
+      });
+      expect(report.split('\n')[1]).toBe(`${'a'.repeat(AGENT_REPORT_MAX_MESSAGE_CHARS - 1)}😀…`);
+    });
+
     it('truncates messages longer than 800 chars with ellipsis and a full result line', () => {
       const longMessage = 'a'.repeat(AGENT_REPORT_MAX_MESSAGE_CHARS + 1);
       const report = buildAgentReport({

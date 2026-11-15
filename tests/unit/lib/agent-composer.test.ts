@@ -18,7 +18,7 @@ describe('isAgentComposerEmpty', () => {
       },
     );
 
-    it.each(['codex-draft', 'codex-draft-leading-newline'])(
+    it.each(['codex-draft', 'codex-draft-leading-newline', 'codex-paste'])(
       'returns false for %s when user draft text is present',
       (name) => {
         expect(isAgentComposerEmpty('codex', fixture(name))).toBe(false);
@@ -41,7 +41,7 @@ describe('isAgentComposerEmpty', () => {
       },
     );
 
-    it.each(['claude-draft', 'claude-draft-leading-newline'])(
+    it.each(['claude-draft', 'claude-draft-leading-newline', 'claude-paste'])(
       'returns false for %s when user draft text is present',
       (name) => {
         expect(isAgentComposerEmpty('claude', fixture(name))).toBe(false);
@@ -69,6 +69,13 @@ describe('isAgentComposerEmpty', () => {
         '\u001b[38;2;136;136;136m────────────────────────',
       ].join('\n');
       expect(isAgentComposerEmpty('claude', claudeCombinedDim)).toBe(true);
+    });
+
+    it('does not read a 2 inside an extended color as dim', () => {
+      const rgbDraft = '\u001b[1m›\u001b[0m \u001b[38;2;10;2;3mdraft\u001b[39m';
+      expect(isAgentComposerEmpty('codex', rgbDraft)).toBe(false);
+      const paletteDraft = '\u001b[1m›\u001b[0m \u001b[38;5;2mdraft\u001b[39m';
+      expect(isAgentComposerEmpty('codex', paletteDraft)).toBe(false);
     });
   });
 });
