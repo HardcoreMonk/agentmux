@@ -223,4 +223,30 @@ describe('useTabStore agent process view state', () => {
       cliState: 'idle',
     })).toBe(false);
   });
+
+  it('stores and clears agentReportNotice from syncAllFromServer and updateFromServer', () => {
+    useTabStore.getState().syncAllFromServer({
+      'tab-parent': {
+        workspaceId: 'ws-test',
+        panelType: 'claude',
+        cliState: 'idle',
+        agentReportNotice: { kind: 'paused', count: 2, at: 1000 },
+      },
+    });
+
+    expect(useTabStore.getState().tabs['tab-parent']?.agentReportNotice).toEqual({
+      kind: 'paused',
+      count: 2,
+      at: 1000,
+    });
+
+    useTabStore.getState().updateFromServer('tab-parent', {
+      cliState: 'busy',
+      workspaceId: 'ws-test',
+      panelType: 'claude',
+      agentReportNotice: null,
+    });
+
+    expect(useTabStore.getState().tabs['tab-parent']?.agentReportNotice).toBeNull();
+  });
 });

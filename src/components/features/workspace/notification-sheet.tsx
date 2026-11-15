@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTranslations } from 'next-intl';
 import {
+  AlertTriangle,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -34,7 +35,7 @@ import { dismissTab } from '@/hooks/use-agent-status';
 import { navigateToTab, navigateToTabOrCreate, useLayoutStore } from '@/hooks/use-layout';
 import { collectAllTabs, findPane } from '@/lib/layout-tree';
 import type { ITabState } from '@/hooks/use-tab-store';
-import type { ICurrentAction } from '@/types/status';
+import type { IAgentReportNotice, ICurrentAction } from '@/types/status';
 import type { ISessionHistoryEntry } from '@/types/session-history';
 import { stripMarkdown } from '@/lib/strip-markdown';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
@@ -99,6 +100,7 @@ interface INotificationItem {
   agentSessionId?: string | null;
   lastEventSeq?: number;
   approvalPromptMetadata?: IApprovalPromptMetadata | null;
+  agentReportNotice?: IAgentReportNotice | null;
 }
 
 interface INotificationSheetProps {
@@ -130,6 +132,7 @@ const collectItems = (
       agentSessionId: readAgentSessionId(tab),
       lastEventSeq: tab.lastEvent?.seq,
       approvalPromptMetadata: tab.approvalPromptMetadata,
+      agentReportNotice: tab.agentReportNotice,
     });
   }
 
@@ -395,6 +398,19 @@ const NotificationItem = ({
             {renderAction()}
           </p>
         )}
+        {item.agentReportNotice && (
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-ui-amber [word-break:keep-all]">
+            <AlertTriangle className="h-3 w-3 shrink-0" />
+            <span>
+              {t(
+                item.agentReportNotice.kind === 'paused'
+                  ? 'agentReportsPaused'
+                  : 'agentReportsExpired',
+                { count: String(item.agentReportNotice.count) },
+              )}
+            </span>
+          </p>
+        )}
         {showActions && !isActiveTab && (
           <div className="mt-2 flex items-center gap-1.5">
             <Button
@@ -588,6 +604,19 @@ export const NotificationPanel = ({ onNavigated, className }: { onNavigated?: ()
                           icon={<span className="mt-px block h-2 w-2 rounded-full bg-agent-active" />}
                           onClick={isActive ? undefined : () => handleNavigate(item.workspaceId, item.tabId)}
                         />
+                        {item.agentReportNotice && (
+                          <p className="mt-1 flex items-center gap-1.5 pl-9 text-xs text-ui-amber [word-break:keep-all]">
+                            <AlertTriangle className="h-3 w-3 shrink-0" />
+                            <span>
+                              {t(
+                                item.agentReportNotice.kind === 'paused'
+                                  ? 'agentReportsPaused'
+                                  : 'agentReportsExpired',
+                                { count: String(item.agentReportNotice.count) },
+                              )}
+                            </span>
+                          </p>
+                        )}
                         {!isActive && (
                           <div className="mt-1 flex items-center pl-9">
                             <Button

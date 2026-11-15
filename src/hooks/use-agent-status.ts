@@ -108,6 +108,8 @@ const useAgentStatus = () => {
                 compactingSince: msg.compactingSince,
                 lastEvent: msg.lastEvent,
                 eventSeq: msg.eventSeq,
+                approvalPromptMetadata: msg.approvalPromptMetadata,
+                agentReportNotice: msg.agentReportNotice,
               });
               if (msg.paneTitle) {
                 useTabMetadataStore.getState().setTitle(msg.tabId, formatTabTitle(msg.paneTitle));

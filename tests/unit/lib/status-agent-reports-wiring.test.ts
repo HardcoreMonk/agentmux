@@ -25,10 +25,11 @@ import { StatusManager } from '@/lib/status-manager';
 
 const makeFakeAgentReports = () => ({
   onChildStateChange: vi.fn<IAgentReportServiceLike['onChildStateChange']>(async () => undefined),
-  flush: vi.fn<IAgentReportServiceLike['flush']>(async () => ({ status: 'empty' as const })),
+  flush: vi.fn<IAgentReportServiceLike['flush']>(async () => 'empty' as const),
   onPromptSubmit: vi.fn<IAgentReportServiceLike['onPromptSubmit']>(() => 'human' as const),
   onTabRemoved: vi.fn<IAgentReportServiceLike['onTabRemoved']>(() => undefined),
   tick: vi.fn<IAgentReportServiceLike['tick']>(async () => undefined),
+  reset: vi.fn<IAgentReportServiceLike['reset']>(() => undefined),
 });
 
 describe('StatusManager agentReports wiring', () => {
