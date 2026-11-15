@@ -18,6 +18,7 @@ const INHERITED_KEYS = new Set([
   'WAYLAND_DISPLAY',
   'XDG_RUNTIME_DIR',
   'TZ',
+  'CODEX_HOME',
 ]);
 
 const INHERITED_PREFIXES = ['LC_'];

@@ -70,4 +70,20 @@ describe('resolveAgentBootDisplay', () => {
   it('offers recovery at once for a non-bypass startup prompt', () => {
     expect(resolveAgentBootDisplay({ ...base, startingPrompt: true })).toBe('recover');
   });
+
+  describe('agentInputReady', () => {
+    const reported = { ...base, view: 'timeline' as const, agentProcess: true, cliState: 'busy' as TCliState };
+
+    it('keeps the wait display while the agent input is not ready and the timeline is empty', () => {
+      expect(resolveAgentBootDisplay({ ...reported, agentInputReady: false })).toBe('waiting-session');
+    });
+
+    it('shows nothing once there are entries', () => {
+      expect(resolveAgentBootDisplay({ ...reported, agentInputReady: false, hasEntries: true })).toBeNull();
+    });
+
+    it('shows nothing when the agent input is ready', () => {
+      expect(resolveAgentBootDisplay({ ...reported, agentInputReady: true })).toBeNull();
+    });
+  });
 });

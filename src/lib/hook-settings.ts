@@ -22,8 +22,8 @@ const path = require('path');
 const MAX_STDIN_BYTES = 64 * 1024;
 const baseDir = ${JSON.stringify(baseDir)};
 const event = typeof process.argv[2] === 'string' ? process.argv[2] : 'poll';
-const session = typeof process.argv[3] === 'string' ? process.argv[3] : '';
-const capability = typeof process.argv[4] === 'string' ? process.argv[4] : '';
+const session = process.argv[3] || process.env.AMUX_HOOK_SESSION || '';
+const capability = process.argv[4] || process.env.AMUX_HOOK_CAPABILITY || '';
 let received = 0;
 let chunks = [];
 
@@ -63,7 +63,14 @@ process.stdin.on('end', () => {
     const port = Number.parseInt(fs.readFileSync(path.join(baseDir, 'port'), 'utf8').trim(), 10);
     const token = fs.readFileSync(path.join(baseDir, 'cli-token'), 'utf8').trim();
     if (!Number.isInteger(port) || port < 1 || port > 65535 || !token) process.exit(0);
-    const body = JSON.stringify({ event, session, capability, ...readForwardedFields() });
+    const hookFingerprint = process.env.AMUX_HOOK_FINGERPRINT || '';
+    const body = JSON.stringify({
+      event,
+      session,
+      capability,
+      ...(hookFingerprint ? { hookFingerprint } : {}),
+      ...readForwardedFields(),
+    });
     const request = http.request({
       host: '127.0.0.1',
       port,

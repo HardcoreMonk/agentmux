@@ -28,6 +28,7 @@ import {
 } from '@/lib/tmux';
 import { hasPermissionPrompt } from '@/lib/permission-prompt';
 import { matchAgentStartupScreen } from '@/lib/agent-startup-screen';
+import { CODEX_TUI_READY_SETTLE_MS, isCodexBlockingScreen, isCodexTuiReadyContent } from '@/lib/codex-screen';
 import type { ITabLocation } from '@/lib/cli-utils';
 import type { IClientTabStatusEntry } from '@/types/status';
 import type { ITab, IWorkspace, TPanelType } from '@/types/terminal';
@@ -231,6 +232,9 @@ export const readTabStatusEntry = async (tab: ITab): Promise<IClientTabStatusEnt
   return getStatusManager().getAllForClient()[tab.id] ?? null;
 };
 
+// `tab send` accepts input only in these states; a Codex tab counts as ready only when it would.
+export const AGENT_SENDABLE_STATES: ReadonlySet<TCliState> = new Set<TCliState>(['idle', 'busy', 'ready-for-review']);
+
 export const readTabCliState = async (tab: ITab): Promise<TCliState | null> => {
   const entry = await readTabStatusEntry(tab);
   return entry?.cliState ?? tab.cliState ?? null;
@@ -303,9 +307,16 @@ export const readLastAssistantMessage = async (
   if (!isAgentPanelType(tab.panelType)) return null;
   const provider = getProviderByPanelType(tab.panelType);
   if (!provider) return null;
-  const sessionId = provider.readSessionId(tab);
-  const jsonlPath = provider.readJsonlPath(tab)
-    ?? (sessionId ? await provider.resolveJsonlPath(sessionId, tab.cwd ?? '') : null);
+  let jsonlPath = provider.readJsonlPath(tab);
+  if (!jsonlPath) {
+    let sessionId = provider.readSessionId(tab);
+    if (!sessionId) {
+      // UI가 열지 않은 Codex 탭은 layout에 session이 없다. status entry가 지켜보는 session을 쓴다.
+      const entryId = (await readTabStatusEntry(tab).catch(() => null))?.agentSessionId;
+      if (provider.isValidSessionId(entryId)) sessionId = entryId;
+    }
+    jsonlPath = sessionId ? await provider.resolveJsonlPath(sessionId, tab.cwd ?? '') : null;
+  }
   if (!jsonlPath) return null;
   const { entries } = await provider.readTailEntries(jsonlPath, ASSISTANT_TAIL_ENTRIES);
   const last = entries.findLast((entry): entry is ITimelineAssistantMessage => entry.type === 'assistant-message');
@@ -334,13 +345,39 @@ const isAgentReadyEntry = (entry: IClientTabStatusEntry | null, launchStartedAt:
   && entry.lastEvent?.name === 'session-start'
   && entry.lastEvent.at >= launchStartedAt;
 
+const isCodexScreenShowingInput = async (tab: ITab): Promise<boolean> => {
+  if (!(await isAgentProcessRunning(tab).catch(() => false))) return false;
+  const screen = await readTabScreen(tab).catch(() => null);
+  return screen !== null && isCodexTuiReadyContent(screen) && !isCodexBlockingScreen(screen);
+};
+
 export const waitForAgentReady = async (
   tab: ITab,
-  options: { launchStartedAt: number; timeoutMs?: number; pollMs?: number },
+  options: { launchStartedAt: number; timeoutMs?: number; pollMs?: number; settleMs?: number },
 ): Promise<boolean> => {
-  const { launchStartedAt, timeoutMs = AGENT_READY_TIMEOUT_MS, pollMs = AGENT_READY_POLL_MS } = options;
+  const {
+    launchStartedAt,
+    timeoutMs = AGENT_READY_TIMEOUT_MS,
+    pollMs = AGENT_READY_POLL_MS,
+    settleMs = CODEX_TUI_READY_SETTLE_MS,
+  } = options;
   const deadline = Date.now() + timeoutMs;
-  while (!isAgentReadyEntry(await readTabStatusEntry(tab).catch(() => null), launchStartedAt)) {
+  // Codex paints its input box before the hook review covers it, so the box must stay up for settleMs.
+  let inputSince: number | null = null;
+  const isReady = tab.panelType === 'codex'
+    ? async () => {
+      if (!(await isCodexScreenShowingInput(tab))) {
+        inputSince = null;
+        return false;
+      }
+      inputSince ??= Date.now();
+      if (Date.now() - inputSince < settleMs) return false;
+      // The status reconcile can lag the screen; tab send rejects until it leaves inactive.
+      const cliState = await readTabCliState(tab).catch(() => null);
+      return cliState !== null && AGENT_SENDABLE_STATES.has(cliState);
+    }
+    : async () => isAgentReadyEntry(await readTabStatusEntry(tab).catch(() => null), launchStartedAt);
+  while (!(await isReady())) {
     const remaining = deadline - Date.now();
     if (remaining <= 0) return false;
     await sleep(Math.min(pollMs, remaining));

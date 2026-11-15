@@ -23,6 +23,7 @@ export interface ICodexCommandOptions {
   search?: boolean;
   hookConfigs?: string[];
   envPrefix?: string;
+  hookEnvPrefix?: string;
   developerInstructions?: string;
 }
 
@@ -46,7 +47,7 @@ const buildCodexGlobalOptions = (options: ICodexCommandOptions): string[] => {
 
 export const buildCodexLaunchCommand = (options: ICodexCommandOptions = {}): string => {
   const parts = ['codex', ...buildCodexGlobalOptions(options), ...buildCodexOptions(options)];
-  return `${options.envPrefix ?? ''}${parts.join(' ')}`;
+  return `${options.hookEnvPrefix ?? ''}${options.envPrefix ?? ''}${parts.join(' ')}`;
 };
 
 export const buildCodexResumeCommand = (
@@ -57,5 +58,5 @@ export const buildCodexResumeCommand = (
     throw new Error(`Invalid Codex thread ID format: ${threadId}`);
   }
   const parts = ['codex', ...buildCodexGlobalOptions(options), 'resume', threadId, ...buildCodexOptions(options)];
-  return `${options.envPrefix ?? ''}${parts.join(' ')}`;
+  return `${options.hookEnvPrefix ?? ''}${options.envPrefix ?? ''}${parts.join(' ')}`;
 };

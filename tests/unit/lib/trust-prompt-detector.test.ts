@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { describe, expect, it } from 'vitest';
 
 import { createTrustPromptTracker, matchTrustPrompt, trustAnswerKeys } from '@/lib/trust-prompt-detector';
@@ -114,5 +116,60 @@ describe('createTrustPromptTracker', () => {
     tracker.respond('a', 'no');
     expect(tracker.observe('a', '$ ')).toBeNull();
     expect(tracker.observe('a', CLAUDE_SCREEN)).not.toBeNull();
+  });
+});
+
+const folderFixture = (name: string): string =>
+  fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
+
+describe('Codex 0.169 folder access screen', () => {
+  it('reads the folder trust screen', () => {
+    expect(matchTrustPrompt(folderFixture('folder-trust'))).toEqual({
+      agent: 'codex',
+      folderPath: '~/work/demo',
+      options: ['Trust and continue', 'Back to Agent Command Center'],
+      selectedIndex: 0,
+    });
+  });
+
+  it('reads the screen wrapped at 40 columns', () => {
+    const wrapped = [
+      '  Folder access',
+      '  ~/work/a-long-checkout-name',
+      '',
+      '  Trust this folder? Codex can read,',
+      '  edit, and run files here, subject to',
+      '  your permission settings.',
+      '',
+      '› 1. Trust and continue',
+      '  2. Quit',
+      '',
+      '  enter continue · esc quit',
+    ].join('\n');
+    const info = matchTrustPrompt(wrapped);
+    expect(info?.agent).toBe('codex');
+    expect(info?.folderPath).toBe('~/work/a-long-checkout-name');
+    expect(info?.options).toEqual(['Trust and continue', 'Quit']);
+  });
+
+  it('ignores a pasted copy that has the input box below', () => {
+    const quoted = `${folderFixture('folder-trust')}\n› Ask Codex to do anything\n`;
+    expect(matchTrustPrompt(quoted)).toBeNull();
+  });
+
+  it('does not treat the restricted variant as a trust prompt', () => {
+    expect(matchTrustPrompt(folderFixture('folder-restricted'))).toBeNull();
+  });
+
+  it('confirms the new screen with Enter and declines with 2', () => {
+    const info = matchTrustPrompt(folderFixture('folder-trust'))!;
+    expect(trustAnswerKeys(info, 'yes')).toBe('1\r');
+    expect(trustAnswerKeys(info, 'no')).toBe('2');
+  });
+
+  it('keeps the old screen keys', () => {
+    const info = matchTrustPrompt(CODEX_SCREEN)!;
+    expect(trustAnswerKeys(info, 'yes')).toBe('1');
+    expect(trustAnswerKeys(info, 'no')).toBe('2');
   });
 });

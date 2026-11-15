@@ -48,4 +48,18 @@ describe('shell-env TMUX_TMPDIR inheritance', () => {
     expect(env.TMUX_TMPDIR).toBeUndefined();
     expect(launchCmd).not.toContain('TMUX_TMPDIR=');
   });
+
+  it('passes CODEX_HOME to the tab shell when present in PRISTINE_ENV', async () => {
+    process.env.__CMUX_PRISTINE_ENV = JSON.stringify({
+      HOME: '/tmp/test-home',
+      PATH: '/usr/bin:/bin',
+      SHELL: '/bin/bash',
+      CODEX_HOME: '/tmp/isolated-codex-home',
+    });
+
+    const { buildShellEnv, buildShellLaunchCommand } = await import('@/lib/shell-env');
+
+    expect(buildShellEnv().CODEX_HOME).toBe('/tmp/isolated-codex-home');
+    expect(buildShellLaunchCommand()).toContain("CODEX_HOME='/tmp/isolated-codex-home'");
+  });
 });

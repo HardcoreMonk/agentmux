@@ -1,0 +1,214 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  codexHooksReviewKeys,
+  codexUpdateAnswerKeys,
+  type TCodexHooksAnswer,
+  type TCodexUpdateAnswer,
+} from '@/lib/codex-screen';
+import {
+  CODEX_TUI_READY_TIMEOUT_MS,
+  createCodexScreenTracker,
+  type ICodexScreenSnapshot,
+} from '@/lib/codex-screen-tracker';
+
+const DEBOUNCE_MS = 200;
+
+const EMPTY_SNAPSHOT: ICodexScreenSnapshot = { hooksReview: null, updatePrompt: null, blocking: false, tuiReady: false };
+
+interface IUseCodexScreenDetectorOptions {
+  enabled: boolean;
+  // Include the launch counter so a relaunch in the same tab starts a new scope.
+  scopeKey: string | null;
+  // The agent process was started after this screen opened, so the TUI is not ready yet.
+  starting: boolean;
+  getBufferText: () => string;
+  sendStdin: (data: string) => void;
+}
+
+interface IUseCodexScreenDetectorReturn {
+  snapshot: ICodexScreenSnapshot;
+  // Unknown or failed lookups count as trusted so the trust button stays hidden.
+  fingerprintTrusted: boolean;
+  onTerminalData: () => void;
+  respondHooks: (answer: TCodexHooksAnswer) => void;
+  respondUpdate: (answer: TCodexUpdateAnswer) => void;
+}
+
+interface IDetected {
+  scopeKey: string;
+  snapshot: ICodexScreenSnapshot;
+}
+
+const isSame = (a: IDetected | null, b: IDetected | null): boolean =>
+  a?.scopeKey === b?.scopeKey && JSON.stringify(a?.snapshot) === JSON.stringify(b?.snapshot);
+
+const useCodexScreenDetector = ({
+  enabled,
+  scopeKey,
+  starting,
+  getBufferText,
+  sendStdin,
+}: IUseCodexScreenDetectorOptions): IUseCodexScreenDetectorReturn => {
+  const [detected, setDetected] = useState<IDetected | null>(null);
+  const [seen, setSeen] = useState({ enabled, scopeKey });
+  if (seen.enabled !== enabled || seen.scopeKey !== scopeKey) {
+    setSeen({ enabled, scopeKey });
+    setDetected(null);
+  }
+  const [tracker] = useState(() => createCodexScreenTracker({ now: () => Date.now() }));
+  const enabledRef = useRef(enabled);
+  const scopeKeyRef = useRef(scopeKey);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const settleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const getBufferTextRef = useRef(getBufferText);
+  const detectedRef = useRef<IDetected | null>(null);
+
+  // The input box must stay up before a starting scope is ready; read the screen again when that is due,
+  // because a quiet screen sends no data to trigger the read.
+  const scheduleSettleCheck = useCallback((key: string) => {
+    const schedule = (): void => {
+      if (settleRef.current) {
+        clearTimeout(settleRef.current);
+        settleRef.current = null;
+      }
+      const at = tracker.nextCheckAt(key);
+      if (at === null) return;
+      settleRef.current = setTimeout(() => {
+        settleRef.current = null;
+        if (!enabledRef.current || scopeKeyRef.current !== key) return;
+        const next = { scopeKey: key, snapshot: tracker.tick(key, getBufferTextRef.current()) };
+        setDetected((prev) => (isSame(prev, next) ? prev : next));
+        schedule();
+      }, Math.max(0, at - Date.now()));
+    };
+    schedule();
+  }, [tracker]);
+
+  useEffect(() => {
+    getBufferTextRef.current = getBufferText;
+  }, [getBufferText]);
+
+  useEffect(() => {
+    detectedRef.current = detected;
+  }, [detected]);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+    scopeKeyRef.current = scopeKey;
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (settleRef.current) {
+      clearTimeout(settleRef.current);
+      settleRef.current = null;
+    }
+    if (scopeKey === null) return;
+    tracker.startScope(scopeKey, starting);
+    if (!enabled) return;
+    // Read the screen that is already there: an idle session that was reloaded repaints before this scope
+    // opens and may send no further data. The read waits one debounce so the terminal reset of a tab switch
+    // has run first; reading now would show the previous tab's buffer (and its card) for this scope.
+    const firstRead = setTimeout(() => {
+      const first = { scopeKey, snapshot: tracker.observe(scopeKey, getBufferTextRef.current()) };
+      setDetected((prev) => (isSame(prev, first) ? prev : first));
+      scheduleSettleCheck(scopeKey);
+    }, DEBOUNCE_MS);
+    if (!starting) return () => clearTimeout(firstRead);
+    // A silent screen still has to leave the starting state, so the time limit reads the buffer itself.
+    const readyTimer = setTimeout(() => {
+      const next = { scopeKey, snapshot: tracker.tick(scopeKey, getBufferTextRef.current()) };
+      setDetected((prev) => (isSame(prev, next) ? prev : next));
+      scheduleSettleCheck(scopeKey);
+    }, CODEX_TUI_READY_TIMEOUT_MS);
+    return () => {
+      clearTimeout(firstRead);
+      clearTimeout(readyTimer);
+      if (settleRef.current) {
+        clearTimeout(settleRef.current);
+        settleRef.current = null;
+      }
+    };
+  }, [enabled, scopeKey, starting, tracker, scheduleSettleCheck]);
+
+  useEffect(() => () => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    if (settleRef.current) {
+      clearTimeout(settleRef.current);
+      settleRef.current = null;
+    }
+  }, []);
+
+  const onTerminalData = useCallback(() => {
+    if (!enabledRef.current || debounceRef.current) return;
+    debounceRef.current = setTimeout(() => {
+      debounceRef.current = null;
+      const key = scopeKeyRef.current;
+      if (!enabledRef.current || key === null) return;
+      const next = { scopeKey: key, snapshot: tracker.observe(key, getBufferTextRef.current()) };
+      setDetected((prev) => (isSame(prev, next) ? prev : next));
+      scheduleSettleCheck(key);
+    }, DEBOUNCE_MS);
+  }, [tracker, scheduleSettleCheck]);
+
+  const hide = useCallback((key: 'hooksReview' | 'updatePrompt') => {
+    setDetected((prev) => (prev ? { ...prev, snapshot: { ...prev.snapshot, [key]: null } } : prev));
+  }, []);
+
+  const respondHooks = useCallback((answer: TCodexHooksAnswer) => {
+    const key = scopeKeyRef.current;
+    const info = detectedRef.current?.snapshot.hooksReview;
+    if (key === null || !info) return;
+    const keys = codexHooksReviewKeys(info, answer);
+    if (keys === null) return;
+    tracker.markResponded(key);
+    hide('hooksReview');
+    sendStdin(keys);
+  }, [tracker, hide, sendStdin]);
+
+  const respondUpdate = useCallback((answer: TCodexUpdateAnswer) => {
+    const key = scopeKeyRef.current;
+    if (key === null || !detectedRef.current?.snapshot.updatePrompt) return;
+    tracker.markResponded(key);
+    hide('updatePrompt');
+    sendStdin(codexUpdateAnswerKeys(answer));
+  }, [tracker, hide, sendStdin]);
+
+  const active = enabled && detected !== null && detected.scopeKey === scopeKey;
+  // Before the first screen is read, a screen that opened on a running session is ready and a launch is not.
+  const snapshot = active
+    ? detected.snapshot
+    : enabled && scopeKey !== null
+      ? { ...EMPTY_SNAPSHOT, tuiReady: !starting }
+      : EMPTY_SNAPSHOT;
+
+  const reviewVisible = snapshot.hooksReview !== null;
+  const [seenVisible, setSeenVisible] = useState(reviewVisible);
+  const [fingerprint, setFingerprint] = useState<boolean | null>(null);
+  if (seenVisible !== reviewVisible) {
+    setSeenVisible(reviewVisible);
+    setFingerprint(null);
+  }
+
+  useEffect(() => {
+    if (!reviewVisible || fingerprint !== null) return;
+    let cancelled = false;
+    fetch('/api/status/codex-hook-trust')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { trusted?: unknown } | null) => (typeof data?.trusted === 'boolean' ? data.trusted : true))
+      .catch(() => true)
+      .then((trusted) => {
+        if (!cancelled) setFingerprint(trusted);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reviewVisible, fingerprint]);
+
+  return { snapshot, fingerprintTrusted: fingerprint ?? true, onTerminalData, respondHooks, respondUpdate };
+};
+
+export default useCodexScreenDetector;

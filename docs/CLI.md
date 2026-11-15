@@ -38,7 +38,7 @@
 
 Shim과 안내 파일은 server 시작 때 auto-resume 전에 쓰고, 이후 agent를 띄울 때마다 내용이 바뀐 경우에만 다시 씁니다. Claude 안내 파일이 없으면 flag를 빼고 log에 warning을 남깁니다. 안내 문장에는 workspace id와 탭 id를 넣지 않고 환경 변수로만 전달합니다.
 
-설정을 끄면 실행 명령은 이전과 byte 단위로 같습니다(환경 변수, 안내, `permissions.allow` 모두 없음). agentmux 밖에서 돈 Claude Code·Codex에는 아무것도 붙지 않습니다.
+설정을 끄면 위임 관련 값(위임 환경 변수, 안내, `permissions.allow`)이 붙지 않습니다. Codex hook 환경 변수는 상태 표시용으로 늘 붙습니다. agentmux 밖에서 돈 Claude Code·Codex에는 아무것도 붙지 않습니다.
 
 ### Claude Code
 
@@ -65,6 +65,8 @@ Bash(agentmux tab close:*)
 - cwd를 알 수 없음
 - 합친 명령이 12,288 byte를 넘음(tmux 한 인자 한도 때문)
 
+Codex 위임은 hook trust 뒤에 동작합니다. agentmux가 띄운 Codex는 처음 한 번 "Hooks need review" 화면을 띄우고, 사용자가 그 화면이나 웹 카드("모두 trust하고 계속")에서 trust하면 이후 탭에서는 뜨지 않습니다. Hook 명령이 탭과 무관하게 고정이기 때문입니다(탭 값은 환경 변수로 전달, ADR-038). Node 경로나 data dir가 바뀌면 검토 화면이 한 번 더 뜹니다. 위임 CLI는 이 화면(과 update 안내, folder trust 화면)에 입력하지 않으며 대상이 `target-not-ready`가 됩니다. 개발용 격리 server는 사용자 Codex trust 기록을 건드리지 않도록 격리 `CODEX_HOME`을 씁니다.
+
 한계 두 가지:
 
 - Codex `workspace-write` sandbox는 local network를 막으므로 이 sandbox에서는 위임이 동작하지 않습니다.
@@ -80,7 +82,7 @@ Bash(agentmux tab close:*)
 - cwd: `--cwd`(존재하는 directory, 아니면 400 `invalid-cwd`), 없으면 호출 탭의 현재 cwd. CLI는 상대 경로(`.`, `../other`)를 현재 directory 기준 절대 경로로 바꿔 보냅니다. HTTP API는 절대 경로만 받습니다.
 - active 탭은 바뀌지 않고 `createdByTabId`가 기록됩니다.
 - workspace당 agent가 만든 탭은 6개까지이며 넘으면 409 `delegation-limit`입니다. 확인과 생성은 workspace별 lock 안에서 합니다.
-- `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. 띄우기가 실패하면 201에 `ready: false`와 `launchError`(실패 이유 code, 띄우기가 예외로 끝나면 `launch-failed`)를 돌려줍니다. 탭은 남아 있으므로 돌려받은 `tabId`로 닫을 수 있습니다.
+- `-t claude`/`-t codex`: preflight를 먼저 하고(agent가 없으면 409 `agent-unavailable`) 탭을 만든 뒤 agent를 띄웁니다. Claude 탭은 그 launch의 `session-start` hook으로 `idle`이 될 때까지 최대 60초 기다려 `ready`를 돌려줍니다. Codex 탭의 `ready`는 화면 기준입니다(agent process 실행 + 입력창이 보임 + 차단 화면 없음). 입력창이 2초 동안 유지되어야 준비입니다(Codex는 검토 화면 전에 입력창을 잠깐 그립니다). Codex는 SessionStart hook을 첫 turn에 실행하므로 `session-start`로는 첫 prompt 전 준비를 알 수 없습니다. 띄우기가 실패하면 201에 `ready: false`와 `launchError`(실패 이유 code, 띄우기가 예외로 끝나면 `launch-failed`)를 돌려줍니다. 탭은 남아 있으므로 돌려받은 `tabId`로 닫을 수 있습니다.
 - 호출 탭이 없는 탭 id이면 404 `caller-tab-not-found`(create, send, close).
 - `-t terminal`도 만들 수 있지만 agent 호출은 그 탭에 `tab send`를 할 수 없습니다(아래 tab send).
 

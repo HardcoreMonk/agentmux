@@ -20,9 +20,18 @@ const isPathInside = (filePath: string, rootPath: string): boolean => {
   return relative.length > 0 && !relative.startsWith('..') && !pathApi.isAbsolute(relative);
 };
 
-export const getCodexSessionsDir = (homeDir = os.homedir()): string => {
+// Codex's own home: CODEX_HOME when set (tabs inherit it), otherwise <home>/.codex.
+export const getCodexHomeDir = (homeDir = os.homedir()): string => {
+  const codexHome = process.env.CODEX_HOME?.trim();
+  if (codexHome) return codexHome;
   const pathApi = WINDOWS_ABSOLUTE_RE.test(homeDir) ? path.win32 : path;
-  return pathApi.join(homeDir, '.codex', 'sessions');
+  return pathApi.join(homeDir, '.codex');
+};
+
+export const getCodexSessionsDir = (homeDir = os.homedir()): string => {
+  const codexHome = getCodexHomeDir(homeDir);
+  const pathApi = WINDOWS_ABSOLUTE_RE.test(codexHome) ? path.win32 : path;
+  return pathApi.join(codexHome, 'sessions');
 };
 
 export const getClaudeProjectsDir = (homeDir = os.homedir()): string => {

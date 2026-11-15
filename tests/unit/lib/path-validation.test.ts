@@ -79,3 +79,38 @@ describe('isJsonlPathUnderRoots', () => {
     expect(isJsonlPathUnderRoots('/home/test/.codex/sessions/a.jsonl', [])).toBe(false);
   });
 });
+
+describe('getCodexHomeDir', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('falls back to <home>/.codex when CODEX_HOME is unset or empty', async () => {
+    const { getCodexHomeDir } = await import('@/lib/path-validation');
+
+    vi.stubEnv('CODEX_HOME', '');
+    expect(getCodexHomeDir('/tmp/h')).toBe(path.join('/tmp/h', '.codex'));
+    expect(getCodexHomeDir('C:\\Users\\yohan')).toBe('C:\\Users\\yohan\\.codex');
+  });
+
+  it('uses CODEX_HOME when set', async () => {
+    vi.stubEnv('CODEX_HOME', '/tmp/isolated-codex');
+    const { getCodexHomeDir } = await import('@/lib/path-validation');
+
+    expect(getCodexHomeDir('/tmp/h')).toBe('/tmp/isolated-codex');
+    expect(getCodexHomeDir()).toBe('/tmp/isolated-codex');
+  });
+
+  it('makes getCodexSessionsDir and Codex JSONL validation follow CODEX_HOME', async () => {
+    vi.stubEnv('CODEX_HOME', '/tmp/isolated-codex');
+    const { getCodexSessionsDir, isAllowedJsonlPath } = await import('@/lib/path-validation');
+
+    expect(getCodexSessionsDir('/tmp/h')).toBe('/tmp/isolated-codex/sessions');
+    expect(isAllowedJsonlPath('/tmp/isolated-codex/sessions/2026/11/15/s.jsonl', { homeDir: '/tmp/h' })).toBe(true);
+    expect(isAllowedJsonlPath('/tmp/h/.codex/sessions/2026/11/15/s.jsonl', { homeDir: '/tmp/h' })).toBe(false);
+  });
+});

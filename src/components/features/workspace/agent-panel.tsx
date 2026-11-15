@@ -32,6 +32,8 @@ interface IAgentPanelProps {
   cwd?: string;
   // The parent draws the trust card; the panel only hides its boot progress while it is up.
   trustPromptVisible?: boolean;
+  // False while Codex is still starting or on a blocking screen; keeps the wait display up.
+  agentInputReady?: boolean;
   className?: string;
   onClose?: () => void;
   onNewSession?: () => void;
@@ -49,6 +51,7 @@ const AgentPanel = ({
   panelType = DEFAULT_AGENT_PANEL_TYPE,
   cwd,
   trustPromptVisible = false,
+  agentInputReady = true,
   className,
   onClose,
   onNewSession,
@@ -203,6 +206,7 @@ const AgentPanel = ({
     startingPrompt: !!startingPromptOptions && !bypassPrompt,
     cliState: storeCliState,
     elapsedMs: bootElapsedMs,
+    agentInputReady,
   });
 
   const isHeaderLoading = agentProcess === null || (entries.length === 0 && isTimelineLoading);

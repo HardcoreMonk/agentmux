@@ -70,6 +70,19 @@ describe('stats agent JSONL Claude transcripts', () => {
     await fs.rm(tempHome, { recursive: true, force: true });
   });
 
+  it('reads Codex sessions from CODEX_HOME when it is set', async () => {
+    const codexHome = path.join(tempHome, 'isolated-codex');
+    vi.stubEnv('CODEX_HOME', codexHome);
+    const dir = path.join(codexHome, 'sessions', '2026', '03', '01');
+    await fs.mkdir(dir, { recursive: true });
+    const codexFile = path.join(dir, `rollout-2026-03-01T10-00-00-${SESSION_NEW}.jsonl`);
+    await fs.writeFile(codexFile, '', 'utf-8');
+
+    const { collectAgentJsonlFiles } = await import('@/lib/stats/agent-jsonl-files');
+
+    expect(await collectAgentJsonlFiles()).toContainEqual({ filePath: codexFile, source: 'codex', project: '' });
+  });
+
   it('collects Claude session transcripts and skips agent, subagent and non-session files', async () => {
     const transcript = await writeClaude(`-work-app/${SESSION_OLD}.jsonl`, [prompt('2026-03-01T10:00:00.000Z')]);
     await writeClaude('-work-app/agent-1a2b3c4d.jsonl', [prompt('2026-03-01T10:00:00.000Z')]);

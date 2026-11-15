@@ -63,6 +63,13 @@ describe('codex command helpers', () => {
     expect(buildCodexResumeCommand(threadId, { envPrefix })).toBe(`${envPrefix}codex resume ${threadId}`);
   });
 
+  it('puts the hook env prefix before the delegation env prefix', () => {
+    const hookEnvPrefix = `AMUX_HOOK_SESSION='s' AMUX_HOOK_CAPABILITY='c' `;
+    const envPrefix = `AMUX_TAB_ID='t' `;
+    expect(buildCodexLaunchCommand({ hookEnvPrefix, envPrefix })).toBe(`${hookEnvPrefix}${envPrefix}codex`);
+    expect(buildCodexResumeCommand(threadId, { hookEnvPrefix })).toBe(`${hookEnvPrefix}codex resume ${threadId}`);
+  });
+
   it('rejects invalid resume ids', () => {
     expect(() => buildCodexResumeCommand('last')).toThrow(/Invalid Codex thread ID/);
   });

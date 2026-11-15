@@ -1,3 +1,4 @@
+import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -440,6 +441,54 @@ describe('readLastAssistantMessage', () => {
     expect(result?.text).toBe('Done.');
   });
 
+  describe('Codex tab the UI never opened', () => {
+    const THREAD_ID = '019e1111-2222-7333-8444-555555555555';
+    const codexTab = (extra: Partial<ITab> = {}) => agentTab({ panelType: 'codex', cwd: '/repo', ...extra });
+    const entry = (agentSessionId: string) => ({ 'tab-a': { cliState: 'ready-for-review', agentSessionId, lastEvent: null } });
+    const rollout = () => writeJsonl('rollout.jsonl', [
+      { type: 'event_msg', timestamp: '2026-11-11T00:00:02.000Z', payload: { type: 'agent_message', message: 'OK', phase: 'final' } },
+    ]);
+
+    it('resolves the JSONL from the status entry session (legacy status)', async () => {
+      mocks.statusManager.getAllForClient.mockReturnValue(entry(THREAD_ID));
+      const resolve = vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath').mockResolvedValue(await rollout());
+
+      await expect(readLastAssistantMessage(codexTab())).resolves.toMatchObject({ text: 'OK' });
+      expect(resolve).toHaveBeenCalledWith(THREAD_ID, '/repo');
+    });
+
+    it('resolves the JSONL from the status entry session (v2 live status)', async () => {
+      vi.stubEnv('AGENTMUX_RUNTIME_STATUS_V2_MODE', 'default');
+      mocks.supervisor.requestStatusLiveSync.mockResolvedValue({ tabs: entry(THREAD_ID) });
+      vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath').mockResolvedValue(await rollout());
+
+      await expect(readLastAssistantMessage(codexTab())).resolves.toMatchObject({ text: 'OK' });
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+    });
+
+    it('prefers the layout session id and does not read the status entry', async () => {
+      const resolve = vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath').mockResolvedValue(await rollout());
+
+      await readLastAssistantMessage(codexTab({ agentSessionId: THREAD_ID }));
+
+      expect(resolve).toHaveBeenCalledWith(THREAD_ID, '/repo');
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+    });
+
+    it('prefers the layout JSONL path and does not read the status entry', async () => {
+      await expect(readLastAssistantMessage(codexTab({ agentJsonlPath: await rollout() }))).resolves.toMatchObject({ text: 'OK' });
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+    });
+
+    it('ignores a status entry session id that is not a Codex thread id', async () => {
+      mocks.statusManager.getAllForClient.mockReturnValue(entry('not-a-thread'));
+      const resolve = vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath');
+
+      await expect(readLastAssistantMessage(codexTab())).resolves.toBeNull();
+      expect(resolve).not.toHaveBeenCalled();
+    });
+  });
+
   it('returns null when the JSONL file does not exist', async () => {
     await expect(readLastAssistantMessage(agentTab({ agentJsonlPath: path.join(dir, 'missing.jsonl') }))).resolves.toBeNull();
     await expect(readLastAssistantMessage(agentTab())).resolves.toBeNull();
@@ -475,6 +524,93 @@ describe('waitForAgentReady', () => {
     });
 
     await expect(waitForAgentReady(agentTab(), { launchStartedAt, timeoutMs: 50, pollMs: 10 })).resolves.toBe(false);
+  });
+});
+
+describe('waitForAgentReady for Codex', () => {
+  const launchStartedAt = 1_000_000;
+  const screen = (name: string): string =>
+    fsSync.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
+  const codexTab = () => agentTab({ panelType: 'codex' });
+  const wait = () => waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs: 50, pollMs: 10, settleMs: 0 });
+  const waitSettled = (timeoutMs: number) =>
+    waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs, pollMs: 10, settleMs: 30 });
+
+  beforeEach(() => {
+    mocks.getSessionPanePid.mockResolvedValue(4242);
+    vi.spyOn(getProviderByPanelType('codex')!, 'isAgentRunning').mockResolvedValue(true);
+    mocks.statusManager.getAllForClient.mockReturnValue({ 'tab-a': { cliState: 'busy', lastEvent: null } });
+  });
+
+  it('is ready when the process runs and the TUI input box is shown, without a session-start entry', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+
+    await expect(wait()).resolves.toBe(true);
+  });
+
+  it('stays not ready while the status is inactive even though the screen is ready, then is ready once busy', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+    mocks.statusManager.getAllForClient
+      .mockReturnValueOnce({ 'tab-a': { cliState: 'inactive', lastEvent: null } })
+      .mockReturnValueOnce({ 'tab-a': { cliState: 'inactive', lastEvent: null } })
+      .mockReturnValue({ 'tab-a': { cliState: 'busy', lastEvent: null } });
+
+    await expect(waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs: 500, pollMs: 10, settleMs: 0 })).resolves.toBe(true);
+    expect(mocks.statusManager.getAllForClient).toHaveBeenCalledTimes(3);
+  });
+
+  it('times out when the status stays inactive', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+    mocks.statusManager.getAllForClient.mockReturnValue({ 'tab-a': { cliState: 'inactive', lastEvent: null } });
+
+    await expect(wait()).resolves.toBe(false);
+  });
+
+  it('times out while the hook review is shown', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('hooks-review'));
+
+    await expect(wait()).resolves.toBe(false);
+  });
+
+  it('is ready once the input box has stayed up for the settle time', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+
+    await expect(waitSettled(500)).resolves.toBe(true);
+  });
+
+  it('is not ready when the input box is replaced by the hook review after two polls', async () => {
+    mocks.capturePaneContent
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValue(screen('hooks-review'));
+
+    await expect(waitSettled(150)).resolves.toBe(false);
+  });
+
+  it('counts the settle time again from the last ready screen after a gap', async () => {
+    mocks.capturePaneContent
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValueOnce(screen('tui-ready'))
+      .mockResolvedValueOnce(screen('hooks-review'))
+      .mockResolvedValue(screen('tui-ready'));
+    const startedAt = Date.now();
+
+    await expect(waitSettled(1000)).resolves.toBe(true);
+    // Three polls (30ms) before the gap would already satisfy a settle that was not reset.
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(50);
+  });
+
+  it('is not ready when only a shell prompt runs', async () => {
+    vi.spyOn(getProviderByPanelType('codex')!, 'isAgentRunning').mockResolvedValue(false);
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+
+    await expect(wait()).resolves.toBe(false);
+  });
+
+  it('is not ready when the screen cannot be read', async () => {
+    mocks.capturePaneContent.mockResolvedValue(null);
+
+    await expect(wait()).resolves.toBe(false);
   });
 });
 

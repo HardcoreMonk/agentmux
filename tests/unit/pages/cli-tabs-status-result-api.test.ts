@@ -18,8 +18,10 @@ const mocks = vi.hoisted(() => {
     getProviderByPanelType: vi.fn(),
     isTabSessionAlive: vi.fn(),
     readTabCliState: vi.fn(),
+    readTabStatusEntry: vi.fn(),
     readTabScreen: vi.fn(),
     readLastAssistantMessage: vi.fn(),
+    entrySessionId: null as string | null,
     supervisor,
     getRuntimeSupervisor: vi.fn(() => supervisor),
   };
@@ -47,6 +49,7 @@ vi.mock('@/lib/workspace-tab-service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/workspace-tab-service')>()),
   isTabSessionAlive: mocks.isTabSessionAlive,
   readTabCliState: mocks.readTabCliState,
+  readTabStatusEntry: mocks.readTabStatusEntry,
   readTabScreen: mocks.readTabScreen,
   readLastAssistantMessage: mocks.readLastAssistantMessage,
 }));
@@ -131,15 +134,23 @@ beforeEach(() => {
   mocks.getWorkspaceById.mockImplementation(async (id: string) =>
     id === 'ws-a' ? { id: 'ws-a', name: 'A', directories: ['/repo'] } : null);
   mocks.getProviderByPanelType.mockImplementation((panelType: string) =>
-    panelType === 'claude' || panelType === 'codex' ? { id: panelType } : null);
+    panelType === 'claude' || panelType === 'codex'
+      ? { id: panelType, isValidSessionId: (id: unknown) => typeof id === 'string' && /^[0-9a-f-]{36}$/.test(id) }
+      : null);
   mocks.isTabSessionAlive.mockResolvedValue(true);
   mocks.readTabCliState.mockResolvedValue('ready-for-review');
+  // The status route reads cliState from the same entry; keep the existing readTabCliState cases meaningful.
+  mocks.readTabStatusEntry.mockImplementation(async () => ({
+    cliState: await mocks.readTabCliState(),
+    agentSessionId: mocks.entrySessionId,
+  }));
   mocks.getPaneCurrentCommand.mockResolvedValue('claude');
   mocks.readTabScreen.mockResolvedValue('screen text');
   mocks.readLastAssistantMessage.mockResolvedValue({ text: 'Done. Tests pass.', timestamp: 1_762_000_000_000 });
 });
 
 afterEach(() => {
+  mocks.entrySessionId = null;
   vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
@@ -161,6 +172,26 @@ describe('GET /api/cli/tabs/<id>/status', () => {
       createdByTabId: 'tab-caller',
     });
     expect(mocks.getPaneCurrentCommand).toHaveBeenCalledWith('pt-tab-claude');
+  });
+
+  it('falls back to the status entry session for a Codex tab the layout has no session for', async () => {
+    mocks.getLayout.mockResolvedValue({
+      ...LAYOUT,
+      root: { ...LAYOUT.root, tabs: [makeTab('tab-codex', { panelType: 'codex', runtimeVersion: 1 })] },
+    });
+    mocks.entrySessionId = '019e1111-2222-7333-8444-555555555555';
+
+    const response = await call(statusHandler, 'tab-codex');
+
+    expect(response.body).toMatchObject({ providerId: 'codex', agentSessionId: '019e1111-2222-7333-8444-555555555555' });
+  });
+
+  it('prefers the layout session id over the status entry', async () => {
+    mocks.entrySessionId = '019e1111-2222-7333-8444-555555555555';
+
+    const response = await call(statusHandler, 'tab-claude');
+
+    expect(response.body).toMatchObject({ agentSessionId: '11111111-2222-4333-8444-555555555555' });
   });
 
   it('returns a null provider and creator for a user terminal tab', async () => {

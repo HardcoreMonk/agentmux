@@ -7,17 +7,15 @@ import { isAgentPanelType } from '@/lib/panel-type';
 import { hasPermissionPrompt } from '@/lib/permission-prompt';
 import { matchAgentStartupScreen } from '@/lib/agent-startup-screen';
 import {
+  AGENT_SENDABLE_STATES,
   isAgentProcessRunning,
   isTabSessionAlive,
   readTabCliState,
   readTabScreen,
   writeTabInput,
 } from '@/lib/workspace-tab-service';
-import type { TCliState } from '@/types/timeline';
 
 const log = createLogger('api:cli:tabs');
-
-const SENDABLE_STATES = new Set<TCliState>(['idle', 'busy', 'ready-for-review']);
 
 const STARTUP_SCREEN_LABELS = {
   trust: 'folder trust',
@@ -71,7 +69,7 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (cliState === 'needs-input') {
       return sendCliError(res, 409, 'target-needs-input', 'The target agent is waiting for the user to answer a prompt');
     }
-    if (!cliState || !SENDABLE_STATES.has(cliState)) {
+    if (!cliState || !AGENT_SENDABLE_STATES.has(cliState)) {
       return sendCliError(res, 409, 'target-not-ready', `The target agent is not ready (state: ${cliState ?? 'unknown'})`);
     }
     if (!(await isAgentProcessRunning(tab))) {

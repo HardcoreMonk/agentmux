@@ -97,7 +97,7 @@ Server Codex provider는 다음 session override를 각각 `-c`로 전달합니�
 - `hooks.UserPromptSubmit`
 - `hooks.Stop`
 
-각 handler는 POSIX `command`와 Windows `commandWindows`, 3초 timeout, async 실행을 선언하고 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출합니다. Packaged Electron executable을 Node runtime으로 재사용할 때도 script가 실행되도록 `ELECTRON_RUN_AS_NODE=1`을 명시합니다. Bridge는 tab/session/expiry HMAC capability와 CLI token을 loopback hook API에 전달하며, timeout이나 서버 부재가 Codex action을 막지 않도록 항상 성공 종료합니다.
+각 handler는 POSIX `command`와 Windows `commandWindows`, 3초 timeout, async 실행을 선언하고 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출합니다. Packaged Electron executable을 Node runtime으로 재사용할 때도 script가 실행되도록 `ELECTRON_RUN_AS_NODE=1`을 명시합니다. Bridge는 tab/session/expiry HMAC capability와 CLI token을 loopback hook API에 전달하며, timeout이나 서버 부재가 Codex action을 막지 않도록 항상 성공 종료합니다. Hook 명령은 탭과 무관하게 고정(`ELECTRON_RUN_AS_NODE=1 '<node>' '<dataDir>/status-hook.cjs' '<event>'`)이고, 탭 값은 실행 명령 앞의 환경 변수 `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`로 넘깁니다. Bridge는 인자가 비어 있으면 이 환경 변수를 씁니다. 명령이 같으므로 Codex hook 검토 화면에서 한 번 한 trust가 유지됩니다(ADR-038).
 
 User/project/managed/plugin hook은 Codex native layer discovery를 그대로 사용합니다. agentmux는 사용자 config를 읽거나 병합하지 않으며 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)에는 빈 `hooks`와 statusline 호환 설정만 생성합니다.
 
@@ -196,6 +196,8 @@ Claude Code 감지는 `src/lib/providers/claude/session-detection.ts`의 `isClau
 directory의 최신 JSONL 순으로 찾습니다(`STATUS.md` "Session 다시 묶기").
 
 Windows path에서는 Windows process inspector와 local `.codex/sessions` JSONL mapping smoke를 기준으로 삼습니다.
+
+탭 shell은 `env -i`로 뜨며 `src/lib/shell-env.ts`의 허용 목록(`HOME`, `PATH`, `TMUX_TMPDIR`, `LANG`, `LC_*`, `CODEX_HOME` 등)만 상속합니다. server에 `CODEX_HOME`을 주면 탭의 Codex도 같은 위치를 쓰고, agentmux도 `getCodexHomeDir()`(`src/lib/path-validation.ts`)로 같은 위치(`CODEX_HOME`, 없으면 `~/.codex`)에서 Codex session을 읽습니다.
 
 ## 타임라인 WebSocket
 

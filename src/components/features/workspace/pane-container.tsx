@@ -18,9 +18,14 @@ import { useShallow } from 'zustand/react/shallow';
 import TerminalContainer from '@/components/features/workspace/terminal-container';
 import AgentPanel from '@/components/features/workspace/agent-panel';
 import TrustPromptCard from '@/components/features/workspace/trust-prompt-card';
+import CodexHooksReviewCard from '@/components/features/workspace/codex-hooks-review-card';
+import CodexUpdateCard from '@/components/features/workspace/codex-update-card';
 import AgentViewPrompt from '@/components/features/workspace/agent-view-prompt';
 import { acceptAgentViewPrompt, agentViewPromptRegistry, shouldOfferAgentView } from '@/lib/agent-view-prompt-state';
 import useTrustPromptDetector from '@/hooks/use-trust-prompt-detector';
+import useCodexScreenDetector from '@/hooks/use-codex-screen-detector';
+import useCodexLaunch from '@/hooks/use-codex-launch';
+import { CODEX_SESSION_HOOK_COUNT } from '@/lib/codex-session-hook-spec';
 import WebInputBar from '@/components/features/workspace/web-input-bar';
 import QuickPromptBar from '@/components/features/workspace/quick-prompt-bar';
 import ConnectionStatus from '@/components/features/workspace/connection-status';
@@ -428,17 +433,36 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   }, [paneId, switchTabInPane, deleteTabInPane, closePane]);
 
   const trustDataRef = useRef<() => void>(() => {});
-  // trust 화면은 agent가 아직 뜨지 않았거나(inactive/unknown) 세션 확인 중(check)일 때만 나온다
+  // Claude trust 화면은 agent가 아직 뜨지 않았거나(inactive/unknown) 세션 확인 중(check)일 때만 나온다.
+  // Codex는 폴더 확인 화면 동안 busy라서 상태와 무관하게 켠다.
   const trustPromptEnabled = isAgentPanel
-    && (agentCliState === 'inactive' || agentCliState === 'unknown' || sessionView === 'check');
+    && (activePanelType === 'codex' || agentCliState === 'inactive' || agentCliState === 'unknown' || sessionView === 'check');
   const { trustPrompt, onTerminalData: onTrustTerminalData, onTrustResponse } = useTrustPromptDetector({
     enabled: trustPromptEnabled,
     scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}` : null,
     getBufferText,
     sendStdin: (data) => wsActionsRef.current.sendStdin(data),
   });
+  const { launchKey: codexLaunchKey, starting: codexStarting } = useCodexLaunch(activeTabId, agentProcess);
+  const codexScreenDataRef = useRef<() => void>(() => {});
+  const {
+    snapshot: codexScreen,
+    fingerprintTrusted: codexFingerprintTrusted,
+    onTerminalData: onCodexScreenData,
+    respondHooks: respondCodexHooks,
+    respondUpdate: respondCodexUpdate,
+  } = useCodexScreenDetector({
+    enabled: activePanelType === 'codex',
+    scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}:${codexLaunchKey}` : null,
+    starting: codexStarting,
+    getBufferText,
+    sendStdin: (data) => wsActionsRef.current.sendStdin(data),
+  });
+  // Only a Codex tab is gated; the web input and the boot display of other agents stay as they were.
+  const codexInputReady = activePanelType !== 'codex' || codexScreen.tuiReady;
   useEffect(() => {
     trustDataRef.current = onTrustTerminalData;
+    codexScreenDataRef.current = onCodexScreenData;
   });
 
   const {
@@ -455,6 +479,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     onData: (data) => {
       termActionsRef.current.write(data);
       trustDataRef.current();
+      codexScreenDataRef.current();
     },
     onConnected: () => {
       setHasEverConnected(true);
@@ -766,6 +791,12 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     sendStdin(`${(getAgentProviderMeta(activePanelType) ?? AGENT_PROVIDER_META[DEFAULT_AGENT_PANEL_TYPE]).exitCommand}\r`);
   }, [status, sendStdin, activeTabId, activePanelType]);
 
+  // After an update Codex has already exited, so a restart must launch instead of typing /exit into the shell.
+  const handleCodexUpdateRestart = useCallback(() => {
+    if (agentProcess === true) handleRestartAgentSession();
+    else handleNewAgentSession();
+  }, [agentProcess, handleRestartAgentSession, handleNewAgentSession]);
+
   useEffect(() => {
     if (!pendingRestartRef.current || agentProcess === true) return;
     if (status !== 'connected') return;
@@ -981,6 +1012,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   panelType={activePanelType}
                   cwd={activeTabCwd || activeTab.cwd}
                   trustPromptVisible={!!trustPrompt}
+                  agentInputReady={codexInputReady}
                   onClose={() => handleSwitchPanelType('terminal')}
                   onNewSession={handleNewAgentSession}
                   onResumeOtherProvider={handleResumeOtherProvider}
@@ -994,6 +1026,25 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   <TrustPromptCard folderPath={trustPrompt.folderPath} onRespond={onTrustResponse} />
                 </div>
               )}
+              {isAgentPanel && !trustPrompt && codexScreen.hooksReview && (
+                <div className="flex shrink-0 justify-center px-3 pb-3">
+                  <CodexHooksReviewCard
+                    info={codexScreen.hooksReview}
+                    hookCount={CODEX_SESSION_HOOK_COUNT}
+                    fingerprintTrusted={codexFingerprintTrusted}
+                    onRespond={respondCodexHooks}
+                  />
+                </div>
+              )}
+              {isAgentPanel && !trustPrompt && !codexScreen.hooksReview && codexScreen.updatePrompt && (
+                <div className="flex shrink-0 justify-center px-3 pb-3">
+                  <CodexUpdateCard
+                    info={codexScreen.updatePrompt}
+                    onRespond={respondCodexUpdate}
+                    onRestart={handleCodexUpdateRestart}
+                  />
+                </div>
+              )}
               {isAgentPanel && !showInitialLoading && agentInputVisible && (
                 <WebInputBar
                   key={activeTabId}
@@ -1003,6 +1054,7 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
                   sessionName={activeTab?.sessionName}
                   agentSessionId={activeTab ? readAgentSessionId(activeTab) : null}
                   cliState={agentCliState}
+                  sendBlocked={!codexInputReady}
                   sendStdin={sendWebStdin}
                   terminalWsConnected={status === 'connected'}
                   visible

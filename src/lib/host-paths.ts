@@ -46,7 +46,7 @@ export const resolveHostPaths = ({
       homeDir,
       localAppData,
       dataDir: path.win32.join(homeDir, '.codexmux'),
-      codexDir: path.win32.join(homeDir, '.codex'),
+      codexDir: readEnv(env, 'CODEX_HOME') || path.win32.join(homeDir, '.codex'),
       logDir: path.win32.join(localAppData, 'codexmux', 'logs'),
     };
   }
@@ -57,7 +57,7 @@ export const resolveHostPaths = ({
     platform,
     homeDir,
     dataDir,
-    codexDir: path.posix.join(homeDir, '.codex'),
+    codexDir: readEnv(env, 'CODEX_HOME') || path.posix.join(homeDir, '.codex'),
     logDir: path.posix.join(dataDir, 'logs'),
   };
 };

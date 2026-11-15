@@ -1,6 +1,6 @@
 # `~/.agentmux/` (legacy 실제 경로 `~/.codexmux/`) 데이터 디렉터리
 
-agentmux의 앱 상태는 기본 별칭 경로 `~/.agentmux/`(기존 설치의 legacy 실제 경로 `~/.codexmux/`)에 저장합니다. Codex CLI 원본 세션은 `~/.codex/sessions/`에서 읽기 전용으로 참조합니다.
+agentmux의 앱 상태는 기본 별칭 경로 `~/.agentmux/`(기존 설치의 legacy 실제 경로 `~/.codexmux/`)에 저장합니다. Codex CLI 원본 세션은 `CODEX_HOME`(없으면 `~/.codex`)의 `sessions/`에서 읽기 전용으로 참조합니다.
 
 ## 경로 해석과 호환 별칭 규칙
 
@@ -65,6 +65,7 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
     claude.md
   hooks.json
   status-hook.cjs
+  codex-hook-trust.json
   statusline.cjs
   rate-limits.json
   claude-tabs/
@@ -99,7 +100,8 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
 | `governance/index.db` | Managed Project 문서 metadata, heading, fingerprint, lint와 link projection. 본문 미저장 |
 | `backups/` | runtime v2 backup과 governance action의 private journal/preimage. projection DB backup 용도가 아님 |
 | `hooks.json` | 빈 `hooks`와 statusline 호환 설정을 담는 생성 파일. Codex tab 실행 config source는 아님 |
-| `status-hook.cjs` | session-scoped Codex hook override가 호출하는 standalone Node bridge |
+| `status-hook.cjs` | session-scoped Codex hook override가 호출하는 standalone Node bridge. `argv[3]`/`argv[4]`(Claude 탭 hook)가 비어 있지 않으면 인자를, 아니면 환경 변수 `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`(Codex 탭 hook)를 읽음 |
+| `codex-hook-trust.json` | `{ fingerprint }`. agentmux hook 요청이 검증되고 그 요청이 지금 hook 명령의 fingerprint(`AMUX_HOOK_FINGERPRINT`, sha256)를 실어 오면 server가 그 fingerprint를 기록함(인자 방식 옛 명령과 다른 fingerprint는 기록하지 않음). 웹 카드는 기록이 지금 fingerprint와 같으면 trust 버튼을 숨김(`GET /api/status/codex-hook-trust` → `{ trusted }`). Codex 자신의 trust 기록은 `$CODEX_HOME/config.toml`에 있고 agentmux는 쓰지 않음 |
 | `status-hook.sh` | 이전 설치에 남을 수 있는 legacy bridge. 현재 생성하거나 호출하지 않음 |
 | `statusline.cjs` | Claude Code statusLine bridge(Node script). 탭 설정 파일의 statusLine이 호출하며 stdin을 server로 보내고 사용자 원래 statusLine 명령을 대신 실행 |
 | `statusline.sh` | 이전 shell statusline bridge. 현재 생성하거나 호출하지 않지만 기존 설치에는 남을 수 있음 |
@@ -195,7 +197,7 @@ manifest와 preimage는 `0600`이며 pending/recovery/rollback dependency가 있
 
 `~/.codex/`는 Codex CLI 소유 영역입니다. agentmux는 이 디렉터리에 앱 상태를 쓰지 않습니다.
 
-Codex launch/resume command는 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)을 `hooks={path=...}` 형태로 넘기지 않습니다. Server provider가 만든 session-scoped inline TOML override는 `status-hook.cjs`를 직접 호출합니다. 이 bridge는 project package를 import하지 않고 `port`, `cli-token`, HMAC capability만 사용해 loopback hook API에 bounded request를 보냅니다. `hooks.json`을 삭제해도 서버 재시작 때 빈 hooks/statusline 설정으로 다시 생성됩니다.
+Codex launch/resume command는 `~/.agentmux/hooks.json`(legacy `~/.codexmux/hooks.json`)을 `hooks={path=...}` 형태로 넘기지 않습니다. Server provider가 만든 session-scoped inline TOML override는 `status-hook.cjs`를 직접 호출합니다. 이 bridge는 project package를 import하지 않고 `port`, `cli-token`, HMAC capability(인자 또는 환경 변수)만 사용해 loopback hook API에 bounded request를 보냅니다. `hooks.json`을 삭제해도 서버 재시작 때 빈 hooks/statusline 설정으로 다시 생성됩니다.
 
 | 경로 | agentmux 처리 |
 | --- | --- |
@@ -229,7 +231,7 @@ statusLine은 탭별 `claude-tabs/<tab-id>.json`을 `--settings`로 넘겨서만
 | `server` | Electron local/remote server mode |
 | `claudeModel` | Claude Code 탭 실행 시 `--model` 값. 없으면 사용자 Claude 설정을 따름 |
 | `claudePermissionMode` | Claude Code 탭 실행 시 `--permission-mode` 값. 없으면 사용자 Claude 설정을 따름 |
-| `agentDelegationGuideEnabled` | 위임 안내, 탭 환경 변수, `permissions.allow` 사용 여부. 기본 켬. 끄면 agent 실행 명령이 이전과 byte 단위로 같음. 자세한 내용은 `CLI.md` |
+| `agentDelegationGuideEnabled` | 위임 안내, 탭 환경 변수, `permissions.allow` 사용 여부. 기본 켬. 끄면 위임 관련 값이 붙지 않음(Codex hook 환경 변수는 상태 표시용으로 늘 붙음). 자세한 내용은 `CLI.md` |
 
 `config.json` missing은 최초 startup에서만 새 empty config를 만들고 setup을 시작합니다.
 Malformed JSON, 읽기 오류, valid scrypt hash만 있고 `authSecret`이 없는 상태는 자동

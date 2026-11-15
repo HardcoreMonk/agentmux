@@ -6,10 +6,7 @@ import { buildCodexSessionHookConfigs } from '@/lib/providers/codex/session-hook
 const execFile = promisify(execFileCallback);
 
 const main = async (): Promise<void> => {
-  const hookConfigs = buildCodexSessionHookConfigs({
-    tabId: 'strict-config-smoke-tab',
-    sessionName: 'pt-strict-config-smoke-session',
-  });
+  const hookConfigs = buildCodexSessionHookConfigs();
   const resolvedPath = await getShellPath();
 
   await execFile('codex', [

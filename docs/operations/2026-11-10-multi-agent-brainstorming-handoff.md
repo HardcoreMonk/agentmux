@@ -502,6 +502,74 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   `~/.codexmux/delegation/claude.md`(0600) 생성, live shim으로 `tab list` 동작, 7개 workspace의 탭 목록과 active 탭이 배포
   전과 같음, live tmux server `43870` 유지(새 PID 2개는 새 service의 attach client).
 
+## 배포 도구 보완과 hotfix (2026-11-15)
+
+- PR #51(`768a4ea4`, agy 구현·Claude 검증): `deploy:local`은 다음 순서로 동작한다.
+  1. `pnpm install --frozen-lockfile`
+  2. `tsc --noEmit -p tsconfig.deploy-check.json`
+  3. `.next`(cache 제외)와 `dist` snapshot
+  4. build. 실패하면 snapshot을 복원하고 재시작하지 않는다.
+- PR #52(`d01b8ca2`): 위임 CLI 화면 보호가 Codex 0.167 update 안내(`Update available · <cur> → <latest>`, 기본 강조
+  "Update now")를 알아본다. 이전에는 옛 문구만 찾아 놓쳤다. 설계 2-1 plan-eng-review C1에서 찾았다.
+- 배포(02:11, 사용자 실행): 새 `deploy:local`로 처음 배포했고 health는 `d01b8ca2`였다. 이 배포 뒤 확인에서 두 문제를 찾았다.
+  - 2026-11-14 15:10 재부팅 뒤 Runtime v2 tmux server와 socket이 사라졌다. 그런데 사용자 workspace
+    `PureCvisor_Claude`의 Runtime v2 탭이 storage에 "ready"로 남았다. tmux의 "error connecting to <socket> (No such file
+    or directory)"를 session 없음으로 알아보지 못해 status live 시작이 실패했다. 그 뒤 상태 구독이 2초마다 실패했다
+    (이전 build에서 37,273회).
+  - 새 snapshot이 `.next/dev`(2.2 GB)까지 복사해 백업이 2.4 GB였다.
+- PR #53(`c2f8166b`): 두 문제를 고쳤다.
+  - CI가 기존 test(`layout-store-agent-session.test.ts`)의 정리 race로 한 번 실패했다. test 정리를 재시도하게 고친 뒤 통과했다.
+  - Claude가 CI 결과를 보기 전에 로컬 merge를 만들었다가 되돌렸다. 원격 반영은 없었다.
+  - 사용자가 main push 전에 브랜치를 지워 PR #53은 GitHub에서 "Closed"로 남았다. 코드는 main에 있다.
+- 배포(02:33, 사용자 실행): health `c2f8166b`, PID `2891644`. Runtime v2 health는 모든 worker ok이고 시작 진단을
+  통과했다. session 확인 실패 0건, 오래된 탭 1개는 "failed"로 정리됐다(ready 9). 백업은 148 MB, tmux server `78309`는
+  유지됐다.
+
+## 설계 2-1: Codex 보조 (2026-11-15)
+
+- spec: `docs/superpowers/specs/2026-11-15-codex-assist-design.md`, plan: `docs/superpowers/plans/2026-11-15-codex-assist.md`
+  (eng review: `docs/superpowers/reviews/2026-11-15-codex-assist-eng-review.md`). 설계 결정은 ADR-038.
+- Task 1(격리 Codex 실험) 결과: 고정 hook 명령은 한 번 trust하면 다음 실행에도 trust가 유지됐다. 실행 명령 앞의 환경 변수
+  `AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`는 세 hook 모두에 닿았다. Codex SessionStart hook은 첫 turn에 실행된다.
+- 구현 commit(branch `feat/codex-assist`):
+  - `9d3ec02b` hook 명령 고정, `95f87407` trust 기록 쓰기 직렬화와 route test
+  - `9ede2139` Codex 화면 판정 module, `0b7094f1`, `1a33fe56`, `31427a81` 화면 판정 보완
+  - `fa783e3c` hook 검토·update 웹 카드, `aafcdd40` update 카드 재시작 한 번
+  - `f57636c7` 웹 입력 잠금, `91a4fbc6`, `ef967a78` 잠금 보완
+  - 최종 검토(Opus, With fixes) 뒤: `d84e278f` trust 기록을 현재 명령의 hook에서만, `ad09c789` 대화 속 인용 화면 무시,
+    `3698ee39` API guide와 경로 문서
+  - 격리 live 확인 뒤: `eebabed8` 입력창이 2초 유지돼야 준비, `40709fa7` 준비에 전송 가능 상태 포함,
+    `34befee3` `CODEX_HOME`을 tab에 넘기고 같은 home에서 읽기, `5fe2318b` 열어 보지 않은 Codex 탭의 `tab result`,
+    `174d79ac` Codex 0.169 folder access 화면
+- 전체 gate(`174d79ac`): `check:project-design`·`check:product-name` 통과, lint error 0(기존 경고 6), `tsc --noEmit`와
+  deploy-check 통과, 임시 HOME·`CODEX_HOME` 없음으로 전체 test 345 files / 2494 통과 / 3 skipped, `pnpm build` 통과.
+
+### 격리 live 확인 (2026-11-15)
+
+- 1차(`3698ee39`~`eebabed8`, port 18122·18123): 격리 server에 격리 `CODEX_HOME`을 줬지만 tab shell이 `env -i … $SHELL -l`
+  허용 목록으로 떠서 tab의 Codex에 닿지 않았다. 그래서 확인 중 Codex가 쓴 trust 기록과 확인용 session이 격리 home이 아닌 사용자 Codex
+  home에 남았다(사용자가 확인하고 그대로 두기로 결정, live 동작에는 영향 없음). 이 일로 `34befee3`(CODEX_HOME 전달)이 들어갔고,
+  2차는 격리를 먼저 증명한 뒤 진행했다.
+  - 1차에서 확인된 것: 검토 카드(개수 3, trust 버튼) → trust → 새 탭에 검토 화면 없음, 검토 화면 동안 웹 입력 잠금(toast, 입력값
+    유지, Codex 화면 그대로), skip 경로(trust 기록 없음).
+  - 1차에서 찾은 결함: 검토 화면 전 입력창이 0.4~0.9초 보여 `ready: true`가 3초 만에 나옴(→ `eebabed8`), `ready` 뒤 첫 `tab send`가
+    약 10초 `inactive`로 거절(→ `40709fa7`), 열어 보지 않은 Codex 탭의 `tab result`가 null(→ `5fe2318b`).
+- 2차(`5fe2318b`~`174d79ac`): 먼저 격리를 증명했다(tab의 zsh·codex process environ에 격리 `CODEX_HOME`, 실행 직후 사용자
+  `~/.codex/config.toml` hash 그대로).
+  - 검토 화면이 떠 있는 동안 `tab create -t codex`는 61.7초 뒤 `ready: false`.
+  - Claude → Codex 위임: `ready: true`, 첫 `tab send` 바로 `sent`, `tab result` `lastAssistantMessage` "OK".
+  - Codex 0.169 folder access 화면을 기존 판정이 놓쳐서 `174d79ac`로 고쳤다. 고친 뒤 trust 안 된 git 폴더에서 trust 카드 → "이 폴더
+    신뢰"(`1` + Enter) → 입력창.
+  - 시작 직후 잠금: 입력창이 뜬 0.26초 뒤 보낸 입력이 잡혔다(입력값 유지, Codex로 가지 않음).
+  - 새로고침 잠금은 live로 확인하지 못했다. session이 layout에 묶이지 않은 Codex 탭은 새로고침 뒤 session 목록 화면(웹 입력 없음)으로
+    열린다. unit test(`starting: false`, scope 시작 때 화면 읽기)로 대신한다.
+  - update 안내는 실제로 띄울 수 없어 합성 화면 unit test로 대신한다.
+  - Prompt: 1차 Claude 1·Codex 2, 2차 Claude 1·Codex 1.
+  - 안전 확인: 2차 전후 사용자 `~/.codex/config.toml`·`hooks.json`·`~/.claude/settings.json` sha256, live tmux session 목록,
+    `agentmux.service` MainPID 2891644(NRestarts 0)가 같다. 격리 server·tmux·임시 디렉터리는 정리했다(격리 `CODEX_HOME`은 남김).
+- 남은 일: PR → CI → merge, 사용자 배포와 배포 뒤 확인(처음 띄운 Codex 탭에 검토 카드 한 번, trust 뒤 다시 뜨지 않음, 배포 전
+  Codex 탭의 상태 보고 이어짐, 배포 전 탭이 있는 상태에서 새 탭 카드에 trust 버튼이 보임).
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
