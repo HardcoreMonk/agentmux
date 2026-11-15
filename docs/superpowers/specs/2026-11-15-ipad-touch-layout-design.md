@@ -1,7 +1,7 @@
 # iPad 홈 화면 웹 앱 설계 (작은 변경)
 
 - 작성일: 2026-11-15
-- 상태: Approved — 2026-11-15 사용자: "아이패드 설계 승인 합니다"
+- 상태: Approved — 2026-11-15 사용자: "아이패드 설계 승인 합니다". 구현과 격리 확인 완료(아래)
 - Lifecycle: 사용자 요청 "아이패드 앱 어플리케이션도 준비 해 줘". 방식 선택에서 사용자가 "홈 화면 웹 앱"을 골랐다(이 server는 Linux라 iOS 앱을 build·서명할 Mac과 Xcode가 없음). 사용 방식은 "손가락과 화면 키보드"이고, 화면 방식은 "A로 진행"(손가락 기기에 모바일 화면)이다. 화면 선택 동작을 바꾸므로 Lightweight 경로를 쓰지 않는다. 작은 변경이라 짧은 설계와 계획을 이 문서 하나에 둔다.
 
 ## 의도와 이유
@@ -95,3 +95,18 @@
 
 - iPad에 trackpad 달린 키보드를 붙이면 browser가 `hover`를 참으로 보고 desktop 화면으로 바뀔 수 있다. 의도와 맞는 쪽이다(마우스형 입력). 바뀔 때 화면이 다시 그려지지만 server 쪽 session은 그대로다.
 - iPad 화면 키보드와 safe area 동작은 실제 기기에서만 확인할 수 있다. 문제가 나오면 후속으로 고친다.
+
+## 구현과 확인 결과 (2026-11-15)
+
+- 구현(agy, Claude 검증)
+  - `252d0c2f` 기준식 `buildMobileMediaQuery`와 test
+  - `b753967e` `mobile-web-app-capable` meta
+  - `e86de794` `docs/IPAD.md`와 문서 링크
+- 설계 2(넓은 화면)는 바꿀 것이 없었다. timeline과 웹 입력창은 이미 `max-w-content`(64rem)라 iPad 가로(1366px)에서 1024px 폭으로 가운데에 놓였다. 위쪽 탭 줄, 아래쪽 탐색 줄, terminal 입력 줄, session 목록은 전체 폭이다.
+- gate(`e86de794`): lint error 0(기존 경고 6), `tsc --noEmit`와 deploy-check, 전체 test 2535 통과 / 3 skipped(임시 HOME, `CODEX_HOME` 없음), 문서 gate, `pnpm build` 통과.
+- 격리 확인(port 18122, Playwright Chromium; tab process의 격리 `CODEX_HOME`을 먼저 확인)
+  - 마우스 desktop 1366×1024: desktop 화면 그대로(Git 패널 버튼 있음)
+  - iPad 세로 1024×1366, 가로 1366×1024(Mac user agent, touch): 모바일 화면. `(hover: none) and (pointer: coarse)`가 참이다.
+  - 가로 폰 915×412(Android user agent, touch): 모바일 화면. server를 멈추면 약 15.4초 뒤 새로고침 버튼이 뜬다. iPad 가로 화면에도 떴다.
+  - 사용자 파일 hash, live tmux session, `agentmux.service`는 그대로였다.
+- 남은 확인(사용자, 배포 뒤 실제 iPad): 홈 화면에 추가, 화면 키보드가 입력창을 가리는지, 아래쪽 홈 표시줄 여백, 회전

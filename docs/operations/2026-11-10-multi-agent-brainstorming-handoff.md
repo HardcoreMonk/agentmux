@@ -619,6 +619,17 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
     terminal 탭이 이 탭이다. main의 기존 Diff mode에도 있던 제약이다. `FOLLOW-UP.md` "설계 2-2 후속".
   - 안전 확인: 사용자 파일 hash, live tmux session 목록, `agentmux.service` MainPID `724678`(NRestarts 0)가 그대로였다.
 
+## iPad 홈 화면 웹 앱 (2026-11-15)
+
+- 사용자 요청 "아이패드 앱 어플리케이션도 준비 해 줘". 사용자 결정:
+  - iOS 앱이 아닌 홈 화면 웹 앱(이 server는 Linux라 Mac·Xcode 없음)
+  - 사용 방식은 손가락과 화면 키보드
+  - 화면 방식 A(손가락 기기에 모바일 화면)
+- spec 겸 plan: `docs/superpowers/specs/2026-11-15-ipad-touch-layout-design.md`(승인). 안내: `docs/IPAD.md`.
+- 구현: `useIsMobile` 기준식에 `(hover: none) and (pointer: coarse)`를 더했다. 그래서 iPad와 가로로 돌린 폰도 모바일 화면이 된다.
+- 확인: gate와 격리 확인(iPad 세로·가로, 마우스 desktop, 가로 폰 새로고침 버튼)은 spec "구현과 확인 결과"에 있다.
+- 남은 확인: 배포 뒤 실제 iPad에서 화면 키보드, 아래쪽 여백, 회전을 사용자가 본다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -639,16 +650,17 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   PR #50, main merge(`14b8da96`), live 배포(2026-11-12 01:32 KST)와 배포 뒤 확인을 마쳤다. operate. 설계 1 완료.
 - 설계 2-1(Codex 보조)과 후속(Codex hook session 묶기): PR #54(`555feb0b`), PR #55(`0e887fd4`), live 배포(2026-11-15 18:22 KST). operate.
 - 설계 2-2(Git side panel, 모바일 재연결 새로고침): plan 승인(2026-11-15), Task 1~3 implement와 task별 독립 검토(지적 0건),
-  문서, 전체 gate, 격리 live 확인과 live 확인 수정(`79098e6b`), branch 최종 검토(Ready to merge, Minor 1 반영 `d736abfa`)를
-  마쳤다. 다음은 PR, main merge, 사용자 배포.
+  문서, 전체 gate, 격리 live 확인과 live 확인 수정(`79098e6b`), branch 최종 검토(Ready to merge, Minor 1 반영 `d736abfa`),
+  PR #56, main merge(`737bd0f9`), live 배포(2026-11-15 21:08 KST)를 마쳤다. operate.
+- iPad 홈 화면 웹 앱: 짧은 설계 승인, 구현, gate, 격리 확인을 마쳤다. 다음은 PR, main merge, 사용자 배포, 실제 iPad 확인.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-설계 2-2 branch(`feat/git-side-panel`)의 PR을 올리고 CI 통과를 확인한 뒤 로컬 merge commit을 만든다. 사용자가
-`git push agentmux main`과 `corepack pnpm deploy:local`을 실행한다. 새 dependency는 없다. 배포 뒤 health와 log를 보고,
-desktop에서 Git 패널을 한 번 열어 본다. 그다음은 설계 3(회신·상호 리뷰) brainstorming이다.
+iPad branch(`feat/ipad-touch-layout`)의 PR을 올리고 CI 통과를 확인한 뒤 로컬 merge commit을 만든다. 사용자가
+`git push agentmux main`과 `corepack pnpm deploy:local`을 실행하고, 실제 iPad에서 홈 화면에 추가해 확인한다. 새
+dependency는 없다. 그다음은 설계 2-2 후속과 설계 3(회신·상호 리뷰) brainstorming이다.
 단계 3 이전 build(`d1accfc6` 등)로 내릴 때는 Claude 탭을 먼저 닫는다.
 단계 4 rollback은 위 "배포와 rollback 절차"(schema v6 in-place downgrade)를 따른다. 단계 3 rollback(통계 cache v5→v4)은
 service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json` 뒤 이전 build를 시작하는 방식이다
