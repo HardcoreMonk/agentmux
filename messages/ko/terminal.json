@@ -101,5 +101,7 @@
   "codexUpdating": "Codex를 업데이트하는 중…",
   "codexUpdateSuccess": "업데이트됐습니다. Codex를 다시 시작하세요",
   "codexUpdateFailed": "업데이트에 실패했습니다. terminal에서 오류를 확인하세요",
-  "codexUpdateRestart": "다시 시작"
+  "codexUpdateRestart": "다시 시작",
+  "gitPanelOpen": "Git 패널 열기",
+  "gitPanelClose": "Git 패널 닫기"
 }

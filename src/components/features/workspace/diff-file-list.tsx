@@ -14,6 +14,7 @@ interface IDiffFileListProps {
   sessionName: string;
   oldRef?: string;
   newRef?: string;
+  compact?: boolean;
 }
 
 interface ICollapseOverrides {
@@ -29,7 +30,7 @@ const DIFF_FONT_SIZE: Record<string, number> = {
 const AUTO_COLLAPSE_FILE_COUNT = 20;
 const AUTO_COLLAPSE_HUNK_LINES = 1200;
 
-const DiffFileList = ({ diff, viewMode, sessionName, oldRef = 'HEAD', newRef = 'WORKTREE' }: IDiffFileListProps) => {
+const DiffFileList = ({ diff, viewMode, sessionName, oldRef = 'HEAD', newRef = 'WORKTREE', compact = false }: IDiffFileListProps) => {
   const { resolvedTheme } = useTheme();
   const theme: 'light' | 'dark' = resolvedTheme === 'light' ? 'light' : 'dark';
   const isMobile = useIsMobile();
@@ -104,7 +105,7 @@ const DiffFileList = ({ diff, viewMode, sessionName, oldRef = 'HEAD', newRef = '
     return { files: files.length, add, del };
   }, [files]);
 
-  const effectiveMode: TViewMode = isMobile ? 'unified' : viewMode;
+  const effectiveMode: TViewMode = (isMobile || compact) ? 'unified' : viewMode;
 
   if (files.length === 0) return null;
 

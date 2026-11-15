@@ -1,4 +1,5 @@
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, RefreshCw, Plus } from 'lucide-react';
 import Spinner from '@/components/ui/spinner';
@@ -9,9 +10,30 @@ import useWorkspaceStore from '@/hooks/use-workspace-store';
 import useKeyboardShortcuts from '@/hooks/use-keyboard-shortcuts';
 import useTabMetadataStore from '@/hooks/use-tab-metadata-store';
 import type { ITabMetadata } from '@/hooks/use-tab-metadata-store';
+import useTabStore from '@/hooks/use-tab-store';
 import { requestSync } from '@/hooks/use-agent-status';
 import PaneLayout from '@/components/features/workspace/pane-layout';
 import ContentHeader from '@/components/features/workspace/content-header';
+import GitSidePanel from '@/components/features/workspace/git-side-panel';
+import {
+  clampGitSidePanelSize,
+  GIT_SIDE_PANEL_DEFAULT_SIZE,
+  GIT_SIDE_PANEL_MAX_SIZE,
+  GIT_SIDE_PANEL_MIN_SIZE,
+  readGitSidePanelPrefs,
+  writeGitSidePanelPrefs,
+  type IGitSidePanelPrefs,
+} from '@/lib/git-side-panel-prefs';
+import {
+  canAskAgentFromSidePanel,
+  isAgentTurnEnd,
+  resolveGitSidePanelTarget,
+  sidePanelAskAgentType,
+  type IGitSidePanelTarget,
+} from '@/lib/git-side-panel-target';
+import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
+import { dispatchSendToAgent } from '@/lib/send-to-agent-event';
+import type { TCliState } from '@/types/timeline';
 import useSidebarActions from '@/hooks/use-sidebar-actions';
 import { useAutoDeleteEmptyWorkspace } from '@/hooks/use-auto-delete-empty-workspace';
 
@@ -94,6 +116,105 @@ const TerminalPage = () => {
 
   useKeyboardShortcuts({ layout });
 
+  const [gitPrefs, setGitPrefs] = useState<IGitSidePanelPrefs>(() =>
+    activeWorkspaceId
+      ? readGitSidePanelPrefs(activeWorkspaceId)
+      : { open: false, size: GIT_SIDE_PANEL_DEFAULT_SIZE },
+  );
+  const [seenGitWsId, setSeenGitWsId] = useState(activeWorkspaceId);
+  if (seenGitWsId !== activeWorkspaceId) {
+    setSeenGitWsId(activeWorkspaceId);
+    setGitPrefs(
+      activeWorkspaceId
+        ? readGitSidePanelPrefs(activeWorkspaceId)
+        : { open: false, size: GIT_SIDE_PANEL_DEFAULT_SIZE },
+    );
+  }
+
+  const handleToggleGitPanel = useCallback(() => {
+    setGitPrefs((prev) => {
+      const next: IGitSidePanelPrefs = { ...prev, open: !prev.open };
+      if (activeWorkspaceId) writeGitSidePanelPrefs(activeWorkspaceId, next);
+      return next;
+    });
+  }, [activeWorkspaceId]);
+
+  const handleCloseGitPanel = useCallback(() => {
+    setGitPrefs((prev) => {
+      if (!prev.open) return prev;
+      const next: IGitSidePanelPrefs = { ...prev, open: false };
+      if (activeWorkspaceId) writeGitSidePanelPrefs(activeWorkspaceId, next);
+      return next;
+    });
+  }, [activeWorkspaceId]);
+
+  const handleGitLayoutChanged = useCallback(
+    (panelLayout: Record<string, number>) => {
+      const raw = panelLayout['git'];
+      if (raw === undefined) return;
+      const nextSize = clampGitSidePanelSize(Math.round(raw));
+      setGitPrefs((prev) => {
+        if (prev.size === nextSize) return prev;
+        const next: IGitSidePanelPrefs = { ...prev, size: nextSize };
+        if (activeWorkspaceId) writeGitSidePanelPrefs(activeWorkspaceId, next);
+        return next;
+      });
+    },
+    [activeWorkspaceId],
+  );
+
+  const prevTargetRef = useRef<IGitSidePanelTarget | null>(null);
+  const gitTarget = layout.layout
+    ? resolveGitSidePanelTarget({
+        root: layout.layout.root,
+        activePaneId: layout.layout.activePaneId,
+        previous: prevTargetRef.current,
+      })
+    : null;
+  useEffect(() => {
+    prevTargetRef.current = gitTarget;
+  });
+
+  const canAskFromSidePanel = layout.layout
+    ? canAskAgentFromSidePanel({ root: layout.layout.root, target: gitTarget })
+    : false;
+  const askAgentPanelType = gitTarget
+    ? sidePanelAskAgentType(gitTarget)
+    : DEFAULT_AGENT_PANEL_TYPE;
+
+  const targetTabId = gitTarget?.tabId ?? null;
+  const targetCliState = useTabStore((s) =>
+    targetTabId ? s.tabs[targetTabId]?.cliState : undefined,
+  );
+  const prevTargetTabIdRef = useRef<string | null>(null);
+  const prevTargetCliStateRef = useRef<TCliState | undefined>(undefined);
+  const [gitRefreshKey, setGitRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (prevTargetTabIdRef.current !== targetTabId) {
+      prevTargetTabIdRef.current = targetTabId;
+      prevTargetCliStateRef.current = targetCliState;
+      return;
+    }
+    const prev = prevTargetCliStateRef.current;
+    prevTargetCliStateRef.current = targetCliState;
+    if (gitPrefs.open && isAgentTurnEnd(prev, targetCliState)) {
+      setGitRefreshKey((n) => n + 1);
+    }
+  }, [targetTabId, targetCliState, gitPrefs.open]);
+
+  const handleSidePanelSendToAgent = useCallback(
+    (text: string) => {
+      if (!gitTarget) return;
+      dispatchSendToAgent(window, {
+        paneId: gitTarget.paneId,
+        tabId: gitTarget.tabId,
+        text,
+      });
+    },
+    [gitTarget],
+  );
+
   if (isLoading) {
     return (
       <div className="flex h-full w-full flex-col overflow-hidden bg-background animate-delayed-fade-in">
@@ -142,6 +263,8 @@ const TerminalPage = () => {
           onSplitPane={layout.splitPane}
           onEqualizeRatios={() => equalizeRef.current?.()}
           onUpdateTabPanelType={layout.updateTabPanelType}
+          gitPanelOpen={gitPrefs.open}
+          onToggleGitPanel={handleToggleGitPanel}
         />
       )}
 
@@ -164,17 +287,47 @@ const TerminalPage = () => {
         )}
 
         {layout.layout && !layout.isLoading && !allTabsEmpty && (
-          <div
-            key={activeWorkspaceId}
-            className="h-full"
+          <Group
+            orientation="horizontal"
+            onLayoutChanged={handleGitLayoutChanged}
           >
-            <PaneLayout
-              root={layout.layout.root}
-              onUpdateRatio={layout.updateRatio}
-              onEqualizeRatios={layout.equalizeRatios}
-              equalizeRef={equalizeRef}
-            />
-          </div>
+            <Panel id="main" minSize={400}>
+              <div
+                key={activeWorkspaceId}
+                className="h-full"
+              >
+                <PaneLayout
+                  root={layout.layout.root}
+                  onUpdateRatio={layout.updateRatio}
+                  onEqualizeRatios={layout.equalizeRatios}
+                  equalizeRef={equalizeRef}
+                />
+              </div>
+            </Panel>
+            {gitPrefs.open && (
+              <Separator
+                className="relative flex shrink-0 items-center justify-center bg-border transition-colors duration-100 hover:bg-muted-foreground/50 active:bg-muted-foreground"
+                style={{ width: '1px' }}
+              />
+            )}
+            {gitPrefs.open && (
+              <Panel
+                id="git"
+                minSize={`${GIT_SIDE_PANEL_MIN_SIZE}%`}
+                maxSize={`${GIT_SIDE_PANEL_MAX_SIZE}%`}
+                defaultSize={`${gitPrefs.size}%`}
+              >
+                <GitSidePanel
+                  target={gitTarget}
+                  canAsk={canAskFromSidePanel}
+                  askAgentPanelType={askAgentPanelType}
+                  refreshKey={gitRefreshKey}
+                  onClose={handleCloseGitPanel}
+                  onSendToAgent={handleSidePanelSendToAgent}
+                />
+              </Panel>
+            )}
+          </Group>
         )}
 
         {!activeWorkspaceId && !isLoading && !error && (
