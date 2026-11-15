@@ -3,7 +3,7 @@ import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
 import { readFile } from 'fs/promises';
 import { resolve, sep } from 'path';
-import { getSessionCwd, hasSession } from '@/lib/tmux';
+import { resolveSessionCwd } from '@/lib/session-cwd';
 import { createLogger } from '@/lib/logger';
 
 const execFile = promisify(execFileCb);
@@ -101,9 +101,8 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (!oldRef || !newRef) return res.status(400).json({ error: 'Invalid ref' });
   if (!oldPath && !newPath) return res.status(400).json({ error: 'oldPath or newPath required' });
 
-  if (!(await hasSession(session))) return res.status(404).json({ error: 'Session not found' });
-
-  const cwd = await getSessionCwd(session);
+  const { exists, cwd } = await resolveSessionCwd(session);
+  if (!exists) return res.status(404).json({ error: 'Session not found' });
   if (!cwd) return res.status(500).json({ error: 'Failed to get CWD' });
 
   try {

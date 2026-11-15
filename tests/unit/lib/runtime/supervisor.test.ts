@@ -86,6 +86,15 @@ const createWorkers = () => {
   terminal.replies.set('terminal.detach', { sessionName: 'rtv2-ws-a-pane-b-tab-c', detached: true });
   terminal.replies.set('terminal.kill-session', { sessionName: 'rtv2-ws-a-pane-b-tab-c', killed: true });
   terminal.replies.set('terminal.has-session', { sessionName: 'rtv2-ws-a-pane-b-tab-c', exists: true });
+  terminal.replies.set('terminal.session-info', {
+    sessionName: 'rtv2-ws-a-pane-b-tab-c',
+    exists: true,
+    cwd: '/tmp/repo-a',
+    command: 'zsh',
+    pid: 4242,
+    startedAt: 1700000000000,
+    metadataSource: 'terminal-runtime',
+  });
   terminal.replies.set('terminal.write-stdin', { written: 4 });
   terminal.replies.set('terminal.capture-pane', { sessionName: 'rtv2-ws-a-pane-b-tab-c', content: 'screen' });
   terminal.replies.set('terminal.send-text', { sessionName: 'rtv2-ws-a-pane-b-tab-c', sent: true });
@@ -1697,6 +1706,35 @@ describe('runtime supervisor', () => {
       code: 'runtime-v2-terminal-session-not-found', retryable: false,
     }));
     await expect(supervisor.hasTerminalSession({ sessionName: 'rtv2-ws-a-pane-b-tab-c' })).resolves.toBe(false);
+  });
+
+  it('reads terminal session info from the terminal worker and returns null when missing', async () => {
+    const { storage, terminal, timeline, status } = createWorkers();
+    const supervisor = createRuntimeSupervisorForTest({ storage, terminal, timeline, status });
+
+    await expect(supervisor.getTerminalSessionInfo({ sessionName: 'rtv2-ws-a-pane-b-tab-c' }))
+      .resolves.toEqual({
+        sessionName: 'rtv2-ws-a-pane-b-tab-c',
+        exists: true,
+        cwd: '/tmp/repo-a',
+        command: 'zsh',
+        pid: 4242,
+        startedAt: 1700000000000,
+        metadataSource: 'terminal-runtime',
+      });
+
+    // A Runtime v2 terminal tab switched to Diff mode is not a ready *terminal* tab in storage,
+    // but its session is alive and its folder is what Diff mode needs.
+    storage.replies.set('storage.get-ready-terminal-tab-by-session', null);
+    await expect(supervisor.getTerminalSessionInfo({ sessionName: 'rtv2-ws-a-pane-b-tab-c' }))
+      .resolves.toMatchObject({ exists: true, cwd: '/tmp/repo-a' });
+    expect(storage.commands.map((command) => command.type)).not.toContain('storage.get-ready-terminal-tab-by-session');
+
+    terminal.failures.set('terminal.session-info', Object.assign(new Error('gone'), {
+      code: 'runtime-v2-terminal-session-not-found', retryable: false,
+    }));
+    await expect(supervisor.getTerminalSessionInfo({ sessionName: 'rtv2-ws-a-pane-b-tab-c' }))
+      .resolves.toBeNull();
   });
 
   it('rejects writes from missing subscribers before terminal worker IPC', async () => {

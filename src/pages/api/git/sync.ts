@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { execFile as execFileCb } from 'child_process';
 import { promisify } from 'util';
-import { getSessionCwd, hasSession } from '@/lib/tmux';
+import { resolveSessionCwd } from '@/lib/session-cwd';
 import { createLogger } from '@/lib/logger';
 
 const execFile = promisify(execFileCb);
@@ -91,12 +91,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     return res.status(400).json({ error: 'session parameter required' });
   }
 
-  const exists = await hasSession(session);
+  const { exists, cwd } = await resolveSessionCwd(session);
   if (!exists) {
     return res.status(404).json({ error: 'Session not found' });
   }
-
-  const cwd = await getSessionCwd(session);
   if (!cwd) {
     return res.status(500).json({ error: 'Failed to get CWD' });
   }

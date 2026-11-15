@@ -104,6 +104,60 @@ describe('terminal worker service', () => {
     });
   });
 
+  it('returns runtime session info when getSessionInfo is provided and falls back when omitted', async () => {
+    const runtimeWithInfo = createFakeRuntime();
+    runtimeWithInfo.getSessionInfo = async (sessionName) => ({
+      sessionName,
+      exists: true,
+      cwd: '/tmp/repo-a',
+      command: 'zsh',
+      pid: 4242,
+      startedAt: 1700000000000,
+      metadataSource: 'terminal-runtime',
+    });
+    const serviceWithInfo = createTerminalWorkerService({ runtime: runtimeWithInfo });
+
+    const infoReply = await serviceWithInfo.handleCommand(createRuntimeCommand({
+      source: 'supervisor',
+      target: 'terminal',
+      type: 'terminal.session-info',
+      payload: { sessionName: 'rtv2-ws-a-pane-b-tab-c' },
+    }));
+
+    expect(infoReply.ok).toBe(true);
+    expect(infoReply.payload).toEqual({
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      exists: true,
+      cwd: '/tmp/repo-a',
+      command: 'zsh',
+      pid: 4242,
+      startedAt: 1700000000000,
+      metadataSource: 'terminal-runtime',
+    });
+
+    const runtimeWithoutInfo = createFakeRuntime();
+    runtimeWithoutInfo.hasSession = async (sessionName) => ({ sessionName, exists: true });
+    const serviceWithoutInfo = createTerminalWorkerService({ runtime: runtimeWithoutInfo });
+
+    const fallbackReply = await serviceWithoutInfo.handleCommand(createRuntimeCommand({
+      source: 'supervisor',
+      target: 'terminal',
+      type: 'terminal.session-info',
+      payload: { sessionName: 'rtv2-ws-a-pane-b-tab-c' },
+    }));
+
+    expect(fallbackReply.ok).toBe(true);
+    expect(fallbackReply.payload).toEqual({
+      sessionName: 'rtv2-ws-a-pane-b-tab-c',
+      exists: true,
+      cwd: null,
+      command: null,
+      pid: null,
+      startedAt: null,
+      metadataSource: 'unavailable',
+    });
+  });
+
   it('captures and types into a session without a pty', async () => {
     const runtime = createFakeRuntime();
     const service = createTerminalWorkerService({ runtime });

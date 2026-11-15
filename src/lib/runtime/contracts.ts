@@ -94,6 +94,14 @@ export interface IRuntimeTerminalSessionPresence {
   exists: boolean;
 }
 
+export interface IRuntimeTerminalSessionInfo extends IRuntimeTerminalSessionPresence {
+  cwd: string | null;
+  command: string | null;
+  pid: number | null;
+  startedAt: number | null;
+  metadataSource: 'terminal-runtime' | 'process-inspector' | 'unavailable';
+}
+
 export interface IRuntimeDeleteWorkspaceStorageResult {
   deleted: boolean;
   sessions: IRuntimeWorkspaceTerminalSession[];

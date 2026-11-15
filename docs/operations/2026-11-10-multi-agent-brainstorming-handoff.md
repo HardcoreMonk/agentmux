@@ -630,6 +630,14 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 - 확인: gate와 격리 확인(iPad 세로·가로, 마우스 desktop, 가로 폰 새로고침 버튼)은 spec "구현과 확인 결과"에 있다.
 - 남은 확인: 배포 뒤 실제 iPad에서 화면 키보드, 아래쪽 여백, 회전을 사용자가 본다.
 
+## Runtime v2 terminal 탭의 Git (2026-11-15, 설계 2-2 후속)
+
+- 사용자: "후속 작업 순차 진행", 방식 "a"(worker 명령으로 지금 폴더 읽기), 설계 승인.
+- 설계 겸 계획: `docs/superpowers/specs/2026-11-15-runtime-v2-terminal-git-design.md`.
+- 구현과 확인 결과는 설계 문서 "구현과 확인 결과"에 있다.
+- 같은 날 확인: 사용자가 iPad에서 예전 codexmux 홈 화면 앱을 열자 agentmux로 열리고 접속됐다.
+- Android 앱 재설치는 사용자가 취소했다(폰 보안 설정으로 USB debugging 불가). 설치된 release APK가 main build와 같은 파일이라 필요 없었다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
