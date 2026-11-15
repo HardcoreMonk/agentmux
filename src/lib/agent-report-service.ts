@@ -136,15 +136,14 @@ export class AgentReportService implements IAgentReportServiceLike {
 
   async flush(parentTabId: string): Promise<TAgentReportFlushResult> {
     try {
-      if (!(await this.deps.isEnabled())) {
-        this.reset();
-        return 'disabled';
-      }
+      // Checked before the config read: StatusManager calls flush on every idle/ready transition of any tab.
+      if (!this.queue.hasPending(parentTabId)) return 'empty';
       if (this.flushingParents.has(parentTabId)) return 'waiting';
       this.flushingParents.add(parentTabId);
       try {
-        if (!this.queue.hasPending(parentTabId)) {
-          return 'empty';
+        if (!(await this.deps.isEnabled())) {
+          this.reset();
+          return 'disabled';
         }
 
         const parentFound = await this.deps.findTab(parentTabId);
@@ -200,6 +199,7 @@ export class AgentReportService implements IAgentReportServiceLike {
 
   async tick(): Promise<void> {
     try {
+      if (this.queue.parentsWithPending().length === 0) return;
       if (!(await this.deps.isEnabled())) {
         this.reset();
         return;

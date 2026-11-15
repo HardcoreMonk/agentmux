@@ -468,12 +468,21 @@ describe('AgentReportService', () => {
     expect(h.deps.writeInput).toHaveBeenCalledTimes(1);
   });
 
-  it('returns empty without calling findTab when flushing a tab with nothing pending', async () => {
+  it('returns empty without calling findTab or reading the config when flushing a tab with nothing pending', async () => {
     const h = createHarness();
 
     const result = await h.service.flush('parent-1');
 
     expect(result).toBe('empty');
     expect(h.deps.findTab).not.toHaveBeenCalled();
+    expect(h.deps.isEnabled).not.toHaveBeenCalled();
+  });
+
+  it('does not read the config on tick when nothing is pending', async () => {
+    const h = createHarness();
+
+    await h.service.tick();
+
+    expect(h.deps.isEnabled).not.toHaveBeenCalled();
   });
 });
