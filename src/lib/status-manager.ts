@@ -1,7 +1,8 @@
 import { WebSocket } from 'ws';
 import { getWorkspaces } from '@/lib/workspace-store';
 import { readLayoutFile, resolveLayoutFile, collectAllTabs, updateTabCliStatus, updateTabAgentSessionId, updateTabAgentJsonlPath, parseSessionName, setLayoutReconciler } from '@/lib/layout-store';
-import { getAllPanesInfo, getListeningPorts, SAFE_SHELLS, getSessionCwd, getSessionPanePid, capturePaneContent } from '@/lib/tmux';
+import { getAllPanesInfo, getListeningPorts, SAFE_SHELLS, getSessionCwd, getSessionPanePid, capturePaneContent, capturePaneAnsi } from '@/lib/tmux';
+import { AgentReportService, type IAgentReportServiceLike } from '@/lib/agent-report-service';
 import { isCodexIdleAtComposer } from '@/lib/codex-screen';
 import { getChildPids } from '@/lib/session-detection';
 import {
@@ -91,7 +92,7 @@ import {
 import { collectStatusPollWorkspaceTabs } from '@/lib/status/poll-workspace-traversal';
 import { buildStatusScanTabBootstrap } from '@/lib/status/scan-tab-bootstrap';
 import { deliverStatusWebPush } from '@/lib/status/web-push-delivery';
-import { buildStatusWebPushPayload } from '@/lib/status/web-push-payload';
+import { buildStatusWebPushPayload, type TStatusWebPushType } from '@/lib/status/web-push-payload';
 import { createStatusWebPushActions } from '@/lib/runtime/status/web-push-actions';
 
 const log = createLogger('status');
@@ -202,6 +203,7 @@ export interface IStatusManagerOptions {
   broadcast?: (event: object, exclude?: WebSocket) => void;
   enableRateLimits?: boolean;
   useRuntimeAdapters?: boolean;
+  agentReports?: IAgentReportServiceLike;
 }
 
 export class StatusManager {
@@ -222,6 +224,7 @@ export class StatusManager {
   private readonly pollRecoveryService: StatusPollRecoveryService;
   private readonly sessionHistoryPersistence: ReturnType<typeof createStatusSessionHistoryPersistence>;
   private readonly stopRecheckService: StatusStopRecheckService;
+  private readonly agentReports: IAgentReportServiceLike;
 
   constructor(private readonly options: IStatusManagerOptions = {}) {
     this.jsonlWatchService = new StatusJsonlWatchService({
@@ -257,6 +260,56 @@ export class StatusManager {
       updateLegacyDismissedAt: updateLegacySessionHistoryDismissedAt,
       recordCounter: recordPerfCounter,
       warn: (message) => log.warn(message),
+    });
+    this.agentReports = options.agentReports ?? this.createDefaultAgentReportService();
+  }
+
+  private createDefaultAgentReportService(): AgentReportService {
+    return new AgentReportService({
+      isEnabled: async () => (await getConfig()).agentReportsEnabled !== false,
+      findTab: async (tabId) => {
+        const { workspaces } = await getWorkspaces();
+        for (const ws of workspaces) {
+          const layout = await readLayoutFile(resolveLayoutFile(ws.id));
+          if (!layout) continue;
+          const tab = collectAllTabs(layout.root).find((t) => t.id === tabId);
+          if (tab) return { workspaceId: ws.id, tab };
+        }
+        return null;
+      },
+      readCliState: (tabId) => this.tabs.get(tabId)?.cliState ?? null,
+      readLastMessage: async (tab) => {
+        const entry = this.tabs.get(tab.id);
+        const { readLastAssistantMessage } = await import('@/lib/workspace-tab-service');
+        const res = await readLastAssistantMessage(tab, {
+          jsonlPath: entry?.jsonlPath ?? null,
+          agentSessionId: entry?.agentSessionId ?? null,
+        });
+        return res?.text ?? null;
+      },
+      checkTarget: async (tab, cliState) => {
+        const { checkAgentInputTarget } = await import('@/lib/workspace-tab-service');
+        return checkAgentInputTarget(tab, cliState);
+      },
+      readComposerScreen: (tab) => capturePaneAnsi(tab.sessionName),
+      writeInput: async (tab, text) => {
+        const { writeTabInput } = await import('@/lib/workspace-tab-service');
+        return writeTabInput(tab, text, { guardFollowUpEnter: true });
+      },
+      notify: (parentTabId, kind, count) => this.notifyAgentReport(parentTabId, kind, count),
+      now: () => Date.now(),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    });
+  }
+
+  private notifyAgentReport(parentTabId: string, kind: 'paused' | 'expired', count: number): void {
+    const entry = this.tabs.get(parentTabId);
+    if (!entry) return;
+    entry.agentReportNotice = { kind, count, at: Date.now() };
+    this.broadcastUpdate(parentTabId, entry);
+    const pushType: TStatusWebPushType = kind === 'paused' ? 'agent-report-paused' : 'agent-report-expired';
+    this.sendWebPush(parentTabId, entry, pushType).catch((err) => {
+      log.warn('Web push failed: %s', err);
     });
   }
 
@@ -622,10 +675,15 @@ export class StatusManager {
       if (!knownTabIds.has(tabId) && this.tabs.has(tabId)) {
         this.stopJsonlWatch(tabId);
         this.tabs.delete(tabId);
+        this.agentReports.onTabRemoved(tabId);
         this.broadcastRemove(tabId);
         recordStatusPollBroadcastRemove(pollCounts);
       }
     }
+
+    this.agentReports.tick().catch((err) => {
+      log.warn('agentReports.tick failed: %s', err);
+    });
 
     this.pollService.refreshInterval();
     this.pollService.finishPoll(pollContext, pollCounts);
@@ -755,6 +813,19 @@ export class StatusManager {
       this.startJsonlWatch(tabId, entry.jsonlPath!);
     } else if (sideEffects.stopJsonlWatch) {
       this.stopJsonlWatch(tabId);
+    }
+
+    if (newState === 'ready-for-review' || newState === 'needs-input') {
+      this.agentReports
+        .onChildStateChange(tabId, newState, { silent: opts.silent, completionKey: opts.completionKey })
+        .catch((err) => {
+          log.warn('agentReports.onChildStateChange failed: %s', err);
+        });
+    }
+    if (newState === 'idle' || newState === 'ready-for-review') {
+      this.agentReports.flush(tabId).catch((err) => {
+        log.warn('agentReports.flush failed: %s', err);
+      });
     }
   }
 
@@ -1009,6 +1080,14 @@ export class StatusManager {
       event: entry.lastEvent,
     });
 
+    if (eventName === 'prompt-submit') {
+      const submitKind = this.agentReports.onPromptSubmit(tabId);
+      if (submitKind === 'human' && entry.agentReportNotice) {
+        entry.agentReportNotice = null;
+        this.broadcastUpdate(tabId, entry);
+      }
+    }
+
     if (hookEvent.shouldRecheckCodexStop) {
       hookLog.debug({ tabId, event: eventName, notificationType, seq, prevState }, 'queued Codex stop JSONL verification');
       this.recheckCodexStop(tabId, tmuxSession);
@@ -1156,6 +1235,7 @@ export class StatusManager {
       this.compactStaleTimers.delete(tabId);
     }
     this.tabs.delete(tabId);
+    this.agentReports.onTabRemoved(tabId);
     this.broadcastRemove(tabId);
     return true;
   }
@@ -1409,7 +1489,7 @@ export class StatusManager {
     return true;
   }
 
-  private async sendWebPush(tabId: string, entry: ITabStatusEntry, pushType: 'review' | 'needs-input'): Promise<void> {
+  private async sendWebPush(tabId: string, entry: ITabStatusEntry, pushType: TStatusWebPushType): Promise<void> {
     const ws = (await getWorkspaces()).workspaces.find((w) => w.id === entry.workspaceId);
     const config = await getConfig();
     const payload = buildStatusWebPushPayload({

@@ -625,6 +625,15 @@ const statusClientTabStatusEntrySchema = z.object({
   lastEvent: statusLastEventSchema.nullable().optional(),
   eventSeq: z.number().int().nonnegative().optional(),
   approvalPromptMetadata: approvalPromptMetadataSchema.nullable().optional(),
+  agentReportNotice: z
+    .object({
+      kind: z.enum(['paused', 'expired']),
+      count: z.number().int().positive(),
+      at: z.number(),
+    })
+    .strict()
+    .nullable()
+    .optional(),
 }).strict();
 const statusLiveTabStatusEntrySchema = statusClientTabStatusEntrySchema.extend({
   tmuxSession: z.string().min(1),
