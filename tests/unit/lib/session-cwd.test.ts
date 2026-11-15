@@ -98,4 +98,18 @@ describe('resolveSessionCwd', () => {
     });
     expect(second).toEqual({ exists: false, cwd: null });
   });
+
+  it('returns exists: false for a malformed rtv2- name without asking the supervisor', async () => {
+    const getTerminalSessionInfo = vi.fn();
+
+    const result = await resolveSessionCwd('rtv2-Bad_Name', {
+      hasSession: vi.fn(),
+      getSessionCwd: vi.fn(),
+      getTerminalSessionInfo,
+      isRuntimeV2Enabled: () => true,
+    });
+
+    expect(result).toEqual({ exists: false, cwd: null });
+    expect(getTerminalSessionInfo).not.toHaveBeenCalled();
+  });
 });

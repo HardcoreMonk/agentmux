@@ -1,5 +1,5 @@
 import type { IRuntimeTerminalSessionInfo } from '@/lib/runtime/contracts';
-import { RUNTIME_SESSION_PREFIX } from '@/lib/runtime/session-name';
+import { RUNTIME_SESSION_PREFIX, runtimeSessionNameSchema } from '@/lib/runtime/session-name';
 import { getRuntimeSupervisor } from '@/lib/runtime/supervisor';
 import { getSessionCwd, hasSession } from '@/lib/tmux';
 
@@ -24,7 +24,7 @@ export const resolveSessionCwd = async (
   const resolvedDeps: ISessionCwdDeps = { ...DEFAULT_DEPS, ...deps };
 
   if (sessionName.startsWith(RUNTIME_SESSION_PREFIX)) {
-    if (!resolvedDeps.isRuntimeV2Enabled()) {
+    if (!resolvedDeps.isRuntimeV2Enabled() || !runtimeSessionNameSchema.safeParse(sessionName).success) {
       return { exists: false, cwd: null };
     }
     const info = await resolvedDeps.getTerminalSessionInfo({ sessionName });
