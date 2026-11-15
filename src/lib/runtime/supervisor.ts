@@ -44,6 +44,7 @@ import type {
   TRuntimeStatusSideEffectInput,
   TRuntimeStatusSideEffectIntent,
   TRuntimeStatusUpdateSessionHistoryDismissedAtResult,
+  IRuntimeTerminalSessionInfo,
   IRuntimeTerminalSessionPresence,
   IRuntimeTerminalTab,
   IRuntimeSessionCatalogHealth,
@@ -202,6 +203,7 @@ export interface IRuntimeSupervisor {
   captureTerminalSession(input: { sessionName: string }): Promise<{ sessionName: string; content: string }>;
   sendTerminalSessionText(input: { sessionName: string; text: string; enter: boolean }): Promise<void>;
   hasTerminalSession(input: { sessionName: string }): Promise<boolean>;
+  getTerminalSessionInfo(input: { sessionName: string }): Promise<IRuntimeTerminalSessionInfo | null>;
   resizeTerminal(input: { sessionName: string; subscriberId: string; cols: number; rows: number }): Promise<void>;
 }
 
@@ -1612,6 +1614,27 @@ export const createRuntimeSupervisorForTest = (
       } catch (err) {
         const maybeStructured = err as { code?: string } | null;
         if (maybeStructured?.code === 'runtime-v2-terminal-session-not-found') return false;
+        throw err;
+      }
+    },
+
+    async getTerminalSessionInfo(input) {
+      await this.ensureStarted();
+      const { storage, terminal } = getClients();
+      const sessionName = parseRuntimeSessionName(input.sessionName);
+      const tab = await storage.request<{ sessionName: string }, IRuntimeTerminalTab | null>(
+        'storage.get-ready-terminal-tab-by-session',
+        { sessionName },
+      );
+      if (!tab) return null;
+      try {
+        return await terminal.request<{ sessionName: string }, IRuntimeTerminalSessionInfo>(
+          'terminal.session-info',
+          { sessionName },
+        );
+      } catch (err) {
+        const maybeStructured = err as { code?: string } | null;
+        if (maybeStructured?.code === 'runtime-v2-terminal-session-not-found') return null;
         throw err;
       }
     },
