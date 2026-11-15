@@ -7,6 +7,7 @@ import {
   codexUpdateAnswerKeys,
   isCodexBlockingScreen,
   isCodexFolderAccessScreen,
+  isCodexIdleAtComposer,
   isCodexTuiReadyContent,
   matchCodexHooksReview,
   matchCodexUpdatePrompt,
@@ -105,6 +106,30 @@ describe('isCodexTuiReadyContent', () => {
 
   it('is false for the older "Input disabled." line', () => {
     expect(isCodexTuiReadyContent('› Ask Codex\nInput disabled.')).toBe(false);
+  });
+});
+
+describe('isCodexIdleAtComposer', () => {
+  it('returns true when waiting at the composer without a working banner', () => {
+    expect(isCodexIdleAtComposer(fixture('tui-ready'))).toBe(true);
+  });
+
+  it('returns false when the working banner is shown above the composer', () => {
+    expect(isCodexIdleAtComposer(fixture('tui-working'))).toBe(false);
+  });
+
+  it('returns false when "esc to interrupt" wraps across lines above the composer', () => {
+    const wrapped = [
+      '  >_ OpenAI Codex',
+      '• Working (5s • esc to',
+      '  interrupt)',
+      '› Ask Codex to do anything',
+    ].join('\n');
+    expect(isCodexIdleAtComposer(wrapped)).toBe(false);
+  });
+
+  it('returns false on blocking screens such as hooks review', () => {
+    expect(isCodexIdleAtComposer(fixture('hooks-review'))).toBe(false);
   });
 });
 

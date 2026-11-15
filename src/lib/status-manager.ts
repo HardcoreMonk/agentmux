@@ -1,7 +1,8 @@
 import { WebSocket } from 'ws';
 import { getWorkspaces } from '@/lib/workspace-store';
 import { readLayoutFile, resolveLayoutFile, collectAllTabs, updateTabCliStatus, updateTabAgentSessionId, updateTabAgentJsonlPath, parseSessionName, setLayoutReconciler } from '@/lib/layout-store';
-import { getAllPanesInfo, getListeningPorts, SAFE_SHELLS, getSessionCwd, getSessionPanePid } from '@/lib/tmux';
+import { getAllPanesInfo, getListeningPorts, SAFE_SHELLS, getSessionCwd, getSessionPanePid, capturePaneContent } from '@/lib/tmux';
+import { isCodexIdleAtComposer } from '@/lib/codex-screen';
 import { getChildPids } from '@/lib/session-detection';
 import {
   detectAnyActiveSession,
@@ -115,6 +116,7 @@ interface IReadTabMetadataResult extends IJsonlCheckResult {
   jsonlPath: string | null;
   running: boolean;
   sessionId?: string | null;
+  composerIdle?: boolean;
 }
 
 const parseJsonlStats = async (jsonlPath: string): Promise<IStatusJsonlStats> => {
@@ -428,6 +430,7 @@ export class StatusManager {
       hasJsonlPath: !!metadata.jsonlPath,
       idle: metadata.idle,
       hasCompletionSnippet: !!metadata.lastAssistantSnippet,
+      composerIdle: metadata.composerIdle,
     });
     if (!decision.changed) return false;
 
@@ -549,6 +552,12 @@ export class StatusManager {
           jsonlPath: provider?.readJsonlPath(tab) ?? existing.jsonlPath ?? null,
           childPids: provider ? await this.getCachedChildPids(childPidCache, paneInfo) : undefined,
         });
+        if (provider?.statusBehavior.reconcileStateFromJsonl && refreshed.running && !refreshed.jsonlPath) {
+          const screen = await capturePaneContent(tab.sessionName);
+          if (screen !== null) {
+            refreshed.composerIdle = isCodexIdleAtComposer(screen);
+          }
+        }
         applyStatusPollTabEntryUpdate({
           entry: existing,
           workspaceId,
