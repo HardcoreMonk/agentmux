@@ -1,7 +1,7 @@
 # Runtime v2 terminal 탭의 Git 설계 (설계 2-2 후속, 작은 변경)
 
 - 작성일: 2026-11-15
-- 상태: 승인 대기
+- 상태: Approved — 2026-11-15 사용자: "설계 승인합니다"
 - Lifecycle: `docs/FOLLOW-UP.md` "설계 2-2 후속"의 "Runtime v2 terminal 탭의 Git"이다. 사용자가 "후속 작업 순차 진행"을 지시했고, 방식 선택에서 "a"(worker 명령으로 지금 폴더 읽기)를 골랐다. Runtime v2 IPC 계약과 Git API 동작을 바꾸므로 Lightweight 경로를 쓰지 않는다. 작은 변경이라 짧은 설계와 계획을 이 문서 하나에 둔다.
 
 ## 의도와 이유
