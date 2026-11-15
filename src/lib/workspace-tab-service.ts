@@ -266,6 +266,68 @@ export const readTabScreen = async (tab: ITab): Promise<string | null> => {
   }
 };
 
+const STARTUP_SCREEN_LABELS = {
+  trust: 'folder trust',
+  'codex-update': 'Codex update',
+  'codex-hooks-review': 'Codex hook review',
+} as const;
+
+export type TAgentInputTargetCheck =
+  | { ok: true }
+  | { ok: false; code: 'target-needs-input' | 'target-not-ready'; message: string };
+
+export const checkAgentInputTarget = async (
+  tab: ITab,
+  cliState: TCliState | null,
+): Promise<TAgentInputTargetCheck> => {
+  if (cliState === 'needs-input') {
+    return {
+      ok: false,
+      code: 'target-needs-input',
+      message: 'The target agent is waiting for the user to answer a prompt',
+    };
+  }
+  if (!cliState || !AGENT_SENDABLE_STATES.has(cliState)) {
+    return {
+      ok: false,
+      code: 'target-not-ready',
+      message: `The target agent is not ready (state: ${cliState ?? 'unknown'})`,
+    };
+  }
+  if (!(await isAgentProcessRunning(tab))) {
+    return {
+      ok: false,
+      code: 'target-not-ready',
+      message: 'The agent is not running in the target tab',
+    };
+  }
+  const screen = await readTabScreen(tab);
+  if (screen === null) {
+    return {
+      ok: false,
+      code: 'target-not-ready',
+      message: 'The target tab screen could not be read',
+    };
+  }
+  // The trust screen's numbered choices also look like a permission prompt, so match it first.
+  const startupScreen = matchAgentStartupScreen(screen);
+  if (startupScreen) {
+    return {
+      ok: false,
+      code: 'target-not-ready',
+      message: `The target tab shows the ${STARTUP_SCREEN_LABELS[startupScreen]} screen`,
+    };
+  }
+  if (hasPermissionPrompt(screen)) {
+    return {
+      ok: false,
+      code: 'target-needs-input',
+      message: 'The target tab shows a permission prompt',
+    };
+  }
+  return { ok: true };
+};
+
 const isBlockingAgentScreen = (screen: string): boolean =>
   hasPermissionPrompt(screen) || matchAgentStartupScreen(screen) !== null;
 
@@ -301,19 +363,29 @@ export const writeTabInput = async (
   return { followUpEnterSkipped };
 };
 
+export interface IAssistantMessageHint {
+  jsonlPath?: string | null;
+  agentSessionId?: string | null;
+}
+
 export const readLastAssistantMessage = async (
   tab: ITab,
+  hint?: IAssistantMessageHint,
 ): Promise<{ text: string; timestamp: number } | null> => {
   if (!isAgentPanelType(tab.panelType)) return null;
   const provider = getProviderByPanelType(tab.panelType);
   if (!provider) return null;
-  let jsonlPath = provider.readJsonlPath(tab);
+  let jsonlPath = hint?.jsonlPath || provider.readJsonlPath(tab);
   if (!jsonlPath) {
     let sessionId = provider.readSessionId(tab);
     if (!sessionId) {
-      // UI가 열지 않은 Codex 탭은 layout에 session이 없다. status entry가 지켜보는 session을 쓴다.
-      const entryId = (await readTabStatusEntry(tab).catch(() => null))?.agentSessionId;
-      if (provider.isValidSessionId(entryId)) sessionId = entryId;
+      if (hint !== undefined) {
+        if (provider.isValidSessionId(hint.agentSessionId)) sessionId = hint.agentSessionId;
+      } else {
+        // UI가 열지 않은 Codex 탭은 layout에 session이 없다. status entry가 지켜보는 session을 쓴다.
+        const entryId = (await readTabStatusEntry(tab).catch(() => null))?.agentSessionId;
+        if (provider.isValidSessionId(entryId)) sessionId = entryId;
+      }
     }
     jsonlPath = sessionId ? await provider.resolveJsonlPath(sessionId, tab.cwd ?? '') : null;
   }

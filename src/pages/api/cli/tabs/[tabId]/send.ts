@@ -1,27 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { isAgentReportText } from '@/lib/agent-report';
 import { verifyCliToken } from '@/lib/cli-token';
 import { findTab } from '@/lib/cli-utils';
 import { resolveCliCaller, sendCliError, sendCliServiceError } from '@/lib/cli-caller';
 import { createLogger } from '@/lib/logger';
 import { isAgentPanelType } from '@/lib/panel-type';
-import { hasPermissionPrompt } from '@/lib/permission-prompt';
-import { matchAgentStartupScreen } from '@/lib/agent-startup-screen';
 import {
-  AGENT_SENDABLE_STATES,
-  isAgentProcessRunning,
+  checkAgentInputTarget,
   isTabSessionAlive,
   readTabCliState,
-  readTabScreen,
   writeTabInput,
 } from '@/lib/workspace-tab-service';
 
 const log = createLogger('api:cli:tabs');
-
-const STARTUP_SCREEN_LABELS = {
-  trust: 'folder trust',
-  'codex-update': 'Codex update',
-  'codex-hooks-review': 'Codex hook review',
-} as const;
 
 const handler = async (req: NextApiRequest, res: NextApiResponse) => {
   if (req.method !== 'POST') {
@@ -52,6 +43,14 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     if (!resolved.ok) {
       return sendCliError(res, resolved.status, resolved.code, 'The calling tab was not found in any workspace');
     }
+    if (resolved.caller && isAgentReportText(content)) {
+      return sendCliError(
+        res,
+        400,
+        'reserved-report-prefix',
+        'Agent calls cannot send text that starts with "[agentmux report"; that prefix is reserved for server reports',
+      );
+    }
     // Agents pre-allow `tab send`; typing into a shell tab would run commands without the agent's own approval.
     if (resolved.caller && !isAgentPanelType(tab.panelType)) {
       return sendCliError(res, 403, 'delegation-send-forbidden', 'An agent can send only to agent tabs');
@@ -66,31 +65,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     }
 
     const cliState = await readTabCliState(tab);
-    if (cliState === 'needs-input') {
-      return sendCliError(res, 409, 'target-needs-input', 'The target agent is waiting for the user to answer a prompt');
-    }
-    if (!cliState || !AGENT_SENDABLE_STATES.has(cliState)) {
-      return sendCliError(res, 409, 'target-not-ready', `The target agent is not ready (state: ${cliState ?? 'unknown'})`);
-    }
-    if (!(await isAgentProcessRunning(tab))) {
-      return sendCliError(res, 409, 'target-not-ready', 'The agent is not running in the target tab');
-    }
-    const screen = await readTabScreen(tab);
-    if (screen === null) {
-      return sendCliError(res, 409, 'target-not-ready', 'The target tab screen could not be read');
-    }
-    // The trust screen's numbered choices also look like a permission prompt, so match it first.
-    const startupScreen = matchAgentStartupScreen(screen);
-    if (startupScreen) {
-      return sendCliError(
-        res,
-        409,
-        'target-not-ready',
-        `The target tab shows the ${STARTUP_SCREEN_LABELS[startupScreen]} screen`,
-      );
-    }
-    if (hasPermissionPrompt(screen)) {
-      return sendCliError(res, 409, 'target-needs-input', 'The target tab shows a permission prompt');
+    const check = await checkAgentInputTarget(tab, cliState);
+    if (!check.ok) {
+      return sendCliError(res, 409, check.code, check.message);
     }
 
     const { followUpEnterSkipped } = await writeTabInput(tab, content, { guardFollowUpEnter: true });

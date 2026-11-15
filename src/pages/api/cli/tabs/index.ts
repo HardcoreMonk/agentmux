@@ -119,6 +119,9 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
         return sendCliError(res, resolved.status, resolved.code, 'The calling tab was not found in any workspace');
       }
       const { caller } = resolved;
+      if (caller?.tab.createdByTabId) {
+        return sendCliError(res, 403, 'delegation-depth', 'A tab created by another agent cannot create tabs');
+      }
       const sameWorkspaceCaller = caller?.workspaceId === workspaceId ? caller : null;
 
       let cwd: string | undefined;
