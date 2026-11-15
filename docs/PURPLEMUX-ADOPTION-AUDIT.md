@@ -62,6 +62,8 @@
 | D. Codex 보조 | Codex update prompt 감지와 웹 응답 card, Codex TUI ready 감지 | `codex-update-prompt-detector.ts`, `codex-tui-ready-detector.ts` |
 | E. 일반 UI | Terminal 옆 Git side panel과 sync 실패 시 agent에게 묻기, 모바일 Git 전체 화면, 모바일 WebSocket hard reload 복구 안내 | `git-side-panel.tsx`, `mobile-git-fullscreen.tsx`, `ws-reload-recovery.ts` |
 
+2026-11-15 설계 2-2에서 E 묶음의 desktop Git side panel과 sync 실패 시 agent에게 묻기, 모바일 WebSocket reload 복구 안내를 반영했습니다. 모바일 Git 전체 화면은 사용자 결정(2026-11-15, 지금처럼 탭을 Diff mode로 바꾸는 것으로 충분)에 따라 반영하지 않고 기존 Diff mode를 유지합니다.
+
 `src/lib/providers/claude/`는 agentmux 작업 디렉터리에 빈 디렉터리로만 있고 git이 추적하지 않습니다.
 등록된 provider는 `codexProvider` 하나이고 panel type은 `terminal | codex | web-browser | diff`입니다.
 

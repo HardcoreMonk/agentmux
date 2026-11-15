@@ -576,6 +576,22 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   격리 live 확인: CLI로 만들고 CLI `tab send`로만 prompt를 받은 Codex 탭이 UI에서 session 목록이 아니라 timeline(보낸 prompt)과
   웹 입력으로 열렸다(고치기 전에는 session 목록). 격리 증명(tab process environ), 사용자 파일·live service 불변, Codex prompt 1개.
 
+## 설계 2-2: Git side panel과 모바일 재연결 새로고침 (2026-11-15)
+
+- spec: `docs/superpowers/specs/2026-11-15-git-side-panel-reload-recovery-design.md`, plan:
+  `docs/superpowers/plans/2026-11-15-git-side-panel-reload-recovery.md`.
+- 사용자 결정: Git side panel은 접근 A(workspace 오른쪽 단일 패널, focus된 탭 추적, workspace별 열림·너비 기억)로 진행하고, 모바일 Git 전체 화면은 제외(지금처럼 탭을 Diff mode로 바꾸는 것으로 충분)한다.
+- 작업 체계: agy 구현, Claude 검증. Task 1~3마다 독립 검토 지적 0건.
+- 구현 commit(branch `feat/git-side-panel`):
+  - `2c18c57a` 순수 module(대상 탭 `git-side-panel-target.ts`, 저장 설정 `git-side-panel-prefs.ts`, turn 끝 판정 `isAgentTurnEnd`, agent에게 넘기기 event `send-to-agent-event.ts`)
+  - `509a024c` desktop Git side panel(header `GitCompareArrows` 버튼, workspace별 열림·너비 20~60%/기본 35% 저장, focus 탭 추적과 닫힌 탭 안내, `busy` → `ready-for-review`/`idle` 전이 시 즉시 diff 새로고침, unified 고정 보기, active 탭일 때만 sync 실패 toast에서 대상 agent 웹 입력창에 채우기)
+  - `77800b95` 모바일 재연결 새로고침(`reload-recovery.ts`, `use-reconnect-failures-store.ts`, `use-page-visible.ts`, `mobile-reload-recovery-banner.tsx`; 모바일 기기에서 화면이 보일 때 terminal·timeline WebSocket 연속 5회 실패 시 상단 새로고침 버튼 표시, 재연결 시도 유지 및 연결 시 해제)
+  - 문서(이 commit)
+
+### 전체 gate와 격리 live 확인
+
+(controller가 채운다)
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),

@@ -81,6 +81,8 @@ Android WebView가 background에 들어가면 WebSocket 객체가 `OPEN`으로 �
 
 Native shell은 `pause`/`resume` event와 legacy 호환 `codexmux:native-app-state` event를 전달합니다. 원격 페이지에 Capacitor bridge가 없어도 최소 fallback을 설치해 lifecycle event 예외를 막습니다.
 
+화면이 보이는 상태에서 terminal 또는 timeline WebSocket 재연결이 연속 5번 이상 실패하면(`retryCount >= 5`, 재연결 간격 1·2·4·8초 뒤 약 15초) 화면 상단에 `새로고침` 복구 배너를 표시합니다. 자동 새로고침은 하지 않으며 백그라운드 재연결 시도도 멈추지 않고, 연결이 복구되면 배너가 사라집니다.
+
 ## 런타임 v2 smoke
 
 Android runtime v2 smoke는 temp runtime v2 서버를 Tailscale IP로 노출하고 WebView에서 `/api/v2/terminal` attach와 foreground reconnect marker output을 확인합니다.
