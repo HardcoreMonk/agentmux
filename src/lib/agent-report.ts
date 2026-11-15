@@ -23,6 +23,9 @@ const BLOCKED_REPORT_MESSAGE =
   '이 탭이 권한 질문을 기다립니다. 사람이 그 탭에서 답해야 합니다. agentmux는 대신 답하지 않습니다.';
 
 const HEADER_RE = /^\[agentmux report · (.+) \((claude|codex)\) · (done|blocked)\]$/;
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const REPORT_SPLIT_RE = new RegExp(`\\n\\n(?=${escapeRegExp(`${AGENT_REPORT_PREFIX} · `)})`);
 
 const hardenReportBody = (message: string): string =>
   message
@@ -57,6 +60,9 @@ export const buildAgentReport = (input: IAgentReportInput): string => {
 
 export const combineAgentReports = (reports: string[]): string =>
   reports.join('\n\n');
+
+export const splitAgentReports = (text: string): string[] =>
+  text.trim().split(REPORT_SPLIT_RE);
 
 export const isAgentReportText = (text: string): boolean =>
   text.trimStart().startsWith(AGENT_REPORT_PREFIX);

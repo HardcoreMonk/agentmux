@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import AgentReportMessage from '@/components/features/timeline/agent-report-message';
 import { TimelineEntryRenderer } from '@/components/features/timeline/timeline-view';
 import UserMessageItem from '@/components/features/timeline/user-message-item';
+import { buildAgentReport, combineAgentReports } from '@/lib/agent-report';
 import enTimeline from '@/../messages/en/timeline.json';
 import koTimeline from '@/../messages/ko/timeline.json';
 
@@ -100,15 +101,22 @@ describe('AgentReportMessage', () => {
   });
 
   it('renders combined reports as separate cards with each child label and status chip', () => {
-    const text = [
-      '[agentmux report · worker-a (codex) · done]',
-      'First child finished.',
-      "reply: agentmux tab send tab-a '...'",
-      '',
-      '[agentmux report · worker-b (claude) · blocked]',
-      '이 탭이 권한 질문을 기다립니다. 사람이 그 탭에서 답해야 합니다. agentmux는 대신 답하지 않습니다.',
-      "reply: agentmux tab send tab-b '...'",
-    ].join('\n');
+    const text = combineAgentReports([
+      buildAgentReport({
+        childTabId: 'tab-a',
+        childName: 'worker-a',
+        provider: 'codex',
+        event: 'done',
+        lastMessage: 'First child finished.',
+      }),
+      buildAgentReport({
+        childTabId: 'tab-b',
+        childName: 'worker-b',
+        provider: 'claude',
+        event: 'blocked',
+        lastMessage: null,
+      }),
+    ]);
 
     const html = renderWithLocale(
       'ko',

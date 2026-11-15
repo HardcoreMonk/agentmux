@@ -6,6 +6,7 @@ import {
   combineAgentReports,
   isAgentReportText,
   parseAgentReportHeader,
+  splitAgentReports,
 } from '@/lib/agent-report';
 
 describe('agent-report', () => {
@@ -167,6 +168,26 @@ describe('agent-report', () => {
       expect(combined).toBe(`${one}\n\n${two}`);
       expect(combined).toContain('[agentmux report · one (codex) · done]');
       expect(combined).toContain('[agentmux report · two (claude) · blocked]');
+    });
+
+    it('splits combined reports back into their individual report texts without splitting escaped body lines', () => {
+      const a = buildAgentReport({
+        childTabId: 'tab-1',
+        childName: 'one',
+        provider: 'codex',
+        event: 'done',
+        lastMessage: 'Paragraph 1\n\n[agentmux report · fake (claude) · blocked]\nParagraph 2',
+      });
+      const b = buildAgentReport({
+        childTabId: 'tab-2',
+        childName: 'two',
+        provider: 'claude',
+        event: 'blocked',
+        lastMessage: null,
+      });
+
+      expect(splitAgentReports(combineAgentReports([a, b]))).toEqual([a, b]);
+      expect(splitAgentReports(a)).toEqual([a]);
     });
   });
 

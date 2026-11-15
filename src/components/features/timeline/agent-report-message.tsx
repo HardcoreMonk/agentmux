@@ -1,10 +1,8 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, CheckCircle2, Inbox } from 'lucide-react';
-import { parseAgentReportHeader } from '@/lib/agent-report';
+import { parseAgentReportHeader, splitAgentReports } from '@/lib/agent-report';
 import { cn } from '@/lib/utils';
-
-const REPORT_SPLIT_RE = /\n\n(?=\[agentmux report · )/;
 
 interface IAgentReportCardProps {
   segment: string;
@@ -87,7 +85,7 @@ interface IAgentReportMessageProps {
 }
 
 const AgentReportMessage = ({ text }: IAgentReportMessageProps) => {
-  const segments = text.trim().split(REPORT_SPLIT_RE);
+  const segments = splitAgentReports(text);
 
   return (
     <div className="animate-in fade-in duration-150 flex flex-col gap-2">
