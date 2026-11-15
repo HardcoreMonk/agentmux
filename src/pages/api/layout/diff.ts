@@ -4,6 +4,7 @@ import { createHash } from 'crypto';
 import { promisify } from 'util';
 import { readFile, stat } from 'fs/promises';
 import { resolve, sep } from 'path';
+import { buildChangedFilesSignature, listPorcelainZPaths } from '@/lib/diff-hash-input';
 import { resolveSessionCwd } from '@/lib/session-cwd';
 import { createLogger } from '@/lib/logger';
 import { getPerfNow, recordPerfCounter, recordPerfDuration } from '@/lib/perf-metrics';
@@ -154,11 +155,12 @@ const computeDiffHash = async (cwd: string) => {
   try {
     const [{ stdout: headOut }, { stdout: statusOut }, { stdout: shortstatOut }] = await Promise.all([
       execFile('git', ['rev-parse', 'HEAD'], { cwd, timeout: CMD_TIMEOUT }),
-      execFile('git', ['status', '--porcelain', '-uall'], { cwd, timeout: CMD_TIMEOUT }),
+      execFile('git', ['status', '--porcelain', '-z', '-uall'], { cwd, timeout: CMD_TIMEOUT }),
       execFile('git', ['diff', '--no-ext-diff', 'HEAD', '--shortstat'], { cwd, timeout: CMD_TIMEOUT }),
     ]);
+    const signature = await buildChangedFilesSignature(cwd, listPorcelainZPaths(statusOut));
     return createHash('sha1')
-      .update(`${headOut.trim()}\n${statusOut}\n${shortstatOut}`)
+      .update(`${headOut.trim()}\n${statusOut}\n${shortstatOut}\n${signature}`)
       .digest('hex')
       .slice(0, 16);
   } finally {
