@@ -54,7 +54,10 @@ const readCodexCommandOptions = (config: IConfigData): ICodexCommandOptions => (
   search: config.codexSearchEnabled ?? false,
 });
 
-const readDeveloperInstructions = async (cwd: string | null): Promise<string | undefined> => {
+const readDeveloperInstructions = async (
+  cwd: string | null,
+  reportsEnabled: boolean,
+): Promise<string | undefined> => {
   // The project config layer is found from the cwd, so without it the existing value is unknown.
   if (!cwd) {
     log.warn('codex tab cwd unknown: delegation guide skipped');
@@ -65,7 +68,10 @@ const readDeveloperInstructions = async (cwd: string | null): Promise<string | u
     log.warn(`codex developer_instructions ${existing.reason}: delegation guide skipped (${existing.detail})`);
     return undefined;
   }
-  return mergeCodexDeveloperInstructions(existing.value, buildDelegationGuide('codex'));
+  return mergeCodexDeveloperInstructions(
+    existing.value,
+    buildDelegationGuide('codex', { reportsEnabled }),
+  );
 };
 
 const readLaunchOptions = async ({
@@ -93,7 +99,10 @@ const readLaunchOptions = async ({
   return {
     ...launchOptions,
     envPrefix: buildDelegationEnvPrefix({ workspaceId, tabId, shimDir: getDelegationShimDir() }),
-    developerInstructions: await readDeveloperInstructions(cwd ?? await getSessionCwd(sessionName)),
+    developerInstructions: await readDeveloperInstructions(
+      cwd ?? await getSessionCwd(sessionName),
+      config.agentReportsEnabled !== false,
+    ),
   };
 };
 

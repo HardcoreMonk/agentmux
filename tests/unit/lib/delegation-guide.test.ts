@@ -71,6 +71,48 @@ describe('buildDelegationGuide', () => {
     expect(codex.slice(claude.length)).toContain('your sandbox blocks local network access');
     expect(claude).not.toContain('sandbox blocks');
   });
+
+  it('keeps the polling guide when reportsEnabled is omitted or false, with the updated Limits paragraph', () => {
+    const expected = `# agentmux delegation
+
+You are running inside an agentmux tab. You can hand work to other agent tabs in this workspace with the \`agentmux\` CLI. Delegation runs without asking the user; new tabs appear in the user's tab bar.
+
+The CLI reads the workspace and your tab from AMUX_WORKSPACE_ID and AMUX_TAB_ID, so you do not need -w.
+
+- agentmux tab list
+- agentmux tab create -t claude|codex [-n NAME] [--cwd DIR]   (prints tabId and ready; waits up to 60 seconds for the agent)
+- agentmux tab send TAB_ID 'instruction'   (quote the instruction with single quotes so your shell does not expand backticks or $; use a heredoc for multi-line text)
+- agentmux tab status TAB_ID   (cliState)
+- agentmux tab result TAB_ID   (lastAssistantMessage and the screen)
+- agentmux tab close TAB_ID    (only tabs you created)
+
+cliState: idle = waiting for input. busy = working. needs-input = waiting for the user to answer a permission prompt. ready-for-review = finished a turn; read the result.
+
+How to delegate:
+1. Create the tab and check that ready is true. If it is false, tell the user the new tab needs attention on screen.
+2. Send one self-contained instruction: the goal, the files, and how to tell it is done.
+3. Check \`tab status\` no more often than every 10 seconds until cliState is ready-for-review or idle, then read \`tab result\`.
+4. Close tabs you no longer need.
+
+Limits: at most 6 open tabs created by agents per workspace (error delegation-limit). A tab created by another agent cannot create tabs (delegation-depth), and \`tab send\` text must not start with "[agentmux report" (reserved-report-prefix). \`tab send\` refuses a target that is waiting for a permission answer (target-needs-input) or has not started (target-not-ready). Never answer another tab's permission prompt. Do not create tabs in a loop.
+`;
+    expect(buildDelegationGuide('claude')).toBe(expected);
+    expect(buildDelegationGuide('claude', { reportsEnabled: false })).toBe(expected);
+    expect(buildDelegationGuide('claude', { reportsEnabled: false })).toContain('no more often than every 10 seconds');
+  });
+
+  it('replaces How to delegate with automatic report instructions when reportsEnabled is true', () => {
+    const guide = buildDelegationGuide('claude', { reportsEnabled: true });
+    expect(guide).toContain('[agentmux report');
+    expect(guide).toContain('delegation-depth');
+    expect(guide).not.toContain('no more often than every 10 seconds');
+    expect(guide).toContain('Do not poll tab status.');
+    expect(guide).toContain('If another tab created you: end every turn with a short summary of what you did and what is left');
+
+    const codexGuide = buildDelegationGuide('codex', { reportsEnabled: true });
+    expect(codexGuide.startsWith(guide)).toBe(true);
+    expect(codexGuide.slice(guide.length)).toContain('your sandbox blocks local network access');
+  });
 });
 
 describe('buildDelegationShimSource', () => {
@@ -107,7 +149,7 @@ describe('ensureDelegationAssets', () => {
     expect(guidePath).toBe(path.join(tmp, 'delegation', 'claude.md'));
     expect((await fs.stat(shimPath)).mode & 0o777).toBe(0o700);
     expect((await fs.stat(guidePath)).mode & 0o777).toBe(0o600);
-    expect(await fs.readFile(guidePath, 'utf-8')).toBe(buildDelegationGuide('claude'));
+    expect(await fs.readFile(guidePath, 'utf-8')).toBe(buildDelegationGuide('claude', { reportsEnabled: true }));
 
     const before = [(await fs.stat(shimPath)).mtimeMs, (await fs.stat(guidePath)).mtimeMs];
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -124,7 +166,7 @@ describe('ensureDelegationAssets', () => {
     const guidePath = getClaudeDelegationGuidePath(tmp);
     expect((await fs.stat(shimPath)).mode & 0o777).toBe(0o700);
     expect((await fs.stat(guidePath)).mode & 0o777).toBe(0o600);
-    expect(await fs.readFile(guidePath, 'utf-8')).toBe(buildDelegationGuide('claude'));
+    expect(await fs.readFile(guidePath, 'utf-8')).toBe(buildDelegationGuide('claude', { reportsEnabled: true }));
     expect(await fs.readFile(shimPath, 'utf-8')).toContain('ELECTRON_RUN_AS_NODE=1');
     expect(await fs.readdir(path.join(tmp, 'bin'))).toEqual(['agentmux']);
   });

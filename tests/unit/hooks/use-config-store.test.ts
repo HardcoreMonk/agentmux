@@ -88,3 +88,19 @@ describe('useConfigStore delegation guide', () => {
     expect(lastPatchBody()).toEqual({ agentDelegationGuideEnabled: false });
   });
 });
+
+describe('useConfigStore agent reports', () => {
+  it('defaults to on, and hydrates an explicit false', () => {
+    expect(useConfigStore.getState().agentReportsEnabled).toBe(true);
+    useConfigStore.getState().hydrate({ agentReportsEnabled: false });
+    expect(useConfigStore.getState().agentReportsEnabled).toBe(false);
+    useConfigStore.getState().hydrate({});
+    expect(useConfigStore.getState().agentReportsEnabled).toBe(true);
+  });
+
+  it('saves the toggle', () => {
+    useConfigStore.getState().setAgentReportsEnabled(false);
+    expect(useConfigStore.getState().agentReportsEnabled).toBe(false);
+    expect(lastPatchBody()).toEqual({ agentReportsEnabled: false });
+  });
+});

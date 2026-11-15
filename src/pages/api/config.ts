@@ -10,7 +10,7 @@ import { isClaudePermissionMode, isValidClaudeModel } from '@/lib/claude-config-
 import { isSupportedLocale, normalizeLocale } from '@/lib/locales';
 
 const ALLOWED_FIELDS: (keyof Omit<IConfigData, 'updatedAt' | 'authSecret'>)[] = [
-  'appTheme', 'terminalTheme', 'customCSS', 'dangerouslySkipPermissions', 'codexModel', 'codexSandbox', 'codexApprovalPolicy', 'codexSearchEnabled', 'codexShowTerminal', 'agentShowTerminal', 'agentDelegationGuideEnabled', 'claudeModel', 'claudePermissionMode', 'editorUrl', 'editorPreset', 'authPassword', 'notificationsEnabled', 'soundOnCompleteEnabled', 'toastOnCompleteEnabled', 'toastDuration', 'toastPositionDesktop', 'toastPositionMobile', 'locale', 'fontSize', 'systemResourcesEnabled', 'networkAccess',
+  'appTheme', 'terminalTheme', 'customCSS', 'dangerouslySkipPermissions', 'codexModel', 'codexSandbox', 'codexApprovalPolicy', 'codexSearchEnabled', 'codexShowTerminal', 'agentShowTerminal', 'agentDelegationGuideEnabled', 'agentReportsEnabled', 'claudeModel', 'claudePermissionMode', 'editorUrl', 'editorPreset', 'authPassword', 'notificationsEnabled', 'soundOnCompleteEnabled', 'toastOnCompleteEnabled', 'toastDuration', 'toastPositionDesktop', 'toastPositionMobile', 'locale', 'fontSize', 'systemResourcesEnabled', 'networkAccess',
 ];
 
 const NETWORK_ACCESS_VALUES = ['localhost', 'tailscale', 'all'] as const;
@@ -113,6 +113,10 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
 
     if ('agentDelegationGuideEnabled' in updates && typeof updates.agentDelegationGuideEnabled !== 'boolean') {
       return res.status(400).json({ error: 'agentDelegationGuideEnabled must be a boolean.' });
+    }
+
+    if ('agentReportsEnabled' in updates && typeof updates.agentReportsEnabled !== 'boolean') {
+      return res.status(400).json({ error: 'agentReportsEnabled must be a boolean.' });
     }
 
     if ('claudeModel' in updates && !isValidClaudeModel(updates.claudeModel)) {

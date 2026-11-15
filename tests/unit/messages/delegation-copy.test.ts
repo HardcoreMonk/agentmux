@@ -11,6 +11,8 @@ const getPath = (obj: Record<string, unknown>, path: string): unknown =>
 const DELEGATION_KEYS: Array<[string, string]> = [
   ['settings', 'general.delegationGuide'],
   ['settings', 'general.delegationGuideDescription'],
+  ['settings', 'general.agentReports'],
+  ['settings', 'general.agentReportsDescription'],
   ['workspace', 'createdByAgent'],
 ];
 

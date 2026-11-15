@@ -108,6 +108,8 @@ const GeneralTab = () => {
   const setFontSize = useConfigStore((s) => s.setFontSize);
   const delegationGuideEnabled = useConfigStore((s) => s.agentDelegationGuideEnabled);
   const setDelegationGuideEnabled = useConfigStore((s) => s.setAgentDelegationGuideEnabled);
+  const agentReportsEnabled = useConfigStore((s) => s.agentReportsEnabled);
+  const setAgentReportsEnabled = useConfigStore((s) => s.setAgentReportsEnabled);
   const setSettingsDialogOpen = useWorkspaceStore((s) => s.setSettingsDialogOpen);
   const setCheatSheetOpen = useWorkspaceStore((s) => s.setCheatSheetOpen);
 
@@ -206,6 +208,23 @@ const GeneralTab = () => {
           id="agent-delegation-guide"
           checked={delegationGuideEnabled}
           onCheckedChange={setDelegationGuideEnabled}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-0.5">
+          <Label htmlFor="agent-reports" className="text-sm font-medium">
+            {t('agentReports')}
+          </Label>
+          <p className="text-sm text-muted-foreground break-keep">
+            {t('agentReportsDescription')}
+          </p>
+        </div>
+        <Switch
+          id="agent-reports"
+          checked={agentReportsEnabled}
+          disabled={!delegationGuideEnabled}
+          onCheckedChange={setAgentReportsEnabled}
         />
       </div>
 
