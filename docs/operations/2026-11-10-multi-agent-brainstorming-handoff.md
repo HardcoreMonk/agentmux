@@ -536,7 +536,39 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   - `9ede2139` Codex 화면 판정 module, `0b7094f1`, `1a33fe56`, `31427a81` 화면 판정 보완
   - `fa783e3c` hook 검토·update 웹 카드, `aafcdd40` update 카드 재시작 한 번
   - `f57636c7` 웹 입력 잠금, `91a4fbc6`, `ef967a78` 잠금 보완
-- 남은 확인: gate, 격리 live 확인, 배포와 배포 뒤 확인은 controller가 이 절에 채운다(자리 표시).
+  - 최종 검토(Opus, With fixes) 뒤: `d84e278f` trust 기록을 현재 명령의 hook에서만, `ad09c789` 대화 속 인용 화면 무시,
+    `3698ee39` API guide와 경로 문서
+  - 격리 live 확인 뒤: `eebabed8` 입력창이 2초 유지돼야 준비, `40709fa7` 준비에 전송 가능 상태 포함,
+    `34befee3` `CODEX_HOME`을 tab에 넘기고 같은 home에서 읽기, `5fe2318b` 열어 보지 않은 Codex 탭의 `tab result`,
+    `174d79ac` Codex 0.169 folder access 화면
+- 전체 gate(`174d79ac`): `check:project-design`·`check:product-name` 통과, lint error 0(기존 경고 6), `tsc --noEmit`와
+  deploy-check 통과, 임시 HOME·`CODEX_HOME` 없음으로 전체 test 345 files / 2494 통과 / 3 skipped, `pnpm build` 통과.
+
+### 격리 live 확인 (2026-11-15)
+
+- 1차(`3698ee39`~`eebabed8`, port 18122·18123): 격리 server에 격리 `CODEX_HOME`을 줬지만 tab shell이 `env -i … $SHELL -l`
+  허용 목록으로 떠서 tab의 Codex에 닿지 않았다. 그래서 확인 중 Codex가 쓴 trust 기록과 확인용 session이 격리 home이 아닌 사용자 Codex
+  home에 남았다(사용자가 확인하고 그대로 두기로 결정, live 동작에는 영향 없음). 이 일로 `34befee3`(CODEX_HOME 전달)이 들어갔고,
+  2차는 격리를 먼저 증명한 뒤 진행했다.
+  - 1차에서 확인된 것: 검토 카드(개수 3, trust 버튼) → trust → 새 탭에 검토 화면 없음, 검토 화면 동안 웹 입력 잠금(toast, 입력값
+    유지, Codex 화면 그대로), skip 경로(trust 기록 없음).
+  - 1차에서 찾은 결함: 검토 화면 전 입력창이 0.4~0.9초 보여 `ready: true`가 3초 만에 나옴(→ `eebabed8`), `ready` 뒤 첫 `tab send`가
+    약 10초 `inactive`로 거절(→ `40709fa7`), 열어 보지 않은 Codex 탭의 `tab result`가 null(→ `5fe2318b`).
+- 2차(`5fe2318b`~`174d79ac`): 먼저 격리를 증명했다(tab의 zsh·codex process environ에 격리 `CODEX_HOME`, 실행 직후 사용자
+  `~/.codex/config.toml` hash 그대로).
+  - 검토 화면이 떠 있는 동안 `tab create -t codex`는 61.7초 뒤 `ready: false`.
+  - Claude → Codex 위임: `ready: true`, 첫 `tab send` 바로 `sent`, `tab result` `lastAssistantMessage` "OK".
+  - Codex 0.169 folder access 화면을 기존 판정이 놓쳐서 `174d79ac`로 고쳤다. 고친 뒤 trust 안 된 git 폴더에서 trust 카드 → "이 폴더
+    신뢰"(`1` + Enter) → 입력창.
+  - 시작 직후 잠금: 입력창이 뜬 0.26초 뒤 보낸 입력이 잡혔다(입력값 유지, Codex로 가지 않음).
+  - 새로고침 잠금은 live로 확인하지 못했다. session이 layout에 묶이지 않은 Codex 탭은 새로고침 뒤 session 목록 화면(웹 입력 없음)으로
+    열린다. unit test(`starting: false`, scope 시작 때 화면 읽기)로 대신한다.
+  - update 안내는 실제로 띄울 수 없어 합성 화면 unit test로 대신한다.
+  - Prompt: 1차 Claude 1·Codex 2, 2차 Claude 1·Codex 1.
+  - 안전 확인: 2차 전후 사용자 `~/.codex/config.toml`·`hooks.json`·`~/.claude/settings.json` sha256, live tmux session 목록,
+    `agentmux.service` MainPID 2891644(NRestarts 0)가 같다. 격리 server·tmux·임시 디렉터리는 정리했다(격리 `CODEX_HOME`은 남김).
+- 남은 일: PR → CI → merge, 사용자 배포와 배포 뒤 확인(처음 띄운 Codex 탭에 검토 카드 한 번, trust 뒤 다시 뜨지 않음, 배포 전
+  Codex 탭의 상태 보고 이어짐, 배포 전 탭이 있는 상태에서 새 탭 카드에 trust 버튼이 보임).
 
 ## Current Lifecycle Stage
 
