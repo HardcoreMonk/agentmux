@@ -76,10 +76,10 @@
 ### Task 1: 입력창 화면 견본 채취 (controller)
 
 **Files:**
-- Create: `tests/fixtures/agent-composer/codex-empty.ansi.txt`, `codex-draft.ansi.txt`, `codex-working.ansi.txt`, `claude-empty.ansi.txt`, `claude-draft.ansi.txt`
+- Create: `tests/fixtures/agent-composer/{codex,claude}-{empty,draft,draft-leading-newline,working,done}.ansi.txt`(10개)
 - Modify: spec "현재 사실"에 견본에서 본 규칙 한 문단
 
-- [ ] 격리 server(격리 `CODEX_HOME`, 격리를 먼저 증명)에서 Codex 0.169와 Claude Code 탭을 띄운다.
+- [x] 격리 server(격리 `CODEX_HOME`, 격리를 먼저 증명)에서 Codex 0.169와 Claude Code 탭을 띄운다.
   - Claude 탭은 이미 trust된 폴더에서만 띄운다. folder trust는 수락하지 않는다.
 - [ ] 다음 상태마다 `tmux -L codexmux capture-pane -p -e -t <session>`을 저장한다.
   - 빈 입력창(예시 문구)
@@ -138,14 +138,18 @@
     - 접두어만 맞고 형식이 틀린 줄은 null
     - 사람 문장은 null
   - `isAgentReportText`: 앞 공백이 있어도 참이다.
-  - `isAgentComposerEmpty`
-    - `codex-empty` → true, `codex-draft` → false
-    - `claude-empty` → true, `claude-draft` → false
-    - 입력창 줄이 없는 화면 → null
+  - `isAgentComposerEmpty`(fixture는 `tests/fixtures/agent-composer/`)
+    - true: `codex-empty`, `codex-working`, `codex-done`, `claude-empty`, `claude-working`, `claude-done`
+    - false: `codex-draft`, `codex-draft-leading-newline`, `claude-draft`, `claude-draft-leading-newline`
+    - 입력창 줄이 없는 화면(예: 빈 문자열, 일반 shell 화면) → null
+    - `codex-done`은 transcript의 사용자 메시지 `›` 줄(6행)이 아니라 마지막 `›` 줄로 판정한다.
 - [ ] **Step 2: Run** → FAIL
 - [ ] **Step 3: Implement** 위 Interfaces대로.
-  - 입력창 판정: 마지막 입력창 줄(Codex `›`, Claude는 Task 1에서 본 입력 상자 줄)의 marker 뒤 보이는 글자가 모두 Task 1에서 기록한 예시 문구 속성이면 빈 것이다.
-  - SGR parse는 그 줄만 한다.
+  - 입력창 판정은 spec "현재 사실"의 판정 규칙 그대로다. 요점:
+    - Codex: 마지막 `›` 줄의 marker 뒤 보이는 글자가 하나 이상이고 모두 흐림(SGR `2`)이면 true다.
+    - Claude: 마지막 `❯` 줄의 marker 뒤 보이는 글자가 없거나 모두 흐림이고, 다음 줄이 `─`로 시작하면 true다.
+  - SGR은 그 줄(Claude는 다음 줄 확인 포함)만 parse한다. `2`가 흐림을 켜고, `0`·`22`·빈 `m`이 끈다. `1;2`처럼 묶인 param도 처리한다.
+  - 보이는 글자는 공백·NBSP가 아닌 글자다.
 - [ ] **Step 4: Run** → PASS, `tsc --noEmit`
 - [ ] **Step 5: Commit** `feat(agents): define the agent report text and read whether an agent composer is empty`
 

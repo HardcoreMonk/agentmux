@@ -46,6 +46,19 @@
 - 첫 입력 전 Codex 탭은 이제 `idle`이다(PR #60). Claude 탭은 `session-start` hook으로 `idle`이 된다.
 - timeline은 사용자 입력을 `user-message-item.tsx`로 그린다.
 - 위임 안내 문구는 `src/lib/delegation-guide.ts` `CLAUDE_GUIDE`다(Codex는 sandbox 문단을 더함).
+- 입력창 화면(2026-11-16 견본 `tests/fixtures/agent-composer/`, `tmux capture-pane -p -e`, Codex 0.169.0, Claude Code 2.1.325)
+  - Codex
+    - 입력창 줄은 화면의 마지막 `›`(굵게) 줄이다. transcript의 사용자 메시지도 `›`로 시작하지만 입력창보다 위에 있다.
+    - 비었을 때는 흐린(SGR `2`) 안내 문구가 늘 보인다. 첫 turn 전, 일하는 중, turn 뒤 모두 같다.
+    - 친 글은 속성이 없다. 첫 줄을 비우고 다음 줄에 쓴 글은 `›` 줄이 비고 다음 줄에 보인다.
+  - Claude
+    - 입력창 줄은 마지막 `❯`+NBSP 줄이고, 바로 아래 줄이 상자 테두리(`─`)다.
+    - 첫 turn 전에는 흐린 안내 문구가 보인다. 일하는 중과 turn 뒤에는 안내 문구 없이 비어 있다.
+    - 친 글은 속성이 없다. 첫 줄을 비우고 쓴 글은 `❯` 줄 아래, 테두리 위 줄에 보인다.
+  - 판정 규칙(Task 2)
+    - Codex: `›` 줄의 marker 뒤 보이는 글자가 하나 이상이고 모두 흐림이면 빈 것이다.
+    - Claude: `❯` 줄의 marker 뒤 보이는 글자가 없거나 모두 흐림이고, 다음 줄이 테두리면 빈 것이다.
+    - 그 밖은 비지 않은 것(false)이다. 입력창 줄을 찾지 못하면 판정 못 함(null)이다.
 
 ## 목표
 
