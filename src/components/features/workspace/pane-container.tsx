@@ -755,6 +755,8 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
         return;
       }
       handleSendToAgent(detail.text);
+      // The side panel's sync button stays mounted, so focus it once the toast is gone, as above.
+      window.setTimeout(() => focusInputRef.current?.(), ASK_AGENT_FOCUS_DELAY_MS);
     });
   }, [paneId, activeTabId, activePanelType, agentInputVisible, sessionView, handleSendToAgent, tDiff]);
 
