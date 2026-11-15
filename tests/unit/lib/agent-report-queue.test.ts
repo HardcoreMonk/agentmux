@@ -170,6 +170,28 @@ describe('AgentReportQueue', () => {
     expect(queue.onPromptSubmit('parent-1')).toBe('human');
   });
 
+  it('treats onPromptSubmit as human and resets pause when the turn-start expectation timed out', () => {
+    const queue = new AgentReportQueue();
+    let now = 1_000;
+
+    for (let i = 0; i < AGENT_REPORT_MAX_CONSECUTIVE; i += 1) {
+      queue.enqueue('parent-1', {
+        childTabId: 'child-1',
+        text: `report-${i}`,
+        enqueuedAt: now,
+      });
+      queue.commitBatch('parent-1', 1, now);
+      if (i < AGENT_REPORT_MAX_CONSECUTIVE - 1) {
+        expect(queue.onPromptSubmit('parent-1', now + 10)).toBe('report');
+        now += 100;
+      }
+    }
+
+    expect(queue.isPaused('parent-1')).toBe(true);
+    expect(queue.onPromptSubmit('parent-1', now + AGENT_REPORT_TURN_START_TIMEOUT_MS)).toBe('human');
+    expect(queue.isPaused('parent-1')).toBe(false);
+  });
+
   it('expires reports older than 30 minutes and returns expired counts per parent', () => {
     const queue = new AgentReportQueue();
     const t0 = 5_000;

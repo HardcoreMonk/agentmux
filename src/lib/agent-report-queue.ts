@@ -86,11 +86,15 @@ export class AgentReportQueue {
     return state.pending.length;
   }
 
-  onPromptSubmit(parentTabId: string): 'report' | 'human' {
+  onPromptSubmit(parentTabId: string, now?: number): 'report' | 'human' {
     const state = this.parents.get(parentTabId);
     if (state?.expectingTurnStartAt !== null && state?.expectingTurnStartAt !== undefined) {
+      const timedOut =
+        now !== undefined && now - state.expectingTurnStartAt >= AGENT_REPORT_TURN_START_TIMEOUT_MS;
       state.expectingTurnStartAt = null;
-      return 'report';
+      if (!timedOut) {
+        return 'report';
+      }
     }
     if (state) {
       state.consecutiveCount = 0;
