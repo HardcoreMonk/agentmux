@@ -27,6 +27,7 @@ import { nanoid } from 'nanoid';
 import fs from 'fs/promises';
 import { readAgentSessionId, readAgentSummary } from '@/lib/agent-tab-fields';
 import { getConfig } from '@/lib/config-store';
+import { isDelegationGuideEnabled } from '@/lib/delegation-guide';
 import { reduceCodexState } from '@/lib/status-state-machine';
 import { createDedupeKeyStore } from '@/lib/dedupe-key-store';
 import { completionKeyFor, normalizeSessionId, resolveAgentSessionId, sessionIdFromJsonlPath } from '@/lib/status-session-mapping';
@@ -266,7 +267,10 @@ export class StatusManager {
 
   private createDefaultAgentReportService(): AgentReportService {
     return new AgentReportService({
-      isEnabled: async () => (await getConfig()).agentReportsEnabled !== false,
+      isEnabled: async () => {
+        const config = await getConfig();
+        return isDelegationGuideEnabled(config) && config.agentReportsEnabled !== false;
+      },
       findTab: async (tabId) => {
         const { workspaces } = await getWorkspaces();
         for (const ws of workspaces) {

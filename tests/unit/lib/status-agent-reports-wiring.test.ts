@@ -2,15 +2,46 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IAgentReportServiceLike } from '@/lib/agent-report-service';
 
 const layoutMocks = vi.hoisted(() => ({
+  readLayoutFile: vi.fn(async () => null),
   updateTabAgentSessionId: vi.fn(async () => undefined),
   updateTabAgentJsonlPath: vi.fn(async () => undefined),
   updateTabCliStatus: vi.fn(async () => undefined),
 }));
 
+const configMocks = vi.hoisted(() => ({
+  getConfig: vi.fn(async () => ({
+    agentDelegationGuideEnabled: true,
+    agentReportsEnabled: true,
+  })),
+}));
+
+const workspaceMocks = vi.hoisted(() => ({
+  getWorkspaces: vi.fn(async () => ({
+    workspaces: [{ id: 'ws-1', name: 'WS 1', path: '/tmp/ws1' }],
+  })),
+}));
+
+vi.mock('@/lib/config-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/config-store')>();
+  return {
+    ...actual,
+    getConfig: configMocks.getConfig,
+  };
+});
+
+vi.mock('@/lib/workspace-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/workspace-store')>();
+  return {
+    ...actual,
+    getWorkspaces: workspaceMocks.getWorkspaces,
+  };
+});
+
 vi.mock('@/lib/layout-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/layout-store')>();
   return {
     ...actual,
+    readLayoutFile: layoutMocks.readLayoutFile,
     updateTabAgentSessionId: layoutMocks.updateTabAgentSessionId,
     updateTabAgentJsonlPath: layoutMocks.updateTabAgentJsonlPath,
     updateTabCliStatus: layoutMocks.updateTabCliStatus,
@@ -34,9 +65,12 @@ const makeFakeAgentReports = () => ({
 
 describe('StatusManager agentReports wiring', () => {
   beforeEach(() => {
+    layoutMocks.readLayoutFile.mockClear();
     layoutMocks.updateTabAgentSessionId.mockClear();
     layoutMocks.updateTabAgentJsonlPath.mockClear();
     layoutMocks.updateTabCliStatus.mockClear();
+    configMocks.getConfig.mockClear();
+    workspaceMocks.getWorkspaces.mockClear();
   });
 
   it('calls onChildStateChange and flush when a child transitions to ready-for-review', () => {
@@ -133,5 +167,30 @@ describe('StatusManager agentReports wiring', () => {
 
     expect(manager.removeTab('tab-child')).toBe(true);
     expect(agentReports.onTabRemoved).toHaveBeenCalledWith('tab-child');
+  });
+
+  it('disables default agent report delivery when the delegation guide is off even if agentReportsEnabled is true', async () => {
+    configMocks.getConfig.mockResolvedValue({
+      agentDelegationGuideEnabled: false,
+      agentReportsEnabled: true,
+    });
+    const broadcast = vi.fn();
+    const manager = new StatusManager({ broadcast, enableRateLimits: false });
+
+    manager.registerTab('tab-child', {
+      cliState: 'busy',
+      workspaceId: 'ws-1',
+      tabName: 'Child',
+      tmuxSession: 'pt-ws-1-pane-1-tab-child',
+      panelType: 'claude',
+      lastEvent: null,
+      eventSeq: 0,
+    });
+
+    manager.updateTabFromHook('pt-ws-1-pane-1-tab-child', 'stop');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(configMocks.getConfig).toHaveBeenCalled();
+    expect(layoutMocks.readLayoutFile).not.toHaveBeenCalled();
   });
 });

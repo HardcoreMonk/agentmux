@@ -125,7 +125,7 @@ agent 탭에는 다음 경우 입력을 거절합니다.
   - 사람 입력 없이 자동 보고가 P에 연달아 5번 들어가면, 6번째부터는 보내지 않고 대기열에 둡니다(`paused`). 사람이 P에 입력하면 연속 횟수를 0으로 되돌리고 대기열을 다시 보냅니다. hook에는 prompt 본문이 없으므로, 보고 표시 뒤 첫 `prompt-submit` 하나(60초 안)는 보고로, 그 밖의 `prompt-submit`은 사람 입력으로 봅니다.
   - 대기열에 들어간 지 30분이 지나도 보내지 못한 보고는 버립니다(`expired`).
 - **알림:** 5번 연속 정지(`paused`)와 30분 만료 폐기(`expired`)는 P 탭의 상태 필드 `agentReportNotice`(알림 목록에 한 줄로 표시), 웹 화면 toast, Web Push(`sendWebPush`)로 사람에게 알립니다. 사람 입력이 오면 표시를 지웁니다.
-- **설정:** Settings → General의 "agent 자동 보고" 스위치(`agentReportsEnabled`, 기본값 `true`)로 켜고 끕니다. 위임 안내(`agentDelegationGuideEnabled`)가 꺼져 있으면 이 스위치도 비활성화됩니다. 스위치를 끄면 대기 중인 보고를 모두 버리고, 새로 띄우는 agent의 위임 안내는 상태 확인(`tab status`) 방식 문구로 돌아갑니다.
+- **설정:** Settings → General의 "agent 자동 보고" 스위치(`agentReportsEnabled`, 기본값 `true`)로 켜고 끕니다. 위임 안내(`agentDelegationGuideEnabled`)가 꺼져 있으면 이 스위치도 비활성화되며 서버도 자동 보고를 보내지 않습니다. 스위치를 끄면 대기 중인 보고를 모두 버리고, 새로 띄우는 agent의 위임 안내는 상태 확인(`tab status`) 방식 문구로 돌아갑니다.
 - **한계:** 대기열과 연속 횟수는 `StatusManager`(Runtime v2에서는 status worker) 메모리에만 두므로, 서버나 status worker가 재시작하면 대기 중이던 보고는 사라집니다. 재시작 뒤에는 맡긴 agent가 `agentmux tab status`로 자식 탭 상태를 확인할 수 있습니다. 또한 이미 실행 중인 agent 탭은 다음 시작이나 재개 때부터 바뀐 위임 안내를 받습니다.
 
 ### Runtime v2 꺼짐
