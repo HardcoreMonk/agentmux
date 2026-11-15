@@ -638,6 +638,13 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 - 같은 날 확인: 사용자가 iPad에서 예전 codexmux 홈 화면 앱을 열자 agentmux로 열리고 접속됐다.
 - Android 앱 재설치는 사용자가 취소했다(폰 보안 설정으로 USB debugging 불가). 설치된 release APK가 main build와 같은 파일이라 필요 없었다.
 
+## diff 갱신 수정 (2026-11-15, lifecycle: lightweight)
+
+- Runtime v2 Git 격리 확인에서 찾았다. 같은 파일의 같은 줄을 줄 수가 같게 다시 고치면 Git 옆 패널과 Diff mode가 예전 내용을 보였다. 10초 확인도 변경을 놓쳤다.
+- 원인과 수정은 `docs/FOLLOW-UP.md` "설계 2-2 후속"의 "diff 카드 예전 내용" 행에 있다.
+- lightweight 사유: 의도한 표시를 되돌리는 수정이고 계약·공개 API 변경이 없다. 파일은 module 둘(`diff-card-fingerprint.ts`, `diff-hash-input.ts`)과 `diff-file-list.tsx`, `diff.ts`다.
+- 격리 확인: `foo→bar→baz→qux`처럼 같은 줄 수로 고쳐도, terminal이 하위 폴더에 있어도 새로고침하면 새 내용이 보였다. 10초 확인은 약 6.5초에 "변경사항이 있습니다"를 띄웠다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
