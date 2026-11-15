@@ -569,6 +569,9 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
     `agentmux.service` MainPID 2891644(NRestarts 0)가 같다. 격리 server·tmux·임시 디렉터리는 정리했다(격리 `CODEX_HOME`은 남김).
 - 남은 일: PR → CI → merge, 사용자 배포와 배포 뒤 확인(처음 띄운 Codex 탭에 검토 카드 한 번, trust 뒤 다시 뜨지 않음, 배포 전
   Codex 탭의 상태 보고 이어짐, 배포 전 탭이 있는 상태에서 새 탭 카드에 trust 버튼이 보임).
+- 후속 live 확인(2026-11-15 오후):
+  - update 카드 live 확인: 격리 `version.json`으로 안내를 띄워 Skip과 Skip until next version을 확인했고, 30초가 지나도 잠금이 유지됐다.
+  - 새로고침 잠금: session이 묶인 탭에서 약 2초(settle) 뒤 풀렸다.
 
 ## Current Lifecycle Stage
 

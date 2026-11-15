@@ -5,6 +5,20 @@ const watcher = vi.hoisted(() => ({ onChange: null as ((data: IRateLimitsData) =
 
 const providerOverride = vi.hoisted(() => ({ byPanelType: null as ((panelType: unknown) => unknown) | null }));
 
+const layoutMocks = vi.hoisted(() => ({
+  updateTabAgentSessionId: vi.fn(async () => undefined),
+  updateTabAgentJsonlPath: vi.fn(async () => undefined),
+}));
+
+vi.mock('@/lib/layout-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/layout-store')>();
+  return {
+    ...actual,
+    updateTabAgentSessionId: layoutMocks.updateTabAgentSessionId,
+    updateTabAgentJsonlPath: layoutMocks.updateTabAgentJsonlPath,
+  };
+});
+
 vi.mock('@/lib/rate-limits-watcher', () => ({
   createRateLimitsWatcher: (onChange: (data: IRateLimitsData) => void) => {
     watcher.onChange = onChange;
@@ -100,5 +114,57 @@ describe('StatusManager per-provider rate limits', () => {
     expect(manager.getRateLimitsForClient().claude?.five_hour?.used_percentage).toBe(55);
     expect(manager.getRateLimitsForClient().codex).toBeUndefined();
     expect(broadcast.mock.calls[0][0]).toMatchObject({ providerId: 'claude' });
+  });
+});
+
+describe('StatusManager Codex hook session binding', () => {
+  beforeEach(() => {
+    providerOverride.byPanelType = null;
+    layoutMocks.updateTabAgentSessionId.mockClear();
+    layoutMocks.updateTabAgentJsonlPath.mockClear();
+  });
+
+  const makeManagerWithCodexTab = () => {
+    const manager = new StatusManager({ broadcast: vi.fn(), enableRateLimits: false });
+    manager.registerTab('tab-codex', {
+      cliState: 'idle',
+      workspaceId: 'ws-1',
+      tabName: 'Codex',
+      tmuxSession: 'pt-ws-1-pane-1-tab-codex',
+      panelType: 'codex',
+      lastEvent: null,
+      eventSeq: 0,
+    });
+    return manager;
+  };
+
+  it('binds a Codex tab when a session-start hook reports a new session id', () => {
+    const manager = makeManagerWithCodexTab();
+    const sessionId = '019dcf1f-3a02-73a0-a79e-8703b99a2f30';
+    const transcriptPath = `/home/test/.codex/sessions/2026/11/15/rollout-${sessionId}.jsonl`;
+
+    manager.updateTabFromHook('pt-ws-1-pane-1-tab-codex', 'session-start', {
+      agentSessionId: sessionId,
+      transcriptPath,
+    });
+
+    expect(layoutMocks.updateTabAgentSessionId).toHaveBeenCalledWith(
+      'pt-ws-1-pane-1-tab-codex',
+      expect.objectContaining({ id: 'codex' }),
+      sessionId,
+    );
+    expect(manager.getAllForClient()['tab-codex']?.agentSessionId).toBe(sessionId);
+  });
+
+  it('does not rebind a Codex tab on prompt-submit hooks with a different session id', () => {
+    const manager = makeManagerWithCodexTab();
+
+    manager.updateTabFromHook('pt-ws-1-pane-1-tab-codex', 'prompt-submit', {
+      agentSessionId: '019dcf1f-3a02-73a0-a79e-8703b99a2f30',
+      transcriptPath: '/home/test/.codex/sessions/2026/11/15/rollout-subagent.jsonl',
+    });
+
+    expect(layoutMocks.updateTabAgentSessionId).not.toHaveBeenCalled();
+    expect(manager.getAllForClient()['tab-codex']?.agentSessionId).toBeUndefined();
   });
 });

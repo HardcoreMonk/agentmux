@@ -75,13 +75,14 @@ describe('agent providers', () => {
     }
   });
 
-  it('keeps Codex JSONL reconcile and pane recovery on and hook session binding off', () => {
+  it('keeps Codex JSONL reconcile and pane recovery on and binds sessions on session-start hooks', () => {
     expect(codexProvider.statusBehavior).toEqual({
       watchJsonlWhenBound: true,
       deferStopHookUntilJsonlIdle: true,
       reconcileStateFromJsonl: true,
       recoverPaneInput: true,
-      bindSessionFromHook: false,
+      bindSessionFromHook: true,
+      bindSessionHookEvents: ['session-start'],
       leaveNeedsInputOnJsonlGrowth: false,
     });
   });

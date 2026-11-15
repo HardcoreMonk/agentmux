@@ -964,7 +964,7 @@ export class StatusManager {
     }
 
     const provider = getProviderByPanelType(entry.panelType);
-    this.rebindSessionFromHook(tabId, entry, options);
+    this.rebindSessionFromHook(tabId, entry, event, options);
     const hookEvent = evaluateStatusHookEvent({
       event,
       notificationType,
@@ -1029,11 +1029,13 @@ export class StatusManager {
   private rebindSessionFromHook(
     tabId: string,
     entry: ITabStatusEntry,
+    event: string,
     options: { agentSessionId?: string; transcriptPath?: string },
   ): void {
     const provider = getProviderByPanelType(entry.panelType);
     const decision = decideHookSessionRebind({
       behavior: provider?.statusBehavior ?? null,
+      eventName: event,
       currentSessionId: entry.agentSessionId ?? null,
       currentJsonlPath: entry.jsonlPath ?? null,
       hookSessionId: options.agentSessionId,

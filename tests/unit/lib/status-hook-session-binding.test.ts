@@ -84,6 +84,23 @@ describe('decideHookSessionRebind', () => {
     expect(decideHookSessionRebind({ ...input, behavior: behavior({ bindSessionFromHook: false }) })).toEqual({ rebind: false });
     expect(decideHookSessionRebind({ ...input, behavior: null })).toEqual({ rebind: false });
   });
+
+  it('rebinds only for listed hook events when bindSessionHookEvents is set', () => {
+    const codexLike = behavior({ bindSessionHookEvents: ['session-start'] });
+    const input = {
+      behavior: codexLike,
+      currentSessionId: null,
+      hookSessionId: 'new',
+      transcriptPath: '/home/test/.codex/sessions/new.jsonl',
+    };
+    expect(decideHookSessionRebind({ ...input, eventName: 'session-start' })).toEqual({
+      rebind: true,
+      sessionId: 'new',
+      jsonlPath: '/home/test/.codex/sessions/new.jsonl',
+    });
+    expect(decideHookSessionRebind({ ...input, eventName: 'prompt-submit' })).toEqual({ rebind: false });
+    expect(decideHookSessionRebind({ ...input, eventName: 'stop' })).toEqual({ rebind: false });
+  });
 });
 
 describe('decideNeedsInputJsonlExit', () => {

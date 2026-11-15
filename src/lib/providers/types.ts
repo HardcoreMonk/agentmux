@@ -1,4 +1,5 @@
 import type { IChunkReadResult, IIncrementalResult, ISessionInfo, ITimelineEntry } from '@/types/timeline';
+import type { TEventName } from '@/types/status';
 import type { ISessionWatcher } from '@/lib/session-detection';
 import type { IAgentJsonlStatus } from '@/lib/status/jsonl-check';
 import type { ITab, TPanelType } from '@/types/terminal';
@@ -41,6 +42,7 @@ export interface IAgentProviderStatusBehavior {
   readonly reconcileStateFromJsonl: boolean;
   readonly recoverPaneInput: boolean;
   readonly bindSessionFromHook: boolean;
+  readonly bindSessionHookEvents?: readonly TEventName[];
   readonly leaveNeedsInputOnJsonlGrowth: boolean;
 }
 
