@@ -1,3 +1,16 @@
+import {
+  HEAD_NUMBERED_RE,
+  HEAD_OPTION_RE,
+  HEAD_PLAIN_RE,
+  HEAD_SUCCESS_RE,
+  INPUT_LINE_RE,
+  MARKER_MAX_EXTRA_LINES,
+  collapse,
+  findLastMarker,
+  hasInputLineBelow,
+  markerAt,
+  splitLines,
+} from '@/lib/screen-markers';
 import { matchTrustPrompt } from '@/lib/trust-prompt-detector';
 
 export type TCodexUpdateStatus = 'prompt' | 'updating' | 'success' | 'failed';
@@ -19,15 +32,6 @@ export interface ICodexHooksReviewInfo {
 export type TCodexHooksAnswer = 'trust' | 'skip';
 export type TCodexUpdateAnswer = 'update' | 'skip' | 'skip-version';
 
-// 0.167.0 draws "Update available · <cur> → <latest>"; older builds drew "Update available! <cur> -> <latest>".
-// A marker must start at the beginning of a screen line (after indent, the › mark, and an option number) and may
-// continue onto the next lines when the TUI wrapped it. Quoted or diffed copies in the conversation do not start there.
-const HEAD_PLAIN_RE = /^\s*/;
-const HEAD_OPTION_RE = /^\s*(?:›\s*)?(?:(\d+)\.\s+)?/;
-const HEAD_NUMBERED_RE = /^\s*(?:›\s*)?(\d+)\.\s+/;
-const HEAD_SUCCESS_RE = /^\s*(?:🎉\s*)?/;
-const MARKER_MAX_EXTRA_LINES = 4;
-
 const UPDATE_TITLE_RE = /^Update available\s?(?:!|·)\s(\S+)\s(?:→|->)\s(\S+)$/i;
 const UPDATE_NOW_RE = /^Update now(?: \(runs `([^`]*)`\))?$/i;
 const UPDATE_SKIP_VERSION_RE = /^Skip until next version$/i;
@@ -45,50 +49,9 @@ const HOOKS_COUNT_RE = /^(\d+) hooks? (?:is|are) new or changed\.$/i;
 const HOOKS_TRUSTING_RE = /^Trusting hooks\.\.\.$/i;
 const HOOKS_FOOTER_RE = /^\s*enter\s+\w+/i;
 
+const FOLDER_ACCESS_TITLE_RE = /^Folder access\b/i;
 const INPUT_DISABLED_RE = /^\s*›?\s*Input disabled\./m;
-const INPUT_LINE_RE = /^\s*›(?:\s*$|\s+(?!\d+\.)(?!\[[ x-]\])[^\n]*)$/m;
 const INPUT_TAIL_LINES = 8;
-
-const collapse = (text: string): string => text.replace(/\s+/g, ' ').trim();
-const splitLines = (text: string): string[] => text.split('\n').map((line) => line.replace(/\r$/, ''));
-
-interface IMarkerMatch {
-  head: RegExpExecArray;
-  marker: RegExpExecArray;
-}
-
-const markerAt = (lines: string[], index: number, headRe: RegExp, markerRe: RegExp): IMarkerMatch | null => {
-  const head = headRe.exec(lines[index]);
-  if (!head) return null;
-  let rest = lines[index].slice(head[0].length);
-  let found: IMarkerMatch | null = null;
-  for (let k = index; k <= index + MARKER_MAX_EXTRA_LINES; k += 1) {
-    if (k > index) {
-      if (lines[k] === undefined || !lines[k].trim()) break;
-      rest += `\n${lines[k]}`;
-    }
-    const marker = markerRe.exec(collapse(rest));
-    if (marker) found = { head, marker };
-  }
-  return found;
-};
-
-const findLastMarker = (
-  lines: string[],
-  headRe: RegExp,
-  markerRe: RegExp,
-  before = lines.length,
-): { index: number; match: IMarkerMatch } | null => {
-  for (let i = Math.min(before, lines.length) - 1; i >= 0; i -= 1) {
-    const match = markerAt(lines, i, headRe, markerRe);
-    if (match) return { index: i, match };
-  }
-  return null;
-};
-
-// A real startup screen has no Codex input box under it, so an input line below a marker means the marker is a quote.
-const hasInputLineBelow = (lines: string[], index: number): boolean =>
-  lines.some((line, i) => i > index && INPUT_LINE_RE.test(line));
 
 const lastFooterWithin = (lines: string[], index: number): number => {
   let last = index;
@@ -210,7 +173,17 @@ export const isCodexTuiReadyContent = (text: string): boolean => {
   return hasInputLineInTail(text);
 };
 
+// "Folder access" covers both the trust question and the restricted-open variant; either one blocks the input box.
+export const isCodexFolderAccessScreen = (text: string): boolean => {
+  const lines = splitLines(text);
+  const title = findLastMarker(lines, HEAD_PLAIN_RE, FOLDER_ACCESS_TITLE_RE);
+  if (!title) return false;
+  if (!lines.some((line, i) => i > title.index && HEAD_NUMBERED_RE.test(line))) return false;
+  return !hasInputLineBelow(lines, title.index);
+};
+
 export const isCodexBlockingScreen = (text: string): boolean =>
   isUpdateBlocking(text)
+  || isCodexFolderAccessScreen(text)
   || matchCodexHooksReview(text) !== null
   || (matchTrustPrompt(text)?.agent === 'codex' && !hasInputLineInTail(text));

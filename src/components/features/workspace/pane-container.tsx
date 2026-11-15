@@ -433,9 +433,10 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   }, [paneId, switchTabInPane, deleteTabInPane, closePane]);
 
   const trustDataRef = useRef<() => void>(() => {});
-  // trust 화면은 agent가 아직 뜨지 않았거나(inactive/unknown) 세션 확인 중(check)일 때만 나온다
+  // Claude trust 화면은 agent가 아직 뜨지 않았거나(inactive/unknown) 세션 확인 중(check)일 때만 나온다.
+  // Codex는 폴더 확인 화면 동안 busy라서 상태와 무관하게 켠다.
   const trustPromptEnabled = isAgentPanel
-    && (agentCliState === 'inactive' || agentCliState === 'unknown' || sessionView === 'check');
+    && (activePanelType === 'codex' || agentCliState === 'inactive' || agentCliState === 'unknown' || sessionView === 'check');
   const { trustPrompt, onTerminalData: onTrustTerminalData, onTrustResponse } = useTrustPromptDetector({
     enabled: trustPromptEnabled,
     scopeKey: activeTab ? `${activeTab.id}:${activeTab.sessionName}` : null,

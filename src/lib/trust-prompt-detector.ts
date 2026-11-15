@@ -1,3 +1,5 @@
+import { HEAD_NUMBERED_RE, HEAD_PLAIN_RE, findLastMarker, hasInputLineBelow, splitLines } from '@/lib/screen-markers';
+
 export type TTrustAnswer = 'yes' | 'no';
 export type TTrustAgent = 'claude' | 'codex';
 
@@ -20,6 +22,11 @@ const CLAUDE_YES_RE = /Yes,\s+I trust this folder/i;
 const CLAUDE_NO_RE = /No,\s+exit/i;
 const CODEX_YOU_ARE_IN_RE = /You are in\s+(\/\S+)/i;
 const CODEX_GIT_ROOT_RE = /repository root:\s*(\/\S+)/i;
+const CODEX_FOLDER_TITLE_RE = /^Folder access\b/i;
+const CODEX_FOLDER_QUESTION_RE = /^Trust this folder\?/i;
+const CODEX_FOLDER_TRUST_OPTION_RE = /^Trust and continue\b/i;
+const CODEX_FOLDER_OPTION_RE = /^\s*(?:›\s*)?\d+\.\s+(.+?)\s*$/;
+const CODEX_FOLDER_TRUST_LABEL = 'Trust and continue';
 const FOCUS_MARK_RE = /^\s*[❯›>]\s*/;
 
 const findPath = (line: string | undefined): string | null => {
@@ -60,6 +67,30 @@ const matchClaude = (text: string, lines: string[]): ITrustPromptInfo | null => 
   return { agent: 'claude', folderPath, options, selectedIndex: Math.max(0, focusedRow) };
 };
 
+// Codex 0.169 "Folder access" screen. A missing path is still a match (only the old wording requires one).
+const matchCodexFolderAccess = (text: string): ITrustPromptInfo | null => {
+  const lines = splitLines(text);
+  const title = findLastMarker(lines, HEAD_PLAIN_RE, CODEX_FOLDER_TITLE_RE);
+  if (!title) return null;
+  const question = findLastMarker(lines, HEAD_PLAIN_RE, CODEX_FOLDER_QUESTION_RE);
+  if (!question || question.index <= title.index) return null;
+  const trust = findLastMarker(lines, HEAD_NUMBERED_RE, CODEX_FOLDER_TRUST_OPTION_RE);
+  if (!trust || trust.index <= question.index) return null;
+  if (hasInputLineBelow(lines, title.index)) return null;
+
+  const options: string[] = [];
+  let selectedIndex = 0;
+  for (let i = trust.index; i < lines.length && options.length < 2; i += 1) {
+    const m = CODEX_FOLDER_OPTION_RE.exec(lines[i]);
+    if (!m) continue;
+    if (/^\s*›/.test(lines[i])) selectedIndex = options.length;
+    options.push(m[1]);
+  }
+  const pathIdx = lines.findIndex((l, i) => i > title.index && l.trim() !== '');
+  const folderPath = pathIdx >= 0 && pathIdx < question.index ? lines[pathIdx].trim() : null;
+  return { agent: 'codex', folderPath, options, selectedIndex };
+};
+
 const matchCodex = (text: string, lines: string[]): ITrustPromptInfo | null => {
   const signatures = [/Do you trust the contents of this directory/i, /Yes,\s+continue/i, /No,\s+quit/i];
   if (!signatures.every((re) => re.test(text))) return null;
@@ -80,11 +111,15 @@ const matchCodex = (text: string, lines: string[]): ITrustPromptInfo | null => {
 
 export const matchTrustPrompt = (screenText: string): ITrustPromptInfo | null => {
   const lines = screenText.split('\n');
-  return matchClaude(screenText, lines) ?? matchCodex(screenText, lines);
+  return matchClaude(screenText, lines) ?? matchCodexFolderAccess(screenText) ?? matchCodex(screenText, lines);
 };
 
 export const trustAnswerKeys = (info: ITrustPromptInfo, answer: TTrustAnswer): string => {
-  if (info.agent === 'codex') return answer === 'yes' ? '1' : '2';
+  if (info.agent === 'codex') {
+    // The 0.169 folder screen only highlights on "1"; Enter confirms it
+    if (info.options[0] === CODEX_FOLDER_TRUST_LABEL) return answer === 'yes' ? '1\r' : '2';
+    return answer === 'yes' ? '1' : '2';
+  }
   if (answer === 'no') return ESC;
   const target = info.options.findIndex((o) => CLAUDE_YES_RE.test(o));
   const diff = (target < 0 ? 1 : target) - info.selectedIndex;

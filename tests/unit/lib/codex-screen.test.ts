@@ -6,6 +6,7 @@ import {
   codexHooksReviewKeys,
   codexUpdateAnswerKeys,
   isCodexBlockingScreen,
+  isCodexFolderAccessScreen,
   isCodexTuiReadyContent,
   matchCodexHooksReview,
   matchCodexUpdatePrompt,
@@ -313,5 +314,23 @@ describe('update failure line', () => {
   it('reads the failure fixture and a failure below an old prompt', () => {
     expect(matchCodexUpdatePrompt(fixture('update-failed'))?.status).toBe('failed');
     expect(matchCodexUpdatePrompt(`${fixture('update-prompt')}\n${fixture('update-failed')}`)?.status).toBe('failed');
+  });
+});
+
+describe('Codex folder access screens', () => {
+  it('treats the restricted variant as a blocking screen', () => {
+    const text = fixture('folder-restricted');
+    expect(isCodexFolderAccessScreen(text)).toBe(true);
+    expect(isCodexBlockingScreen(text)).toBe(true);
+    expect(isCodexTuiReadyContent(text)).toBe(false);
+  });
+
+  it('treats the trust variant as a blocking screen', () => {
+    expect(isCodexBlockingScreen(fixture('folder-trust'))).toBe(true);
+  });
+
+  it('ignores a pasted copy with the input box below', () => {
+    const quoted = `${fixture('folder-restricted')}\n› Ask Codex to do anything\n`;
+    expect(isCodexFolderAccessScreen(quoted)).toBe(false);
   });
 });

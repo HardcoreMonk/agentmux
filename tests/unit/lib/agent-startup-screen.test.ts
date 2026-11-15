@@ -125,3 +125,10 @@ describe('matchAgentStartupScreen', () => {
     expect(matchAgentStartupScreen('› Explain this codebase\n\n  gpt-5 high · 100% context left\n')).toBeNull();
   });
 });
+
+describe('matchAgentStartupScreen folder access', () => {
+  it.each(['folder-trust', 'folder-restricted'])('reports %s as trust', (name) => {
+    const text = fs.readFileSync(path.join(process.cwd(), 'tests/fixtures/codex-screens', `${name}.txt`), 'utf-8');
+    expect(matchAgentStartupScreen(text)).toBe('trust');
+  });
+});
