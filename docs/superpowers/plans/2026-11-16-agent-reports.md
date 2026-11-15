@@ -163,11 +163,12 @@
   ```ts
   export const AGENT_REPORT_MAX_CONSECUTIVE = 5;
   export const AGENT_REPORT_TTL_MS = 30 * 60_000;
+  export const AGENT_REPORT_TURN_START_TIMEOUT_MS = 60_000;
   export interface IQueuedAgentReport { childTabId: string; text: string; enqueuedAt: number }
   export class AgentReportQueue {
     enqueue(parentTabId: string, report: IQueuedAgentReport): void
-    peekBatch(parentTabId: string): { text: string; count: number } | null   // 비었거나 정지면 null
-    commitBatch(parentTabId: string, count: number): void                    // 앞 count개 제거, 연속 횟수 +1, 보고 입력 기대 표시
+    peekBatch(parentTabId: string, now: number): { text: string; count: number } | null   // 비었거나, 정지거나, 기대 표시가 60초 안이면 null
+    commitBatch(parentTabId: string, count: number, now: number): void                    // 앞 count개 제거, 연속 횟수 +1, 보고 입력 기대 표시(시각 기록)
     isPaused(parentTabId: string): boolean                                   // 연속 횟수 >= 5
     takePauseNotice(parentTabId: string): number | null                      // 정지 + 대기 있음이면 처음 한 번 대기 수
     onPromptSubmit(parentTabId: string): 'report' | 'human'                  // 기대 표시가 있으면 지우고 'report', 아니면 연속 0·정지 해제·정지 알림 기록 해제 후 'human'
@@ -185,6 +186,9 @@
     - 보고 뒤 첫 번은 `report`(연속 유지)다.
     - 다음 번은 `human`이고 연속이 0이 되며 정지가 풀린다.
     - `human` 뒤 다시 5번 정지하면 `takePauseNotice`가 또 수를 준다.
+  - "next report waits for the turn to start"
+    - `commitBatch(t)` 뒤 새 보고를 넣어도 `peekBatch(t + 59_999)`는 null이다.
+    - `onPromptSubmit` 뒤에는 그 보고를 준다. 그 hook이 오지 않아도 `peekBatch(t + 60_000)`는 준다.
   - `expire(enqueuedAt + 30분 + 1)`이 그 보고를 돌려주고 지운다.
   - `forgetTab(child)`가 그 child 보고를 지운다. `forgetTab(parent)`가 대기열을 지운다.
 - [ ] **Step 2~4:** FAIL → 구현 → PASS
@@ -211,11 +215,11 @@
   export const readLastAssistantMessage = async (tab: ITab, hint?: IAssistantMessageHint): Promise<{ text: string; timestamp: number } | null>
   ```
   - `checkAgentInputTarget`
-    - 판정과 message는 지금 `send.ts` 64-95행의 agent 탭 분기(상태, process, 화면 읽기, 시작 화면, 권한 질문) 그대로다.
+    - 판정과 message는 지금 `send.ts` 68-95행의 agent 탭 분기(상태, process, 화면 읽기, 시작 화면, 권한 질문) 그대로다.
     - 상태는 인자로 받고 스스로 읽지 않는다(Ruling "status worker"). `send.ts`는 `await readTabCliState(tab)`를 넘기고 같은 응답을 낸다(동작 변화 없음).
   - `readLastAssistantMessage`
-    - `hint.jsonlPath`가 있으면 그 파일을 읽는다.
-    - `hint.agentSessionId`가 있으면 `readTabStatusEntry`를 부르지 않고 그 id를 쓴다.
+    - hint 객체가 있으면(빈 객체여도) `readTabStatusEntry`를 절대 부르지 않는다. 지금 315행이 status worker 안에서 supervisor를 부르기 때문이다.
+    - `hint.jsonlPath`가 있으면 그 파일을 읽는다. 없고 layout에 session id도 없으면 `hint.agentSessionId`를 쓰고, 그것도 없으면 null이다.
     - hint가 없으면 지금 동작 그대로다.
 - API 규칙
   - `send.ts`: `resolved.caller`가 있고 `isAgentReportText(content)`이면 400 `reserved-report-prefix`이고 아무것도 쓰지 않는다. 대상 확인보다 먼저 본다.
@@ -227,7 +231,7 @@
   - 맡은 탭(호출 탭에 `createdByTabId`)의 create는 403 `delegation-depth`다.
   - 맡긴 탭(`createdByTabId` 없음)의 create는 그대로다.
   - 기존 send test들이 그대로 통과한다(공유 함수로 바꾼 뒤).
-  - `readLastAssistantMessage(tab, { agentSessionId })`는 status 읽기(`getStatusManager`·supervisor mock)를 부르지 않는다.
+  - `readLastAssistantMessage(tab, { agentSessionId })`와 `readLastAssistantMessage(tab, {})`는 status 읽기(`getStatusManager`·supervisor mock)를 부르지 않는다.
   - `checkAgentInputTarget(tab, 'needs-input')`은 `target-needs-input`, `(tab, 'inactive')`와 `(tab, null)`은 `target-not-ready`다.
 - [ ] **Step 2~4:** FAIL → 구현 → PASS(`tests/unit/pages`, `tests/unit/lib`)
 - [ ] **Step 5: Commit** `feat(cli): refuse report-shaped agent sends and second-level delegation`
@@ -241,7 +245,7 @@
 - Modify
   - server: `src/lib/status-manager.ts`, `src/lib/status/web-push-payload.ts`, `src/lib/status/client-payload.ts`, `src/types/status.ts`, `src/lib/runtime/ipc.ts`(`statusClientTabStatusEntrySchema`)
   - client: `src/hooks/use-agent-status.ts`, `src/hooks/use-tab-store.ts`, `src/components/features/workspace/notification-sheet.tsx`, `messages/{ko,en}/notification.json`
-- Test: `tests/unit/lib/agent-report-service.test.ts`, `tests/unit/lib/status-web-push-payload.test.ts`, `tests/unit/lib/status-client-payload.test.ts`, `tests/unit/lib/runtime/ipc.test.ts`
+- Test: `tests/unit/lib/agent-report-service.test.ts`, `tests/unit/lib/status-agent-reports-wiring.test.ts`(새 파일, `status-rate-limits.test.ts`의 mock 방식), `tests/unit/lib/status-web-push-payload.test.ts`, `tests/unit/lib/status-client-payload.test.ts`, `tests/unit/lib/runtime/ipc.test.ts`
 
 **Interfaces:**
 - Consumes: Task 2~4 전부
@@ -257,42 +261,50 @@
     writeInput(tab: ITab, text: string): Promise<{ followUpEnterSkipped: boolean }>;
     notify(parentTabId: string, kind: 'paused' | 'expired', count: number): void;
     now(): number;
+    sleep(ms: number): Promise<void>;
   }
-  export class AgentReportService {
+  export const AGENT_REPORT_READ_DELAY_MS = 500;   // CODEX_STOP_RECHECK_MS와 같은 값. Stop hook 직후 transcript가 늦을 수 있다.
+  export type TAgentReportFlushResult = 'delivered' | 'waiting' | 'paused' | 'empty' | 'disabled';
+  export interface IAgentReportServiceLike {
+    onChildStateChange(childTabId: string, newState: TCliState, opts: { silent?: boolean; completionKey?: string | null }): Promise<void>;
+    flush(parentTabId: string): Promise<TAgentReportFlushResult>;
+    tick(): Promise<void>;           // 만료 알림 + 대기 있는 부모 모두 flush
+    onPromptSubmit(tabId: string): 'report' | 'human';
+    onTabRemoved(tabId: string): void;
+    reset(): void;                   // 대기열·기록 모두 비움
+  }
+  export class AgentReportService implements IAgentReportServiceLike {
     constructor(deps: IAgentReportDeps, queue?: AgentReportQueue)
-    onChildStateChange(childTabId: string, newState: TCliState, opts: { silent?: boolean; completionKey?: string | null }): Promise<void>
-    flush(parentTabId: string): Promise<'delivered' | 'waiting' | 'paused' | 'empty'>
-    tick(): Promise<void>            // 만료 알림 + 대기 있는 부모 모두 flush
-    onPromptSubmit(tabId: string): void
-    onTabRemoved(tabId: string): void
-    reset(): void                    // 설정 꺼짐
   }
   ```
 - 동작
+  - 설정: `onChildStateChange`·`flush`·`tick`은 먼저 `isEnabled()`를 본다. false면 `reset()`하고 아무것도 쓰지 않는다(`flush`는 `disabled`). 설정을 끄면 대기 보고를 버린다는 spec 결정 6이다.
   - `onChildStateChange`
-    - 꺼져 있거나, `silent`이거나, 같은 `completionKey`를 이미 보냈으면 아무것도 하지 않는다.
+    - `silent`이거나 같은 `completionKey`를 이미 보냈으면 아무것도 하지 않는다.
     - child가 agent 탭이 아니거나 `createdByTabId`가 없으면 아무것도 하지 않는다.
     - 부모가 없거나 agent 탭이 아니면 아무것도 하지 않는다.
     - child나 부모가 Runtime v2 탭(`resolveTabRuntimeVersion(tab) === 2`)이면 아무것도 하지 않는다.
-    - 그 밖에는 보고를 만들어 넣고 `flush(parent)`를 부른다.
+    - 그 밖에는 보고를 만들어 넣고 `flush(parent)`를 부른다. done 보고는 `sleep(AGENT_REPORT_READ_DELAY_MS)` 뒤에 마지막 답을 읽는다.
   - `flush`
+    - 같은 부모의 `flush`가 진행 중이면 기다리지 않고 바로 `waiting`이다(부모별 in-flight 표시). 쓰기는 await라서, 표시 없이 두 flush가 같은 보고를 두 번 쓸 수 있다.
     - 부모 상태가 `idle`·`ready-for-review`가 아니면 `waiting`이다.
+    - 직전 보고의 turn이 아직 시작되지 않았으면(`peekBatch`가 기대 표시 때문에 null) `waiting`이다.
     - `checkTarget`이 ok가 아니면 `waiting`이다.
     - `isAgentComposerEmpty`가 true가 아니면 `waiting`이다.
     - 모두 통과하면 `writeInput` 뒤 `commitBatch`이고 `delivered`다.
     - 정지면 `takePauseNotice`가 수를 주면 `notify('paused')`하고 `paused`다.
     - `followUpEnterSkipped`여도 `commitBatch`한다. 글은 입력창에 남아 사람이 본다.
 - `StatusManager` 연결(`src/lib/status-manager.ts`)
-  - 생성 때 service를 만든다.
+  - `IStatusManagerOptions`에 `agentReports?: IAgentReportServiceLike`를 더한다. 주지 않으면 생성 때 service를 만든다(아래). 주면 그것을 쓴다(wiring test용).
     - `checkTarget`·`readLastMessage`·`writeInput`은 workspace-tab-service 함수를 dynamic import로 감싼다(Ruling "import 순환").
     - `findTab`은 `poll()`과 같은 layout 파일 읽기로 만든다. `readCliState`는 `this.tabs`의 entry다(Ruling "status worker").
   - `applyCliState` 끝
     - 새 상태가 `ready-for-review`·`needs-input`이면 `onChildStateChange`를 부른다.
     - 새 상태가 `idle`·`ready-for-review`이면 `flush(tabId)`를 부른다.
     - 실패는 log만 남긴다.
-  - `updateTabFromHook`: event `prompt-submit`이면 `onPromptSubmit(tabId)`를 부른다. service가 그것을 사람 입력으로 보면 entry의 `agentReportNotice`를 null로 지우고 broadcast한다.
+  - `updateTabFromHook`: event `prompt-submit`이면 `onPromptSubmit(tabId)`를 부른다. 결과가 `human`이고 entry에 `agentReportNotice`가 있으면 null로 지우고 broadcast한다.
   - `poll()` 끝에서 `tick()`를 부른다. 탭 제거 경로 두 곳(`removeTab`, `poll()` 안의 `this.tabs.delete`)에서 `onTabRemoved`를 부른다.
-  - `isEnabled`는 `getConfig()`의 `agentReportsEnabled !== false`다. 꺼짐이 보이면 `reset()`을 부른다.
+  - `isEnabled`는 `getConfig()`의 `agentReportsEnabled !== false`다.
   - `notify(parentTabId, kind, count)`
     - P entry에 `agentReportNotice = { kind, count, at: now }`를 두고 `broadcastUpdate`한다.
     - web push를 보낸다. `TStatusWebPushType`에 `'agent-report-paused' | 'agent-report-expired'`를 더한다.
@@ -319,11 +331,19 @@
   - 보고 5번(각각 뒤에 그 보고의 `prompt-submit`) 뒤 6번째는 `paused`이고 `notify('paused', 1)` 한 번이다. 이어서 사람 `prompt-submit` 한 번 뒤 `flush`는 `delivered`다.
   - "parent closed drops reports": `findTab(parent)` null이면 버리고 write 없음. `onTabRemoved(parent)`는 대기열을 지운다.
   - "runtime v2 tabs are ignored": child나 부모가 `runtimeVersion: 2`면 write 0번이다.
-  - 꺼짐(`isEnabled` false) → 아무것도 안 함, `reset` 뒤 대기 0
+  - 꺼짐: 대기 보고가 있는 채로 `isEnabled`가 false가 되면 `flush`는 `disabled`이고 write 0번이다. 다시 true가 되어도 지난 보고는 쓰지 않는다.
+  - "concurrent flush writes once": `writeInput`이 끝나기 전에 같은 부모로 `flush`를 두 번 부르면 write는 한 번이다.
+  - "next report waits for the turn to start": delivered 직후 다른 child 보고가 오면 부모가 아직 `idle`이어도 write하지 않는다. 그 부모의 `onPromptSubmit` 뒤 `flush`에서 쓴다.
+  - done 보고는 `sleep(500)` 뒤 읽은 마지막 답을 담는다(가짜 `sleep`이 끝나기 전 바뀐 답이 들어간다).
   - `tick`의 30분 만료 → `notify('expired', n)`
   - web push payload: `agent-report-paused`·`agent-report-expired`의 title·body
   - client payload: `buildStatusUpdateMessage`가 `agentReportNotice`를 담고, IPC `status.update` schema가 그 payload를 받아들인다.
-- [ ] **Step 2~4:** FAIL → 구현 → PASS(`tests/unit/lib`, `tests/unit/hooks`, 기존 status-manager test)
+  - wiring(`status-agent-reports-wiring.test.ts`, 가짜 `agentReports`)
+    - child 탭의 `ready-for-review` 전환 → `onChildStateChange(child, 'ready-for-review', …)`
+    - 부모의 `idle` 전환 → `flush(parent)`
+    - `prompt-submit` hook → `onPromptSubmit`. `human`이면 `agentReportNotice`가 지워진 `status:update`가 broadcast된다.
+    - `removeTab` → `onTabRemoved`
+- [ ] **Step 2~4:** FAIL → 구현 → PASS(`tests/unit/lib`, `tests/unit/hooks`)
 - [ ] **Step 5: Commit** `feat(status): deliver agent reports to the tab that delegated the work`
 
 ---
@@ -333,18 +353,20 @@
 **Files:**
 - Modify
   - 설정: `src/lib/config-store.ts`, `src/pages/api/config.ts`, `src/hooks/use-config-store.ts`, `src/components/features/workspace/settings-dialog.tsx`, `messages/{ko,en}/settings.json`
-  - 안내: `src/lib/delegation-guide.ts`, `src/lib/providers/codex/index.ts`
-- Test: `tests/unit/lib/delegation-guide.test.ts`(있는 test 확장), config API test, settings 문구 test
+  - 안내: `src/lib/delegation-guide.ts`, `src/lib/providers/codex/index.ts`(68행 `buildDelegationGuide('codex')`)
+- Test: `tests/unit/lib/delegation-guide.test.ts`(있는 test 확장), config API test, settings 문구 test. 안내 문구를 확인하는 `claude-provider-launch.test.ts:54`, `codex-provider-launch.test.ts:96,119`는 기대값이 바뀌면 고친다.
 
 **Interfaces:**
 - 설정 `agentReportsEnabled?: boolean`
   - 기본 true다. API는 boolean 검증을 한다(`agentDelegationGuideEnabled`와 같은 방식).
   - store 함수는 `setAgentReportsEnabled`다.
   - Settings → General에서 위임 안내 스위치 바로 아래에 둔다. 문구 key는 `settings.agentReports`·`settings.agentReportsDescription`이다.
-- `buildDelegationGuide(provider: TDelegationProvider, options: { reportsEnabled: boolean }): string`
-  - false면 지금 문구 그대로다.
+- `buildDelegationGuide(provider: TDelegationProvider, options?: { reportsEnabled?: boolean }): string`
+  - options가 없거나 `reportsEnabled`가 false면 지금 문구 그대로다. 그래서 인자 하나로 부르는 기존 test는 그대로 통과한다.
   - true면 "How to delegate"를 아래로 바꾸고, 나머지(명령 목록, Limits, Codex sandbox 문단)는 유지한다.
-  - `ensureDelegationAssets`와 Codex `developer_instructions` 생성이 config의 값을 넘긴다.
+  - `ensureDelegationAssets()`는 signature를 바꾸지 않고 안에서 `getConfig()`를 읽어 값을 넘긴다. 그래서 `server.ts:505`, `providers/claude/index.ts:60`, `providers/codex/index.ts:88` 호출은 그대로다.
+  - Codex `developer_instructions` 생성(`providers/codex/index.ts:68`)도 config 값을 넘긴다.
+  - 이미 떠 있는 탭은 다음 실행 때 새 안내를 받는다. 이 점을 Task 8 문서에 적는다.
 - true 안내의 "How to delegate" 대체 문구(그대로 쓴다)
   ```
   How to delegate:
