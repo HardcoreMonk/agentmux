@@ -80,11 +80,20 @@ export class AgentReportService implements IAgentReportServiceLike {
         this.reset();
         return;
       }
-      if (opts.silent) return;
-      if (opts.completionKey && this.seenCompletionKeys.has(opts.completionKey)) return;
+      if (opts.silent) {
+        log.debug({ childTabId, newState }, 'skip report: silent transition');
+        return;
+      }
+      if (opts.completionKey && this.seenCompletionKeys.has(opts.completionKey)) {
+        log.debug({ childTabId, newState }, 'skip report: completion already reported');
+        return;
+      }
 
       const childFound = await this.deps.findTab(childTabId);
-      if (!childFound) return;
+      if (!childFound) {
+        log.debug({ childTabId, newState }, 'skip report: child tab not found');
+        return;
+      }
       const { tab: childTab } = childFound;
       if (!isAgentPanelType(childTab.panelType)) return;
       if (!childTab.createdByTabId) return;
@@ -93,6 +102,7 @@ export class AgentReportService implements IAgentReportServiceLike {
       const parentTabId = childTab.createdByTabId;
       const parentFound = await this.deps.findTab(parentTabId);
       if (!parentFound) {
+        log.debug({ childTabId, parentTabId }, 'drop report: parent tab not found');
         this.queue.forgetTab(parentTabId);
         return;
       }
@@ -127,6 +137,7 @@ export class AgentReportService implements IAgentReportServiceLike {
         enqueuedAt: this.deps.now(),
       });
       this.rememberCompletionKey(opts.completionKey);
+      log.debug({ childTabId, parentTabId, event }, 'report queued');
 
       await this.flush(parentTabId);
     } catch (err) {
@@ -148,6 +159,7 @@ export class AgentReportService implements IAgentReportServiceLike {
 
         const parentFound = await this.deps.findTab(parentTabId);
         if (!parentFound) {
+          log.debug({ parentTabId }, 'drop reports: parent tab not found');
           this.queue.forgetTab(parentTabId);
           return 'empty';
         }
@@ -170,14 +182,19 @@ export class AgentReportService implements IAgentReportServiceLike {
 
         const cliState = this.deps.readCliState(parentTabId);
         if (cliState !== 'idle' && cliState !== 'ready-for-review') {
+          log.debug({ parentTabId, cliState }, 'report waits: parent is not idle');
           return 'waiting';
         }
 
         const targetCheck = await this.deps.checkTarget(parentTab, cliState);
-        if (!targetCheck.ok) return 'waiting';
+        if (!targetCheck.ok) {
+          log.debug({ parentTabId, code: targetCheck.code }, 'report waits: parent target check');
+          return 'waiting';
+        }
 
         const ansiScreen = await this.deps.readComposerScreen(parentTab);
         if (ansiScreen === null || isAgentComposerEmpty(parentTab.panelType, ansiScreen) !== true) {
+          log.debug({ parentTabId }, 'report waits: parent composer is not empty');
           return 'waiting';
         }
 
@@ -187,6 +204,7 @@ export class AgentReportService implements IAgentReportServiceLike {
         this.queue.beginDelivery(parentTabId, this.deps.now());
         await this.deps.writeInput(parentTab, currentBatch.text);
         this.queue.commitBatch(parentTabId, currentBatch.count);
+        log.debug({ parentTabId, count: currentBatch.count }, 'reports delivered');
         return 'delivered';
       } finally {
         this.flushingParents.delete(parentTabId);
