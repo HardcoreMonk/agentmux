@@ -187,6 +187,8 @@ describe('useTabStore agent process view state', () => {
 
     useTabStore.getState().updateFromServer('tab-cli-inactive', {
       cliState: 'idle',
+      workspaceId: 'ws-test',
+      panelType: 'codex',
     });
 
     expect(useTabStore.getState().tabs['tab-cli-inactive']).toMatchObject({
@@ -204,6 +206,8 @@ describe('useTabStore agent process view state', () => {
 
     useTabStore.getState().updateFromServer('tab-explicit', {
       cliState: 'idle',
+      workspaceId: 'ws-test',
+      panelType: 'codex',
     });
 
     expect(useTabStore.getState().tabs['tab-explicit']).toMatchObject({
