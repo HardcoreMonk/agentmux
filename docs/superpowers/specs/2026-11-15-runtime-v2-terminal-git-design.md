@@ -1,7 +1,7 @@
 # Runtime v2 terminal 탭의 Git 설계 (설계 2-2 후속, 작은 변경)
 
 - 작성일: 2026-11-15
-- 상태: Approved — 2026-11-15 사용자: "설계 승인합니다"
+- 상태: Approved — 2026-11-15 사용자: "설계 승인합니다". 구현과 격리 확인 완료(아래)
 - Lifecycle: `docs/FOLLOW-UP.md` "설계 2-2 후속"의 "Runtime v2 terminal 탭의 Git"이다. 사용자가 "후속 작업 순차 진행"을 지시했고, 방식 선택에서 "a"(worker 명령으로 지금 폴더 읽기)를 골랐다. Runtime v2 IPC 계약과 Git API 동작을 바꾸므로 Lightweight 경로를 쓰지 않는다. 작은 변경이라 짧은 설계와 계획을 이 문서 하나에 둔다.
 
 ## 의도와 이유
@@ -94,3 +94,17 @@
 
 - 지금 폴더는 terminal의 맨 앞 process 기준(`pane_current_path`)이다. 예전 tmux 탭과 같은 기준이다.
 - Runtime v2가 꺼진 server에서는 `rtv2-` session이 없으므로 지금처럼 404다.
+
+## 구현과 확인 결과 (2026-11-15)
+
+- 구현
+  - agy(Claude 검증): `b6627a53`(IPC, worker, supervisor), `f75617d6`(helper, Git API 6곳, FOLLOW-UP)
+  - 독립 검토(sonnet) 승인. Minor 1개를 controller가 고쳤다: `3821666c` 형식이 틀린 `rtv2-` 이름은 supervisor에 묻지 않고 없는 것으로 본다(500 대신 404).
+  - 격리 확인에서 찾아 controller가 고쳤다: `31c4c24b` Diff mode로 바꾼 Runtime v2 탭이 404였다. 원인은 위 설계 3의 storage 조회다.
+- gate: lint error 0(기존 경고 6), `tsc --noEmit`와 deploy-check, 전체 test 통과(임시 HOME, `CODEX_HOME` 없음), 문서 gate, `pnpm build`
+- 격리 확인(port 18122, `new-tabs`, build `31c4c24b`)
+  - CLI로 만든 Runtime v2 terminal 탭(`rtv2-…`)을 저장소 A에 두었다. Git 옆 패널에 A의 변경이 보였다.
+  - `cd`로 B에 간 뒤 `/api/layout/cwd`와 diff가 B를 돌려주었다. 패널과 Diff mode에도 B의 변경(`only-b.txt`)이 보였다.
+  - 다시 A로 `cd`한 뒤 분할하자 새 pane이 A에서 열렸다.
+  - 사용자 파일 hash, live tmux session, `agentmux.service`는 그대로였다.
+- 따로 찾은 기존 문제(이 변경과 무관): diff 파일 카드(`diff-file-list.tsx` `FileDiffCard`)의 key는 `경로@hunk 수:추가:삭제`다. 그리고 파일 내용을 한 번만 가져온다. 그래서 같은 파일의 같은 줄을 다시 고쳐 줄 수가 같으면 예전 내용이 남는다. 다음 후속으로 고친다.
