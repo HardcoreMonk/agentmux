@@ -99,6 +99,66 @@ describe('AgentReportMessage', () => {
     expect(html).not.toContain('bg-ui-blue/10');
   });
 
+  it('renders combined reports as separate cards with each child label and status chip', () => {
+    const text = [
+      '[agentmux report · worker-a (codex) · done]',
+      'First child finished.',
+      "reply: agentmux tab send tab-a '...'",
+      '',
+      '[agentmux report · worker-b (claude) · blocked]',
+      '이 탭이 권한 질문을 기다립니다. 사람이 그 탭에서 답해야 합니다. agentmux는 대신 답하지 않습니다.',
+      "reply: agentmux tab send tab-b '...'",
+    ].join('\n');
+
+    const html = renderWithLocale(
+      'ko',
+      React.createElement(AgentReportMessage, { text }),
+    );
+    expect(html.match(/agent 보고/g)?.length).toBe(2);
+    expect(html).toContain('worker-a');
+    expect(html).toContain('끝남');
+    expect(html).toContain('First child finished.');
+    expect(html).toContain('worker-b');
+    expect(html).toContain('막힘');
+    expect(html).toContain('text-ui-amber');
+    expect(html).not.toContain('[agentmux report · worker-a (codex) · done]');
+    expect(html).not.toContain('[agentmux report · worker-b (claude) · blocked]');
+  });
+
+  it('keeps an escaped > [agentmux report line inside its single card without splitting', () => {
+    const text = [
+      '[agentmux report · worker-escape (codex) · done]',
+      'Line before blank',
+      '',
+      '> [agentmux report · fake (claude) · blocked]',
+      "reply: agentmux tab send tab-escape '...'",
+    ].join('\n');
+
+    const html = renderWithLocale(
+      'ko',
+      React.createElement(AgentReportMessage, { text }),
+    );
+    expect(html.match(/agent 보고/g)?.length).toBe(1);
+    expect(html).toContain('worker-escape');
+    expect(html).toContain('끝남');
+    expect(html).not.toContain('막힘');
+    expect(html).toContain('&gt; [agentmux report · fake (claude) · blocked]');
+  });
+
+  it('does not repeat the header in the body when text starts with leading whitespace', () => {
+    const text = '\n  [agentmux report · worker-lead (codex) · done]\nClean body after leading newline';
+
+    const html = renderWithLocale(
+      'ko',
+      React.createElement(AgentReportMessage, { text }),
+    );
+    expect(html).toContain('agent 보고');
+    expect(html).toContain('worker-lead');
+    expect(html).toContain('끝남');
+    expect(html).toContain('Clean body after leading newline');
+    expect(html).not.toContain('[agentmux report · worker-lead (codex) · done]');
+  });
+
   it('keeps normal UserMessageItem rendering as a user bubble', () => {
     const html = renderWithLocale(
       'ko',
@@ -147,6 +207,22 @@ describe('AgentReportMessage', () => {
     expect(normalEntryHtml).toContain('bg-ui-blue/10');
     expect(normalEntryHtml).toContain('Normal prompt text');
     expect(normalEntryHtml).not.toContain('agent 보고');
+
+    const reportWithImageHtml = renderWithLocale(
+      'ko',
+      React.createElement(TimelineEntryRenderer, {
+        entry: {
+          id: 'u-report-img',
+          type: 'user-message',
+          text: '[agentmux report · worker-img (codex) · done]\nHuman typed with image',
+          images: ['data:image/png;base64,iVBORw0KGgo='],
+          timestamp: 1003,
+        },
+      }),
+    );
+    expect(reportWithImageHtml).toContain('bg-ui-blue/10');
+    expect(reportWithImageHtml).toContain('<img');
+    expect(reportWithImageHtml).not.toContain('agent 보고');
   });
 
   it('defines agentReport, agentReportDone, and agentReportBlocked in ko and en timeline messages', () => {

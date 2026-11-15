@@ -147,7 +147,7 @@ const SessionExitItem = () => {
 export const TimelineEntryRenderer = memo(({ entry, sessionName, panelType }: { entry: ITimelineEntry; sessionName?: string; panelType?: TPanelType }) => {
   switch (entry.type) {
     case 'user-message':
-      return isAgentReportText(entry.text)
+      return isAgentReportText(entry.text) && !entry.images?.length
         ? <AgentReportMessage text={entry.text} />
         : <UserMessageItem entry={entry} />;
     case 'assistant-message':
