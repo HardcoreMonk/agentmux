@@ -1,7 +1,7 @@
 # 첫 입력 전 Codex 탭의 상태와 첫 화면 설계 (작은 변경)
 
 - 작성일: 2026-11-15
-- 상태: Approved — 2026-11-15 사용자: "후속 작업 승인 합니다."
+- 상태: Approved — 2026-11-15 사용자: "후속 작업 승인 합니다.". 구현과 격리 확인 완료(아래)
 - Lifecycle: `docs/FOLLOW-UP.md` "설계 2-2 후속"의 "CLI로 만든 Codex 탭의 첫 화면"이다. 사용자가 "후속 작업 순차 진행"을 지시했고, 방식 선택에서 "A로 진행"(기록 파일이 없을 때 화면으로 판단)을 골랐다. status 판정과 화면 전환 동작을 바꾸므로 Lightweight 경로를 쓰지 않는다. 작은 변경이라 짧은 설계와 계획을 이 문서 하나에 둔다.
 
 ## 확인된 사실 (2026-11-15 격리 재현, Codex 0.169.0, build `36be305d`)
@@ -106,3 +106,24 @@
 
 - 화면 문구가 Codex 판에 따라 바뀌면 판정이 `busy` 쪽(지금 동작)으로 떨어진다. 안전한 쪽이다.
 - 기록 파일이 없는 Codex 탭은 주기 확인마다 화면을 한 번 읽는다. 첫 입력 전에만 해당하고 비용은 작다.
+
+## 구현과 확인 결과 (2026-11-16)
+
+- 구현
+  - agy(Claude 검증): `e60acc28`(화면·상태 판정, status manager), `7eb5bbfa`(첫 화면 `sessionViewAuto`)
+  - controller 보완 `737302e5`: agy가 설계 밖에서 바꾼 `updateFromServer` 계약 두 가지를 되돌리고, test가 실제 server 메시지 모양을 쓰게 고쳤다.
+    - `agentSessionId`가 빠지면 기존 값을 유지하던 것
+    - `workspaceId`를 선택 값으로 바꾼 것
+  - 독립 검토(sonnet): 승인, 지적 0건.
+- gate: lint error 0(기존 경고 6), `tsc --noEmit`와 deploy-check, 전체 test 2562 통과(임시 HOME, `CODEX_HOME` 없음), `pnpm build`
+- 격리 확인(port 18122, build `737302e5`, Codex process의 격리 `CODEX_HOME` 먼저 확인)
+  - CLI로 만든 Codex 탭(웹은 다른 탭을 보는 중, 새로고침 없음)
+    - hook trust 뒤 입력창 앞에서 `idle`이었다. 웹에는 바로 새 대화 입력창이 보였다. 이전 build에서는 `busy`와 session 목록이었다.
+  - 그 탭에서 prompt 1개
+    - 보고 있을 때: 잠깐 "처리 중"이 뜬 뒤 `idle`이었다. 보는 탭이라 바로 읽음 처리됐다.
+    - 다른 탭을 보는 동안 CLI `tab send`: `busy` → `ready-for-review`
+  - 웹으로 만든 Codex 탭(home 폴더)
+    - project hook 1개의 검토 화면 동안은 기존처럼 `busy`였다.
+    - 입력창에 이른 뒤 약 11초 안에 `idle`이 됐다.
+  - 사용자 파일 hash, live tmux session, `agentmux.service`는 그대로였다.
+- 남은 점: 검토·trust 같은 막는 화면에 있는 Codex는 기존처럼 `busy`로 보인다. 입력을 기다리는 상태로 보이게 하는 것은 이번 범위 밖이다.
