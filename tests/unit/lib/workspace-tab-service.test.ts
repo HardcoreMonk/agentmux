@@ -441,6 +441,54 @@ describe('readLastAssistantMessage', () => {
     expect(result?.text).toBe('Done.');
   });
 
+  describe('Codex tab the UI never opened', () => {
+    const THREAD_ID = '019e1111-2222-7333-8444-555555555555';
+    const codexTab = (extra: Partial<ITab> = {}) => agentTab({ panelType: 'codex', cwd: '/repo', ...extra });
+    const entry = (agentSessionId: string) => ({ 'tab-a': { cliState: 'ready-for-review', agentSessionId, lastEvent: null } });
+    const rollout = () => writeJsonl('rollout.jsonl', [
+      { type: 'event_msg', timestamp: '2026-11-11T00:00:02.000Z', payload: { type: 'agent_message', message: 'OK', phase: 'final' } },
+    ]);
+
+    it('resolves the JSONL from the status entry session (legacy status)', async () => {
+      mocks.statusManager.getAllForClient.mockReturnValue(entry(THREAD_ID));
+      const resolve = vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath').mockResolvedValue(await rollout());
+
+      await expect(readLastAssistantMessage(codexTab())).resolves.toMatchObject({ text: 'OK' });
+      expect(resolve).toHaveBeenCalledWith(THREAD_ID, '/repo');
+    });
+
+    it('resolves the JSONL from the status entry session (v2 live status)', async () => {
+      vi.stubEnv('AGENTMUX_RUNTIME_STATUS_V2_MODE', 'default');
+      mocks.supervisor.requestStatusLiveSync.mockResolvedValue({ tabs: entry(THREAD_ID) });
+      vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath').mockResolvedValue(await rollout());
+
+      await expect(readLastAssistantMessage(codexTab())).resolves.toMatchObject({ text: 'OK' });
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+    });
+
+    it('prefers the layout session id and does not read the status entry', async () => {
+      const resolve = vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath').mockResolvedValue(await rollout());
+
+      await readLastAssistantMessage(codexTab({ agentSessionId: THREAD_ID }));
+
+      expect(resolve).toHaveBeenCalledWith(THREAD_ID, '/repo');
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+    });
+
+    it('prefers the layout JSONL path and does not read the status entry', async () => {
+      await expect(readLastAssistantMessage(codexTab({ agentJsonlPath: await rollout() }))).resolves.toMatchObject({ text: 'OK' });
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+    });
+
+    it('ignores a status entry session id that is not a Codex thread id', async () => {
+      mocks.statusManager.getAllForClient.mockReturnValue(entry('not-a-thread'));
+      const resolve = vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath');
+
+      await expect(readLastAssistantMessage(codexTab())).resolves.toBeNull();
+      expect(resolve).not.toHaveBeenCalled();
+    });
+  });
+
   it('returns null when the JSONL file does not exist', async () => {
     await expect(readLastAssistantMessage(agentTab({ agentJsonlPath: path.join(dir, 'missing.jsonl') }))).resolves.toBeNull();
     await expect(readLastAssistantMessage(agentTab())).resolves.toBeNull();

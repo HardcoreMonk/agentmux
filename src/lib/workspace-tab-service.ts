@@ -307,9 +307,16 @@ export const readLastAssistantMessage = async (
   if (!isAgentPanelType(tab.panelType)) return null;
   const provider = getProviderByPanelType(tab.panelType);
   if (!provider) return null;
-  const sessionId = provider.readSessionId(tab);
-  const jsonlPath = provider.readJsonlPath(tab)
-    ?? (sessionId ? await provider.resolveJsonlPath(sessionId, tab.cwd ?? '') : null);
+  let jsonlPath = provider.readJsonlPath(tab);
+  if (!jsonlPath) {
+    let sessionId = provider.readSessionId(tab);
+    if (!sessionId) {
+      // UI가 열지 않은 Codex 탭은 layout에 session이 없다. status entry가 지켜보는 session을 쓴다.
+      const entryId = (await readTabStatusEntry(tab).catch(() => null))?.agentSessionId;
+      if (provider.isValidSessionId(entryId)) sessionId = entryId;
+    }
+    jsonlPath = sessionId ? await provider.resolveJsonlPath(sessionId, tab.cwd ?? '') : null;
+  }
   if (!jsonlPath) return null;
   const { entries } = await provider.readTailEntries(jsonlPath, ASSISTANT_TAIL_ENTRIES);
   const last = entries.findLast((entry): entry is ITimelineAssistantMessage => entry.type === 'assistant-message');

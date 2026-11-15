@@ -7,7 +7,7 @@ import { getPaneCurrentCommand } from '@/lib/tmux';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
 import { getProviderByPanelType } from '@/lib/providers';
 import { resolveTabRuntimeVersion } from '@/lib/runtime/terminal-mode';
-import { isTabSessionAlive, readTabCliState } from '@/lib/workspace-tab-service';
+import { isTabSessionAlive, readTabStatusEntry } from '@/lib/workspace-tab-service';
 
 const log = createLogger('api:cli:tabs');
 
@@ -35,15 +35,19 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     const command = alive && resolveTabRuntimeVersion(tab) === 1
       ? await getPaneCurrentCommand(tab.sessionName)
       : null;
+    const entry = await readTabStatusEntry(tab);
+    const provider = getProviderByPanelType(tab.panelType);
+    // UI가 열지 않은 Codex 탭은 layout에 session이 없다. status entry가 지켜보는 session을 쓴다.
+    const entrySessionId = provider?.isValidSessionId(entry?.agentSessionId) ? entry?.agentSessionId : null;
     return res.status(200).json({
       tabId,
       workspaceId,
       panelType: tab.panelType ?? null,
-      providerId: getProviderByPanelType(tab.panelType)?.id ?? null,
+      providerId: provider?.id ?? null,
       alive,
       command,
-      cliState: await readTabCliState(tab),
-      agentSessionId: readAgentSessionId(tab),
+      cliState: entry?.cliState ?? tab.cliState ?? null,
+      agentSessionId: readAgentSessionId(tab) ?? entrySessionId ?? null,
       createdByTabId: tab.createdByTabId ?? null,
     });
   } catch (err) {
