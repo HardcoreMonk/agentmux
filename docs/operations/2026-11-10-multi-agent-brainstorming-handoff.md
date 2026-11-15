@@ -672,11 +672,35 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 | Task 4 (CLI 보내기·생성 제한과 대상 확인 분리) | `1c79fcc8` | `checkAgentInputTarget` 추출, 400 `reserved-report-prefix`, 403 `delegation-depth` |
 | Task 5 (자동 보고 서비스와 StatusManager·알림 연결) | `0f11d180`, `a615063d`, `ed001d36`, `13c50cd1`, `009ec600` | `agent-report-service.ts`, `StatusManager` 배선, status/web-push payload, client 알림 표시, 전달 직전 turn 대기 무장·초기 연결 알림 억제·빈 대기열 config 읽기 생략 |
 | Task 6 (설정 스위치와 위임 안내 변경) | `b58ff18b`, `a79ba135` | `agentReportsEnabled` 설정·UI 스위치, 위임 안내 자동 보고 문구와 off 분기 test 고정 |
-| Task 7 (timeline의 보고 표시) | `697c14c5` | `agent-report-message.tsx` 및 `timeline-view.tsx` 라우팅, 한·영 문구 |
+| Task 7 (timeline의 보고 표시) | `697c14c5`, `582fe1a8` | `agent-report-message.tsx` 및 `timeline-view.tsx` 라우팅, 한·영 문구, 묶인 보고를 카드별로 표시 |
+| Task 8 (문서, gate, 격리 live 확인) | `cd000a8e`, `72fce669`, `ede3c15c`, `404aae8f` | 문서(agy 초안의 코드와 다른 세부를 controller가 바로잡음), 보고 판단 debug log, Codex 첫 turn `session-start` 수정 |
 
 ### 전체 gate와 격리 live 확인
 
-(controller가 채움)
+- 전체 gate(`582fe1a8`, 수정 뒤 `404aae8f`): `tsc --noEmit`(기본·deploy-check) 통과, lint error 0(기존 경고 6), `check:project-design`·
+  `check:product-name` 통과, 임시 HOME·`CODEX_HOME` 없음으로 전체 test 364 files / 2665 통과 / 3 skipped, `pnpm build` 통과(status worker bundle에
+  보고 경로 포함).
+- 격리 live 확인(2026-11-16 06:24~06:56 KST, port 18122, worktree production build, live와 같은 Runtime v2 mode, 임시 data dir·
+  `TMUX_TMPDIR`, 격리 `CODEX_HOME`). 먼저 격리를 증명했다(탭 process environ의 `CODEX_HOME`, 사용자 파일 hash 그대로). Codex hook 검토
+  화면은 격리 home에서만 trust했다. 맡은 탭 일부는 CLI를 맡긴 탭 신분(`AMUX_TAB_ID`)으로 실행해 만들었다.
+
+| # | 확인 | 결과 |
+| --- | --- | --- |
+| 1·2 | Claude lead가 Codex 탭을 만들고 일을 보낸 뒤 turn을 끝냄 → 보고 → 검토 | 통과. lead는 상태를 조회하지 않았고, `[agentmux report · impl (codex) · done]` 보고를 사용자 메시지로 받아 `tab result`로 확인한 뒤 탭을 닫고 요약했다 |
+| 3 | 맡은 Codex가 권한 질문에 막힘 | 통과. `blocked` 보고가 바로 들어갔고 lead는 "그 탭에서 사용자가 답해야 한다"고만 알렸다. 질문은 controller가 거절했고 파일은 생기지 않았다 |
+| 4 | lead가 일하는 중이면 기다림 | 통과. 맡은 탭은 21:32:23.97(UTC)에 끝났고 보고는 lead turn이 끝난 21:32:27.6 직후 들어갔다 |
+| 5 | 사람이 lead 입력창에 쓰는 중이면 기다림 | 통과. 32초 동안 보고가 들어가지 않았고 쓰던 글이 그대로였다. 글을 지운 뒤 다음 주기 확인(27초 뒤)에 들어갔고 내용에 사람 글이 섞이지 않았다. 지운 뒤 보인 Claude 흐린 추천 문구는 빈 것으로 판정됐다 |
+| 6 | 5번 연속이면 멈춤 | 통과. Codex 부모에 보고 5건 뒤 6번째는 87초 동안 들어가지 않았다(쉬는 상태, 주기 확인 2번 이상). 사람 입력 한 번 뒤 그 turn이 끝나자 바로 들어갔다. 정지 알림 필드는 unit·wiring test로 확인했다 |
+| 7 | 설정 끄기 | 통과. 끈 뒤 맡은 탭 완료가 보고되지 않았고, 새로 띄운 Claude 안내 파일과 Codex `developer_instructions`가 상태 확인 문구였다 |
+| UI | timeline 카드 | 통과. 격리 server onboarding(임시 비밀번호) 뒤 browser로 lead 탭을 열어 "agent 보고" 카드(출처, 끝남·막힘 표시)를 확인했다 |
+
+- 찾은 결함과 수정: 새 Codex 탭의 첫 짧은 turn이 보고되지 않았다(c3 R1). debug log로 원인을 찾았다. Codex는 첫 turn에서 `prompt-submit` 뒤에
+  `session-start` hook을 보내고, 이것이 `busy`→`idle`로 바꿔 JSONL watcher가 turn 시작을 놓치면 완료가 silent `idle`→`ready-for-review`가 됐다
+  (보고와 기존 완료 알림이 모두 빠짐). `404aae8f`가 `busy`에서는 `session-start`가 상태를 바꾸지 않게 했고, 고친 build에서 `session-start busy→busy`와
+  첫 turn 보고 전달을 확인했다.
+- Prompt: Claude 6 turn(lead), Codex 약 24 turn(짧은 답).
+- 안전 확인: 확인 전후 사용자 `~/.codex/config.toml`·`hooks.json`·`~/.claude/settings.json` sha256, live tmux session 목록, `agentmux.service`
+  MainPID 2644038(NRestarts 0)가 같다. 격리 server·tmux·임시 디렉터리·격리 Codex app-server daemon을 정리했다(격리 `CODEX_HOME`은 남김).
 
 ### 배포
 
@@ -704,7 +728,7 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 - 설계 2-2(Git side panel, 모바일 재연결 새로고침): plan 승인(2026-11-15), Task 1~3 implement와 task별 독립 검토(지적 0건),
   문서, 전체 gate, 격리 live 확인과 live 확인 수정(`79098e6b`), branch 최종 검토(Ready to merge, Minor 1 반영 `d736abfa`),
   PR #56, main merge(`737bd0f9`), live 배포(2026-11-15 21:08 KST)를 마쳤다. operate.
-- 설계 3(agent 자동 보고): plan 승인, Task 1~7 구현과 task별 검토 완료, 문서. 다음은 전체 gate, 격리 live 확인, 배포.
+- 설계 3(agent 자동 보고): plan 승인, Task 1~8 구현과 task별 검토, 문서, 전체 gate, 격리 live 확인(7개 통과, 첫 turn 결함 수정 `404aae8f`). 다음은 branch 최종 검토, PR, merge, 배포.
 - iPad 홈 화면 웹 앱: 짧은 설계 승인, 구현, gate, 격리 확인을 마쳤다. 다음은 PR, main merge, 사용자 배포, 실제 iPad 확인.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).

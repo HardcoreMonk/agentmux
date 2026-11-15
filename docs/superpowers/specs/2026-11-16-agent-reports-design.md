@@ -183,3 +183,11 @@
   6. 5번 반복이면 멈추고 알림이 간다.
   7. 설정을 끄면 예전처럼 동작한다.
 - 배포는 사용자가 정한 자동 흐름을 따른다: PR → CI → merge → push → 배포 → 확인 → 정리.
+
+## 결과 (2026-11-16)
+
+- 구현: plan Task 1~8, branch `feat/agent-reports`. 기록은 `docs/operations/2026-11-10-multi-agent-brainstorming-handoff.md` "설계 3" 절.
+- 격리 live 확인 1~7과 timeline 카드를 확인했다(같은 절의 표).
+- 확인 중 찾은 상태 판정 결함: Codex는 첫 turn에서 `prompt-submit` 뒤에 `session-start` hook을 보내 `busy`를 `idle`로 바꿨고, 짧은 첫 turn이 silent 완료가
+  돼 보고가 빠질 수 있었다. `busy`에서는 `session-start`가 상태를 바꾸지 않게 고쳤다.
+- 남은 점은 `docs/FOLLOW-UP.md` "설계 3 후속"에 있다.

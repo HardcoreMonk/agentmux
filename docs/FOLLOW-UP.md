@@ -355,6 +355,9 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | 비목표 범위 | 맡은 탭을 옆 pane에 자동으로 띄우는 agent split, 검토자·구현자 역할 preset(Herdr template), Runtime v2 agent 탭의 자동 보고는 비목표로 유지 |
 | 입력창 화면 규칙의 CLI 버전 의존 | `isAgentComposerEmpty`는 Codex `0.169.0`(굵은 `›` 줄과 SGR `2` 흐림 placeholder)과 Claude Code `2.1.325`(`❯`+NBSP 줄, SGR `2` 흐림, 아래 `─` 상자 테두리) 화면 모양을 기준으로 판정함. 두 CLI의 TUI 모양이나 SGR 속성이 바뀌면 fixture와 판정 규칙을 다시 확인해야 함 |
 | prompt 본문 없는 `prompt-submit` 분류 | hook payload에 prompt 문자열이 없을 때는 서버가 보고를 넣은 직후의 첫 `prompt-submit` 하나만 자동 보고로 보고 그 다음 `prompt-submit`부터 사람 입력으로 침 |
+| 대기 보고 재시도 간격 | 입력창에 사람 글이 있거나 막는 화면이라 기다린 보고는 맡긴 탭의 다음 상태 전환이나 상태 주기 확인(탭 수에 따라 30~60초) 때 다시 시도함. 글을 지운 뒤 바로 가지 않고 최대 한 주기를 기다림 |
+| Codex 승인 정책 값 | 설정 `codexApprovalPolicy`가 `untrusted`·`on-failure`를 받지만 Codex `0.169.0`은 `--ask-for-approval`에 `on-request`·`never`만 받아 탭 실행이 실패함(설계 3 격리 live 확인에서 발견) |
+| 거절 뒤 Codex `needs-input` | 사람이 Codex 권한 질문을 Esc로 거절해 "Conversation interrupted"가 된 뒤에도 탭 상태가 `needs-input`에 남음(설계 3 격리 live 확인에서 발견) |
 
 ## Codex lifecycle 기준
 
