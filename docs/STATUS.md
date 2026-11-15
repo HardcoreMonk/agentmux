@@ -139,12 +139,12 @@ hook을 기다리지 않습니다. Assistant 답으로 끝난 정상 turn은 `in
 전에는 JSONL을 만들지 않음) 같은 id로 `--session-id`를 다시 씁니다.
 
 Hook API는 bridge가 보낸 필드를 탭 provider 기준으로 검사합니다. `agentSessionId`는 UUID, `transcriptPath`는
-탭 provider의 `jsonlRoots()`(Claude Code는 `~/.claude/projects`) 아래, `source`는
+탭 provider의 `jsonlRoots()`(Claude Code는 `~/.claude/projects`, Codex는 `~/.codex/sessions`) 아래, `source`는
 `startup|resume|clear|compact|fork`일 때만 씁니다. `decideHookSessionRebind`는 `bindSessionFromHook`이 켜진
-provider에서 hook session id가 탭의 값과 다르거나, 같은 id라도 transcript 경로가 다를 때(같은 id로 다시 실행한 경우)
-다시 묶습니다. 다시 묶을 때 status entry의 session id와 JSONL 경로를 바꾸고, 옛
+provider에서(`bindSessionHookEvents`가 있으면 그 목록의 event일 때만) hook session id가 탭의 값과 다르거나, 같은 id라도 transcript 경로가 다를 때(같은 id로 다시 실행한 경우)
+다시 묶습니다. Codex는 sub-agent의 `prompt-submit`에 잘못 묶이지 않도록 `session-start`에서만 묶고, Claude Code는 모든 hook event에서 묶습니다. 다시 묶을 때 status entry의 session id와 JSONL 경로를 바꾸고, 옛
 JSONL watch를 멈추고, layout의 `agentSessionId`/`agentJsonlPath`를 갱신합니다. Transcript 경로가 없으면 tmux cwd에서
-계산합니다. `/clear`, `/resume`, fork가 이 경로로 들어옵니다.
+계산합니다. `/clear`, `/new`, `/resume`, fork가 이 경로로 들어옵니다.
 
 Polling 감지는 다음 순서로 session을 찾으므로 hook이 묶은 새 session을 옛 값으로 되돌리지 않습니다.
 
@@ -281,9 +281,8 @@ UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agent
 2026-11-10 Claude Code provider 단계 1에서 status 경로의 Codex 전용 분기(`provider.id === 'codex'`,
 `providerId !== 'codex'`)를 모두 provider status 동작 flag로 바꿨습니다. 기존 두 flag에
 `reconcileStateFromJsonl`과 `recoverPaneInput`을 더했습니다. Generic status policy와 service는 provider id
-문자열로 Codex 동작을 추론하지 않고 flag를 입력으로 받습니다. Codex는 단계 1의 네 flag가 `true`이고 단계 2에서
-더한 두 flag(`bindSessionFromHook`, `leaveNeedsInputOnJsonlGrowth`)는 `false`입니다. Flag가 `true`일 때 각 지점의
-호출 순서와 결과는 바꾸기 전과 같습니다. Claude Code는 반대로 단계 1의 네 flag가 `false`, 새 두 flag가 `true`입니다.
+문자열로 Codex 동작을 추론하지 않고 flag를 입력으로 받습니다. Codex는 단계 1의 네 flag와 `bindSessionFromHook`(`bindSessionHookEvents: ['session-start']`)이 `true`이고 `leaveNeedsInputOnJsonlGrowth`는 `false`입니다. Flag가 `true`일 때 각 지점의
+호출 순서와 결과는 바꾸기 전과 같습니다. Claude Code는 반대로 단계 1의 네 flag가 `false`, 새 두 flag가 `true`(모든 hook event에서 묶음)입니다.
 
 | Flag | `true`일 때 동작 | 쓰는 곳 | Codex | Claude Code |
 | --- | --- | --- | --- | --- |
@@ -291,7 +290,7 @@ UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agent
 | `deferStopHookUntilJsonlIdle` | stop hook을 바로 `ready-for-review`로 처리하지 않고 JSONL idle 확인 뒤 상태를 갱신합니다 | hook reducer(`status-state-machine.ts`). `hook-event-service.ts`가 전달합니다 | `true` | `false` |
 | `reconcileStateFromJsonl` | JSONL 상태 읽기 결과로 `cliState`를 맞춥니다(`reduceCodexState` 경로). 꺼져 있으면 초기 상태 보정과 cwd 최신 JSONL 채택 판단도 하지 않습니다 | `status-manager.ts` reconcile, `poll-tab-reconciliation.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `timeline/resume-session-service.ts` | `true` | `false` |
 | `recoverPaneInput` | 중단된 prompt나 남은 입력을 pane capture로 확인해 복구합니다 | `status-manager.ts` JSONL 변경 처리, `poll-recovery-service.ts`, `pane-recovery-service.ts`, `scan-tab-bootstrap.ts` | `true` | `false` |
-| `bindSessionFromHook` | hook stdin의 `session_id`가 tab의 `agentSessionId`와 다르면 session과 JSONL 경로를 새 값으로 다시 묶고 JSONL watch를 새 경로로 옮깁니다(`/clear`, resume 등) | `status-manager.ts` `updateTabFromHook`, `status/hook-session-binding.ts` | `false` | `true` |
+| `bindSessionFromHook` | hook stdin의 `session_id`가 tab의 `agentSessionId`와 다르면 session과 JSONL 경로를 새 값으로 다시 묶고 JSONL watch를 새 경로로 옮깁니다(`bindSessionHookEvents`가 있으면 그 목록의 event에서만. `/clear`, `/new`, resume 등) | `status-manager.ts` `updateTabFromHook`, `status/hook-session-binding.ts` | `true` (`session-start`만) | `true` |
 | `leaveNeedsInputOnJsonlGrowth` | `needs-input`에서 JSONL이 `needs-input` 전환 시각보다 늦은 entry를 쓰면 terminal에서 직접 응답한 것으로 보고 `busy`(JSONL 검사가 interrupted면 `idle`)로 바꿉니다. Synthetic interrupt 검사보다 먼저 판단합니다 | `status-manager.ts` JSONL 변경 처리, `status/hook-session-binding.ts` | `false` | `true` |
 
 - JSONL 상태는 provider의 `readJsonlStatus(jsonlPath)`로 읽습니다. Codex 구현은 기존

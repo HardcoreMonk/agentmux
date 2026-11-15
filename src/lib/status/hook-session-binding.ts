@@ -1,20 +1,26 @@
 import type { IAgentProviderStatusBehavior } from '@/lib/providers';
+import type { TEventName } from '@/types/status';
 import type { TCliState } from '@/types/timeline';
 
 export const decideHookSessionRebind = ({
   behavior,
+  eventName,
   currentSessionId,
   currentJsonlPath = null,
   hookSessionId,
   transcriptPath,
 }: {
   behavior: IAgentProviderStatusBehavior | null;
+  eventName?: string;
   currentSessionId: string | null;
   currentJsonlPath?: string | null;
   hookSessionId?: string;
   transcriptPath?: string;
 }): { rebind: false } | { rebind: true; sessionId: string; jsonlPath: string | null } => {
   if (!behavior?.bindSessionFromHook || !hookSessionId) return { rebind: false };
+  if (behavior.bindSessionHookEvents && (!eventName || !behavior.bindSessionHookEvents.includes(eventName as TEventName))) {
+    return { rebind: false };
+  }
   const sameSession = hookSessionId === currentSessionId;
   // A relaunch keeps the id but may still point at an older transcript; follow the hook's.
   if (sameSession && (!transcriptPath || transcriptPath === currentJsonlPath)) return { rebind: false };

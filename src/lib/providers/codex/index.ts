@@ -118,7 +118,8 @@ export const codexProvider: IAgentProvider = {
     deferStopHookUntilJsonlIdle: true,
     reconcileStateFromJsonl: true,
     recoverPaneInput: true,
-    bindSessionFromHook: false,
+    bindSessionFromHook: true,
+    bindSessionHookEvents: ['session-start'],
     leaveNeedsInputOnJsonlGrowth: false,
   },
 
