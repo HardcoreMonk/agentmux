@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { DiffView, DiffModeEnum, getLang } from '@git-diff-view/react';
+import { buildDiffCardFingerprint } from '@/lib/diff-card-fingerprint';
 import { parseMultiFileDiff, getDisplayName, buildFileDiffString, type IGitDiffFile } from '@/lib/parse-git-diff';
 import useConfigStore from '@/hooks/use-config-store';
 import useIsMobile from '@/hooks/use-is-mobile';
@@ -43,6 +44,7 @@ const DiffFileList = ({ diff, viewMode, sessionName, oldRef = 'HEAD', newRef = '
       const displayName = getDisplayName(f);
       return {
         key: `${displayName}#${i}`,
+        fingerprint: buildDiffCardFingerprint(f),
         source: f,
         displayName,
       };
@@ -120,25 +122,22 @@ const DiffFileList = ({ diff, viewMode, sessionName, oldRef = 'HEAD', newRef = '
         {totals.del > 0 && <span className="text-ui-red">-{totals.del}</span>}
       </div>
 
-      {files.map((f) => {
-        const fingerprint = `${f.source.hunks.length}:${f.source.additions}:${f.source.deletions}`;
-        return (
-          <FileDiffCard
-            key={`${f.key}@${fingerprint}`}
-            file={f.source}
-            displayName={f.displayName}
-            isCollapsed={collapsed.has(f.key)}
-            onToggle={() => toggle(f.key)}
-            sessionName={sessionName}
-            oldRef={oldRef}
-            newRef={newRef}
-            viewMode={effectiveMode}
-            theme={theme}
-            isMobile={isMobile}
-            diffFontSize={diffFontSize}
-          />
-        );
-      })}
+      {files.map((f) => (
+        <FileDiffCard
+          key={`${f.key}@${f.fingerprint}`}
+          file={f.source}
+          displayName={f.displayName}
+          isCollapsed={collapsed.has(f.key)}
+          onToggle={() => toggle(f.key)}
+          sessionName={sessionName}
+          oldRef={oldRef}
+          newRef={newRef}
+          viewMode={effectiveMode}
+          theme={theme}
+          isMobile={isMobile}
+          diffFontSize={diffFontSize}
+        />
+      ))}
     </div>
   );
 };
