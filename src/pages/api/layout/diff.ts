@@ -153,12 +153,14 @@ const getMeasuredRepoMeta = async (cwd: string): Promise<IRepoMeta> => {
 const computeDiffHash = async (cwd: string) => {
   const startedAt = getPerfNow();
   try {
-    const [{ stdout: headOut }, { stdout: statusOut }, { stdout: shortstatOut }] = await Promise.all([
+    const [{ stdout: headOut }, { stdout: statusOut }, { stdout: shortstatOut }, { stdout: topOut }] = await Promise.all([
       execFile('git', ['rev-parse', 'HEAD'], { cwd, timeout: CMD_TIMEOUT }),
       execFile('git', ['status', '--porcelain', '-z', '-uall'], { cwd, timeout: CMD_TIMEOUT }),
       execFile('git', ['diff', '--no-ext-diff', 'HEAD', '--shortstat'], { cwd, timeout: CMD_TIMEOUT }),
+      execFile('git', ['rev-parse', '--show-toplevel'], { cwd, timeout: CMD_TIMEOUT }),
     ]);
-    const signature = await buildChangedFilesSignature(cwd, listPorcelainZPaths(statusOut));
+    // Porcelain paths are relative to the repository root, not to the session's folder.
+    const signature = await buildChangedFilesSignature(topOut.trim() || cwd, listPorcelainZPaths(statusOut));
     return createHash('sha1')
       .update(`${headOut.trim()}\n${statusOut}\n${shortstatOut}\n${signature}`)
       .digest('hex')
