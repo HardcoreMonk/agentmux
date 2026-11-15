@@ -745,7 +745,8 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
       if (isAgentPanelType(activePanelType)) {
         if (agentInputVisible && sessionView === 'timeline') {
           setInputValueRef.current?.(detail.text);
-          focusInputRef.current?.();
+          // The toast that fired this hands focus back to its trigger as it closes; focus after that.
+          window.setTimeout(() => focusInputRef.current?.(), 100);
           return;
         }
         toast.info(tDiff('askAgentNoInput', { agent: getAgentLabel(activePanelType) }));
