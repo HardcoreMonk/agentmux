@@ -20,6 +20,7 @@ export interface ITabState {
   agentProcessCheckedAt: number;
   agentInstalled: boolean;
   sessionView: TSessionView;
+  sessionViewAuto?: boolean;
   cliState: TCliState;
   isTimelineLoading: boolean;
   workspaceId: string;
@@ -160,6 +161,27 @@ const resolvePanelTypeViewPatch = (
   return { sessionView: 'session-list' };
 };
 
+const RUNNING_AGENT_CLI_STATES: ReadonlySet<TCliState> = new Set([
+  'idle',
+  'busy',
+  'needs-input',
+  'ready-for-review',
+]);
+
+export const shouldOpenNewConversation = (
+  tab: Pick<ITabState, 'panelType' | 'agentSessionId' | 'sessionViewAuto' | 'sessionView' | 'cliState'>,
+): boolean =>
+  isAgentPanelType(tab.panelType)
+  && !tab.agentSessionId
+  && tab.sessionViewAuto === true
+  && tab.sessionView === 'session-list'
+  && RUNNING_AGENT_CLI_STATES.has(tab.cliState);
+
+const applyAutoNewConversationView = (tab: ITabState): ITabState =>
+  shouldOpenNewConversation(tab)
+    ? { ...tab, sessionView: 'check', sessionViewAuto: false }
+    : tab;
+
 const useTabStore = create<ITabStore>((set) => ({
   tabs: {},
   tabOrders: {},
@@ -169,12 +191,17 @@ const useTabStore = create<ITabStore>((set) => ({
   initTab: (tabId, initial) =>
     set((state) => {
       const existing = state.tabs[tabId];
-      const merged = { ...DEFAULT_TAB_STATE, ...existing, ...initial };
+      const merged: ITabState = { ...DEFAULT_TAB_STATE, ...existing, ...initial };
+      if (initial?.sessionView !== undefined) {
+        merged.sessionViewAuto = initial.sessionViewAuto ?? false;
+      } else if (existing?.sessionViewAuto === undefined && initial?.sessionViewAuto === undefined) {
+        merged.sessionViewAuto = !merged.agentSessionId;
+      }
       if (existing?.cliState === 'ready-for-review' && merged.cliState !== 'ready-for-review') {
         merged.cliState = 'ready-for-review';
         merged.readyForReviewAt = existing.readyForReviewAt;
       }
-      return { tabs: { ...state.tabs, [tabId]: merged } };
+      return { tabs: { ...state.tabs, [tabId]: applyAutoNewConversationView(merged) } };
     }),
 
   removeTab: (tabId) =>
@@ -199,8 +226,8 @@ const useTabStore = create<ITabStore>((set) => ({
   setSessionView: (tabId, view) =>
     set((state) => {
       const prev = state.tabs[tabId];
-      if (!prev || prev.sessionView === view) return state;
-      return { tabs: updateTab(state.tabs, tabId, { sessionView: view }) };
+      if (!prev || (prev.sessionView === view && prev.sessionViewAuto === false)) return state;
+      return { tabs: updateTab(state.tabs, tabId, { sessionView: view, sessionViewAuto: false }) };
     }),
 
   setTimelineLoading: (tabId, loading) =>
@@ -298,11 +325,11 @@ const useTabStore = create<ITabStore>((set) => ({
         const agentSessionId = entry.agentSessionId ?? null;
         const approvalPromptMetadata = entry.approvalPromptMetadata ?? null;
         if (graceActive) {
-          next[tabId] = { ...existing, cliState: entry.cliState, workspaceId: entry.workspaceId, tabName: entry.tabName, terminalStatus: entry.terminalStatus, listeningPorts: entry.listeningPorts, agentSummary, lastUserMessage: entry.lastUserMessage, lastAssistantMessage: entry.lastAssistantMessage, currentAction: entry.currentAction, readyForReviewAt: entry.readyForReviewAt, busySince: entry.busySince, dismissedAt: entry.dismissedAt, agentSessionId, compactingSince: entry.compactingSince, lastEvent: entry.lastEvent, eventSeq: entry.eventSeq, approvalPromptMetadata };
+          next[tabId] = applyAutoNewConversationView({ ...existing, cliState: entry.cliState, workspaceId: entry.workspaceId, tabName: entry.tabName, terminalStatus: entry.terminalStatus, listeningPorts: entry.listeningPorts, agentSummary, lastUserMessage: entry.lastUserMessage, lastAssistantMessage: entry.lastAssistantMessage, currentAction: entry.currentAction, readyForReviewAt: entry.readyForReviewAt, busySince: entry.busySince, dismissedAt: entry.dismissedAt, agentSessionId, sessionViewAuto: agentSessionId ? false : existing.sessionViewAuto, compactingSince: entry.compactingSince, lastEvent: entry.lastEvent, eventSeq: entry.eventSeq, approvalPromptMetadata });
         } else if (existing) {
-          next[tabId] = { ...existing, cliState: entry.cliState, workspaceId: entry.workspaceId, tabName: entry.tabName, panelType: entry.panelType ?? existing.panelType, terminalStatus: entry.terminalStatus, listeningPorts: entry.listeningPorts, currentProcess: entry.currentProcess, agentSummary, lastUserMessage: entry.lastUserMessage, lastAssistantMessage: entry.lastAssistantMessage, currentAction: entry.currentAction, readyForReviewAt: entry.readyForReviewAt, busySince: entry.busySince, dismissedAt: entry.dismissedAt, agentSessionId, compactingSince: entry.compactingSince, lastEvent: entry.lastEvent, eventSeq: entry.eventSeq, approvalPromptMetadata };
+          next[tabId] = applyAutoNewConversationView({ ...existing, cliState: entry.cliState, workspaceId: entry.workspaceId, tabName: entry.tabName, panelType: entry.panelType ?? existing.panelType, terminalStatus: entry.terminalStatus, listeningPorts: entry.listeningPorts, currentProcess: entry.currentProcess, agentSummary, lastUserMessage: entry.lastUserMessage, lastAssistantMessage: entry.lastAssistantMessage, currentAction: entry.currentAction, readyForReviewAt: entry.readyForReviewAt, busySince: entry.busySince, dismissedAt: entry.dismissedAt, agentSessionId, sessionViewAuto: agentSessionId ? false : existing.sessionViewAuto, compactingSince: entry.compactingSince, lastEvent: entry.lastEvent, eventSeq: entry.eventSeq, approvalPromptMetadata });
         } else {
-          next[tabId] = { ...DEFAULT_TAB_STATE, cliState: entry.cliState, workspaceId: entry.workspaceId, tabName: entry.tabName, panelType: entry.panelType, terminalStatus: entry.terminalStatus, listeningPorts: entry.listeningPorts, currentProcess: entry.currentProcess, agentSummary, lastUserMessage: entry.lastUserMessage, lastAssistantMessage: entry.lastAssistantMessage, currentAction: entry.currentAction, readyForReviewAt: entry.readyForReviewAt, busySince: entry.busySince, dismissedAt: entry.dismissedAt, agentSessionId, compactingSince: entry.compactingSince, lastEvent: entry.lastEvent, eventSeq: entry.eventSeq, approvalPromptMetadata, ...(agentSessionId ? { sessionView: 'timeline' as const } : {}) };
+          next[tabId] = applyAutoNewConversationView({ ...DEFAULT_TAB_STATE, cliState: entry.cliState, workspaceId: entry.workspaceId, tabName: entry.tabName, panelType: entry.panelType, terminalStatus: entry.terminalStatus, listeningPorts: entry.listeningPorts, currentProcess: entry.currentProcess, agentSummary, lastUserMessage: entry.lastUserMessage, lastAssistantMessage: entry.lastAssistantMessage, currentAction: entry.currentAction, readyForReviewAt: entry.readyForReviewAt, busySince: entry.busySince, dismissedAt: entry.dismissedAt, agentSessionId, sessionViewAuto: !agentSessionId, compactingSince: entry.compactingSince, lastEvent: entry.lastEvent, eventSeq: entry.eventSeq, approvalPromptMetadata, ...(agentSessionId ? { sessionView: 'timeline' as const } : {}) });
         }
       }
       // 서버에 아직 반영되지 않은 로컬 탭 보존 (split 직후 레이스 컨디션 방지)
@@ -339,7 +366,26 @@ const useTabStore = create<ITabStore>((set) => ({
         const agentSummary = update.agentSummary ?? null;
         const agentSessionId = update.agentSessionId ?? null;
         const approvalPromptMetadata = update.approvalPromptMetadata ?? null;
-        return { tabs: updateTab(state.tabs, tabId, { ...stateFields, workspaceId: update.workspaceId, tabName: update.tabName, panelType: update.panelType ?? existing.panelType, terminalStatus: update.terminalStatus, listeningPorts: update.listeningPorts, currentProcess: update.currentProcess, agentSummary, lastUserMessage: update.lastUserMessage, lastAssistantMessage: update.lastAssistantMessage, currentAction: update.currentAction, agentSessionId, compactingSince: update.compactingSince, approvalPromptMetadata, ...eventPatch }) };
+        const updatedTab = applyAutoNewConversationView({
+          ...existing,
+          ...stateFields,
+          workspaceId: update.workspaceId,
+          tabName: update.tabName,
+          panelType: update.panelType ?? existing.panelType,
+          terminalStatus: update.terminalStatus,
+          listeningPorts: update.listeningPorts,
+          currentProcess: update.currentProcess,
+          agentSummary,
+          lastUserMessage: update.lastUserMessage,
+          lastAssistantMessage: update.lastAssistantMessage,
+          currentAction: update.currentAction,
+          agentSessionId,
+          sessionViewAuto: agentSessionId ? false : existing.sessionViewAuto,
+          compactingSince: update.compactingSince,
+          approvalPromptMetadata,
+          ...eventPatch,
+        });
+        return { tabs: { ...state.tabs, [tabId]: updatedTab } };
       }
       const agentSummary = update.agentSummary ?? null;
       const agentSessionId = update.agentSessionId ?? null;
@@ -347,7 +393,7 @@ const useTabStore = create<ITabStore>((set) => ({
       return {
         tabs: {
           ...state.tabs,
-          [tabId]: { ...DEFAULT_TAB_STATE, cliState: update.cliState, workspaceId: update.workspaceId, tabName: update.tabName, panelType: update.panelType, terminalStatus: update.terminalStatus, listeningPorts: update.listeningPorts, currentProcess: update.currentProcess, agentSummary, lastUserMessage: update.lastUserMessage, lastAssistantMessage: update.lastAssistantMessage, readyForReviewAt: update.readyForReviewAt, busySince: update.busySince, dismissedAt: update.dismissedAt, agentSessionId, compactingSince: update.compactingSince, lastEvent: update.lastEvent, eventSeq: update.eventSeq, approvalPromptMetadata, ...(agentSessionId ? { sessionView: 'timeline' as const } : {}) },
+          [tabId]: applyAutoNewConversationView({ ...DEFAULT_TAB_STATE, cliState: update.cliState, workspaceId: update.workspaceId, tabName: update.tabName, panelType: update.panelType, terminalStatus: update.terminalStatus, listeningPorts: update.listeningPorts, currentProcess: update.currentProcess, agentSummary, lastUserMessage: update.lastUserMessage, lastAssistantMessage: update.lastAssistantMessage, readyForReviewAt: update.readyForReviewAt, busySince: update.busySince, dismissedAt: update.dismissedAt, agentSessionId, sessionViewAuto: !agentSessionId, compactingSince: update.compactingSince, lastEvent: update.lastEvent, eventSeq: update.eventSeq, approvalPromptMetadata, ...(agentSessionId ? { sessionView: 'timeline' as const } : {}) }),
         },
       };
     }),

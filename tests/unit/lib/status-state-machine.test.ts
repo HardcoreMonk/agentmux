@@ -117,6 +117,63 @@ describe('reduceCodexState', () => {
     });
   });
 
+  it('treats a running Codex tab without a JSONL as idle silently when composerIdle is true', () => {
+    expect(reduceCodexState({
+      currentState: 'busy',
+      running: true,
+      hasJsonlPath: false,
+      idle: false,
+      hasCompletionSnippet: false,
+      composerIdle: true,
+    })).toEqual({
+      nextState: 'idle',
+      changed: true,
+      silent: true,
+      skipHistory: true,
+    });
+
+    expect(reduceCodexState({
+      currentState: 'unknown',
+      running: true,
+      hasJsonlPath: false,
+      idle: false,
+      hasCompletionSnippet: false,
+      composerIdle: true,
+    })).toEqual({
+      nextState: 'idle',
+      changed: true,
+      silent: true,
+      skipHistory: true,
+    });
+
+    expect(reduceCodexState({
+      currentState: 'idle',
+      running: true,
+      hasJsonlPath: false,
+      idle: false,
+      hasCompletionSnippet: false,
+      composerIdle: true,
+    })).toEqual({
+      nextState: 'idle',
+      changed: false,
+    });
+  });
+
+  it('keeps a running Codex tab without a JSONL busy when composerIdle is false', () => {
+    expect(reduceCodexState({
+      currentState: 'idle',
+      running: true,
+      hasJsonlPath: false,
+      idle: false,
+      hasCompletionSnippet: false,
+      composerIdle: false,
+    })).toEqual({
+      nextState: 'busy',
+      changed: true,
+      silent: false,
+    });
+  });
+
   it('keeps pending input tabs in needs-input while Codex is waiting', () => {
     const decision = reduceCodexState({
       currentState: 'needs-input',

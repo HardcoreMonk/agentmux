@@ -1,0 +1,8 @@
+  >_ OpenAI Codex (v0.169.0)
+     /tmp/demo
+  permissions: YOLO mode
+› early prompt should be held
+• Working (27s • esc to interrupt)
+› Ask Codex to do anything
+  GPT-6.1-Sol xhigh · /tmp/demo · Hold early prompt
+  ← for agents · ? for shortcuts                            ⚠ 1 warning · f2 to view

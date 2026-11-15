@@ -26,6 +26,7 @@ export interface ICodexStateInput {
   hasJsonlPath: boolean;
   idle: boolean;
   hasCompletionSnippet: boolean;
+  composerIdle?: boolean;
 }
 
 const unchanged = (currentState: TCliState): IStateDecision => ({
@@ -78,6 +79,7 @@ export const reduceCodexState = ({
   hasJsonlPath,
   idle,
   hasCompletionSnippet,
+  composerIdle,
 }: ICodexStateInput): IStateDecision => {
   if (!running) {
     if (currentState === 'busy' || currentState === 'unknown' || currentState === 'inactive') {
@@ -88,6 +90,12 @@ export const reduceCodexState = ({
 
   if (!hasJsonlPath) {
     if (currentState === 'needs-input') return unchanged(currentState);
+    if (composerIdle === true) {
+      if (currentState !== 'idle') {
+        return { nextState: 'idle', changed: true, silent: true, skipHistory: true };
+      }
+      return unchanged(currentState);
+    }
     if (currentState !== 'busy') {
       return {
         nextState: 'busy',

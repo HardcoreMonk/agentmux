@@ -645,6 +645,11 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 - lightweight 사유: 의도한 표시를 되돌리는 수정이고 계약·공개 API 변경이 없다. 파일은 module 둘(`diff-card-fingerprint.ts`, `diff-hash-input.ts`)과 `diff-file-list.tsx`, `diff.ts`다.
 - 격리 확인: `foo→bar→baz→qux`처럼 같은 줄 수로 고쳐도, terminal이 하위 폴더에 있어도 새로고침하면 새 내용이 보였다. 10초 확인은 약 6.5초에 "변경사항이 있습니다"를 띄웠다.
 
+## 첫 입력 전 Codex 탭 상태와 첫 화면 (2026-11-16, 설계 2-2 후속)
+
+- 사용자: "후속 작업 순차 진행", 방식 "A로 진행"(기록 파일이 없을 때 화면으로 판단), 설계 승인("후속 작업 승인 합니다.").
+- 설계 겸 계획과 결과: `docs/superpowers/specs/2026-11-15-codex-first-turn-state-design.md`.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),

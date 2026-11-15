@@ -173,6 +173,16 @@ export const isCodexTuiReadyContent = (text: string): boolean => {
   return hasInputLineInTail(text);
 };
 
+export const isCodexIdleAtComposer = (text: string): boolean => {
+  if (!isCodexTuiReadyContent(text)) return false;
+  const lines = splitLines(text);
+  const lastInputIdx = lines.findLastIndex((line) => INPUT_LINE_RE.test(line));
+  if (lastInputIdx < 0) return false;
+  const windowStart = Math.max(0, lastInputIdx - INPUT_TAIL_LINES);
+  const windowText = collapse(lines.slice(windowStart, lastInputIdx).join(' '));
+  return !/esc to interrupt/i.test(windowText);
+};
+
 // "Folder access" covers both the trust question and the restricted-open variant; either one blocks the input box.
 export const isCodexFolderAccessScreen = (text: string): boolean => {
   const lines = splitLines(text);
