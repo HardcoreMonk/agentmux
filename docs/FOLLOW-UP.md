@@ -339,7 +339,7 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | --- | --- |
 | Runtime v2 terminal 탭의 Git | 해결(branch `fix/runtime-v2-terminal-git`): terminal worker에 `terminal.session-info` 명령과 supervisor `getTerminalSessionInfo`를 추가하고, Git API 6곳(`/api/layout/diff`, `cwd`, `git-log`, `commit-diff`, `file-content`, `/api/git/sync`)이 `resolveSessionCwd`를 통해 Runtime v2 terminal 탭(`rtv2-…`)의 현재 폴더를 읽음 |
 | CLI로 만든 Codex 탭의 첫 화면 | 격리 live 확인: `agentmux tab create -t codex`로 만든 탭에서 folder trust와 hook trust를 웹 카드로 마친 뒤, 첫 turn 전까지 `cliState`가 `busy`로 남고 웹은 "Codex 시작이 오래 걸리고 있습니다" 화면이었음. 첫 turn(terminal에서 입력) 뒤 timeline과 입력창으로 정상 전환. 설계 2-1 영역 |
-| diff 카드 예전 내용 | `diff-file-list.tsx` `FileDiffCard`의 key가 `경로@hunk 수:추가:삭제`이고 파일 내용을 한 번만 가져옴. 같은 파일의 같은 줄을 다시 고쳐 줄 수가 같으면(예: agent가 한 줄을 두 번 고침) Git 옆 패널과 Diff mode가 예전 내용을 보임. Runtime v2 Git 격리 확인(2026-11-15)에서 찾음 |
+| diff 카드 예전 내용 | 해결(branch `fix/diff-card-stale`): 원인은 둘이었음. ① server `computeDiffHash`가 HEAD·`git status`·`--shortstat`만 봐서, 같은 파일의 같은 줄 수 변경이면 hash가 같았음. 그래서 diff cache가 예전 diff를 돌려주고 10초 확인도 놓쳤음. 바뀐 파일의 mtime·크기(저장소 root 기준, 최대 500개)를 hash에 더함. ② 화면 `FileDiffCard` key에 hunk 내용 hash를 더함(파일 내용을 다시 가져옴). 기존 Diff mode에도 있던 문제 |
 | "…에게 묻기" focus 지연 | 입력창 focus를 350ms 뒤에 줌(sonner 2.0.7이 toast 밖으로 focus가 나갈 때와 unmount 때 원래 요소로 focus를 되돌림). sonner를 올리면 다시 확인 |
 | 가로 모드 폰의 새로고침 banner | 해결(branch `feat/ipad-touch-layout`): `useIsMobile`에 `(hover: none) and (pointer: coarse)`를 더해 손가락이 주 입력인 기기는 화면 폭과 상관없이 모바일 화면(`mobile-surface-view`)을 유지함 |
 | `pane-container` 묻기 분기 test | agent 보기·입력창 없음·terminal 보기 세 분기에 unit test 없음(vitest에 jsdom 없음). 격리 live 확인으로 대신함 |
