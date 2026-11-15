@@ -57,10 +57,14 @@ export const reduceHookState = ({
     };
   }
 
-  // A starting session never ends a running turn. Codex runs its SessionStart hook on the first
-  // turn, after UserPromptSubmit; going idle there made a quick first turn finish as a silent
-  // idle→ready-for-review, which skipped the completion notification and the agent report.
-  if (eventName === 'session-start' && currentState === 'busy') {
+  // Codex runs its SessionStart hook on the first turn, after UserPromptSubmit; going idle there
+  // made a quick first turn finish as a silent idle→ready-for-review, which skipped the completion
+  // notification and the agent report.
+  if (
+    eventName === 'session-start'
+    && currentState === 'busy'
+    && statusBehavior?.sessionStartMayArriveMidTurn
+  ) {
     return {
       nextState: currentState,
       changed: false,

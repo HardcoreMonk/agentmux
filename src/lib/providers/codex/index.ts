@@ -125,6 +125,7 @@ export const codexProvider: IAgentProvider = {
   statusBehavior: {
     watchJsonlWhenBound: true,
     deferStopHookUntilJsonlIdle: true,
+    sessionStartMayArriveMidTurn: true,
     reconcileStateFromJsonl: true,
     recoverPaneInput: true,
     bindSessionFromHook: true,

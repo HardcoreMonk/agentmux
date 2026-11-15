@@ -91,7 +91,7 @@ Codex tab launch/resume은 `hooks={path="~/.agentmux/hooks.json"}`(legacy `~/.co
 
 각 handler에는 HMAC capability로 canonical tab id, terminal session name, expiry가 묶입니다. Hook API는 CLI token, capability, 현재 layout ownership을 모두 확인한 event만 reducer에 전달합니다. Bridge는 bounded stdin을 읽고 loopback으로만 1초 요청하며 모든 장애에서 성공 종료하는 best-effort observer입니다. Hook 관찰 누락은 JSONL/process polling이 보정하고 Codex action 자체를 막지 않습니다.
 
-User/project/managed/plugin hook은 Codex native layer discovery에 맡깁니다. agentmux는 user TOML을 읽거나 병합하지 않고 trust bypass flag도 쓰지 않습니다. `hooks.json`은 `hooks: {}`와 statusline 설정을 담는 생성 파일이며 status hook의 기준 source가 아닙니다.
+User/project/managed/plugin hook은 Codex native layer discovery에 맡깁니다. agentmux는 user TOML을 읽거나 병합하지 않고 trust bypass flag도 쓰지 않습니다. `hooks.json`은 `hooks: {}`와 statusline 설정을 담는 생성 파일이며 status hook의 기준 source가 아닙니다. Codex는 첫 turn의 `UserPromptSubmit` 뒤에 `SessionStart` hook을 실행하므로, 이미 `busy`인 Codex 탭에 도착한 `session-start`는 진행 중인 turn을 `idle`로 끊지 않고 `busy`를 유지합니다(`sessionStartMayArriveMidTurn`).
 
 `Stop` event는 terminal session name과 sequence를 포함해 client에 전달됩니다. Matching tab의 Git generation만 증가시키고 active tab은 즉시 cache를 우회해 갱신하며 inactive tab은 선택될 때 한 번 갱신합니다. 같은 sequence는 중복 invalidation하지 않습니다. 두 Git hook은 consumed generation을 session별로 보존하므로 같은 hook instance가 tab을 전환해도 다른 session의 낮은 generation을 이미 처리한 값으로 오인하지 않습니다.
 

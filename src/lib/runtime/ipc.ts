@@ -486,6 +486,7 @@ const timelineSessionChangedEventPayloadSchema = z.object({
 const agentProviderStatusBehaviorSchema = z.object({
   watchJsonlWhenBound: z.boolean(),
   deferStopHookUntilJsonlIdle: z.boolean(),
+  sessionStartMayArriveMidTurn: z.boolean().optional(),
 }).strip();
 const statusReduceHookStatePayloadSchema = z.object({
   currentState: cliStateSchema,

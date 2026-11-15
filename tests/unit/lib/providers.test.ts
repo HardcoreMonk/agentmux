@@ -79,6 +79,7 @@ describe('agent providers', () => {
     expect(codexProvider.statusBehavior).toEqual({
       watchJsonlWhenBound: true,
       deferStopHookUntilJsonlIdle: true,
+      sessionStartMayArriveMidTurn: true,
       reconcileStateFromJsonl: true,
       recoverPaneInput: true,
       bindSessionFromHook: true,

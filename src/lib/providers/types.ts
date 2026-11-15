@@ -39,6 +39,8 @@ export interface IAgentPromptClaim {
 export interface IAgentProviderStatusBehavior {
   readonly watchJsonlWhenBound: boolean;
   readonly deferStopHookUntilJsonlIdle: boolean;
+  // Codex runs SessionStart on the first turn after UserPromptSubmit.
+  readonly sessionStartMayArriveMidTurn?: boolean;
   readonly reconcileStateFromJsonl: boolean;
   readonly recoverPaneInput: boolean;
   readonly bindSessionFromHook: boolean;
@@ -48,7 +50,7 @@ export interface IAgentProviderStatusBehavior {
 
 export type TAgentHookStatusBehavior = Pick<
   IAgentProviderStatusBehavior,
-  'watchJsonlWhenBound' | 'deferStopHookUntilJsonlIdle'
+  'watchJsonlWhenBound' | 'deferStopHookUntilJsonlIdle' | 'sessionStartMayArriveMidTurn'
 >;
 
 export interface IAgentProvider {
