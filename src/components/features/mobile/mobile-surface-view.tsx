@@ -15,6 +15,8 @@ import useTabMetadataStore from '@/hooks/use-tab-metadata-store';
 import TerminalContainer from '@/components/features/workspace/terminal-container';
 import ConnectionStatus from '@/components/features/workspace/connection-status';
 import MobileAgentPanel from '@/components/features/mobile/mobile-agent-panel';
+import MobileReloadRecoveryBanner from '@/components/features/mobile/mobile-reload-recovery-banner';
+import useReconnectFailuresStore, { selectMaxReconnectFailures } from '@/hooks/use-reconnect-failures-store';
 import TrustPromptCard from '@/components/features/workspace/trust-prompt-card';
 import CodexHooksReviewCard from '@/components/features/workspace/codex-hooks-review-card';
 import CodexUpdateCard from '@/components/features/workspace/codex-update-card';
@@ -572,6 +574,9 @@ const MobileSurfaceView = ({
     isDiff,
     blockingOverlay: showDisconnectedOverlay,
   });
+  const timelineFailures = useReconnectFailuresStore(selectMaxReconnectFailures);
+  const terminalFailures = status === 'reconnecting' ? retryCount : 0;
+  const reconnectFailures = Math.max(terminalFailures, timelineFailures);
 
   const autoRestartedTabsRef = useRef<Set<string>>(new Set());
 
@@ -598,6 +603,8 @@ const MobileSurfaceView = ({
         overscrollBehavior: 'none',
       }}
     >
+      <MobileReloadRecoveryBanner failures={reconnectFailures} />
+
       {isWebBrowser && activeTabId && (
         <WebBrowserPanel
           key={activeTabId}

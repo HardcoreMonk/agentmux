@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type {
   ITimelineEntry,
   IInitMeta,
@@ -8,6 +8,7 @@ import type {
   TTimelineServerMessage,
 } from '@/types/timeline';
 import type { IAgentSessionRelationship } from '@/lib/agent-session-relationship';
+import useReconnectFailuresStore from '@/hooks/use-reconnect-failures-store';
 import { nextReconnectDelay } from '@/lib/reconnect-policy';
 import {
   NATIVE_APP_STATE_EVENT,
@@ -76,6 +77,7 @@ const useTimelineWebSocket = ({
 }: IUseTimelineWebSocketOptions): IUseTimelineWebSocketReturn => {
   const [status, setStatus] = useState<TTimelineConnectionStatus>('disconnected');
   const [connectTrigger, setConnectTrigger] = useState(0);
+  const failureKey = `timeline:${useId()}`;
 
   const wsRef = useRef<WebSocket | null>(null);
   const retryCountRef = useRef(0);
@@ -132,6 +134,7 @@ const useTimelineWebSocket = ({
         if (connectIdRef.current !== connectId) return;
         setStatus('connected');
         retryCountRef.current = 0;
+        useReconnectFailuresStore.getState().clear(failureKey);
       };
 
       ws.onmessage = (event: MessageEvent) => {
@@ -189,6 +192,7 @@ const useTimelineWebSocket = ({
 
         const delay = nextReconnectDelay(retryCountRef.current);
         retryCountRef.current++;
+        useReconnectFailuresStore.getState().report(failureKey, retryCountRef.current);
         setStatus('reconnecting');
         retryTimerRef.current = setTimeout(() => {
           doConnectRef.current(connectId);
@@ -201,7 +205,7 @@ const useTimelineWebSocket = ({
         console.log('[timeline-ws] connection error');
       };
     },
-    [sessionName, agentSessionId, panelType, clearTimers],
+    [sessionName, agentSessionId, panelType, clearTimers, failureKey],
   );
 
   useEffect(() => {
@@ -213,6 +217,7 @@ const useTimelineWebSocket = ({
       foregroundReconnectPendingIdRef.current = null;
       ++connectIdRef.current;
       clearTimers();
+      useReconnectFailuresStore.getState().clear(failureKey);
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
@@ -221,6 +226,7 @@ const useTimelineWebSocket = ({
     }
 
     retryCountRef.current = 0;
+    useReconnectFailuresStore.getState().clear(failureKey);
     foregroundReconnectPendingIdRef.current = null;
     const id = ++connectIdRef.current;
     doConnect(id);
@@ -228,6 +234,7 @@ const useTimelineWebSocket = ({
     return () => {
       connectIdRef.current = id + 1;
       clearTimers();
+      useReconnectFailuresStore.getState().clear(failureKey);
       if (wsRef.current) {
         if (wsRef.current.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ type: 'timeline:unsubscribe' }));
@@ -275,6 +282,7 @@ const useTimelineWebSocket = ({
       hiddenAtRef.current = null;
       if (!forceReconnect && ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
       retryCountRef.current = 0;
+      useReconnectFailuresStore.getState().clear(failureKey);
       if (forceReconnect) {
         foregroundReconnectErrorSuppressUntilRef.current = nextForegroundReconnectErrorSuppressUntil();
         const id = ++connectIdRef.current;
@@ -332,7 +340,7 @@ const useTimelineWebSocket = ({
       window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener(NATIVE_APP_STATE_EVENT, handleNativeAppState);
     };
-  }, [enabled, clearTimers]);
+  }, [enabled, clearTimers, failureKey]);
 
   const subscribe = useCallback((jsonlPath: string): boolean => {
     const ws = wsRef.current;

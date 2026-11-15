@@ -23,6 +23,8 @@ Windows 설치형 제품 마감은 별도 제품 line인
 - Linux tmux adapter와 `systemd --user` 운영, 선택적 Electron/Android client
 - 보존된 Electron Windows NSIS/zip packaging, installer, updater release smoke
 - `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`) 아래의 local-first 상태와 인증된 upload artifact 관리
+- Desktop workspace 오른쪽의 resizable Git side panel(focus 탭 추적, turn 종료 시 즉시 diff 새로고침, sync 실패 시 agent 웹 입력창 채우기)
+- 모바일·Android WebView에서 연속 5회 재연결 실패 시 화면 상단 새로고침 복구 안내
 
 ## 현재 상태
 

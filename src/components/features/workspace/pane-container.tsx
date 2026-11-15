@@ -51,7 +51,8 @@ import { dismissTab as dismissStatusTab } from '@/hooks/use-agent-status';
 import { requestAgentLaunch } from '@/lib/agent-launch-client';
 import { readAgentSessionId } from '@/lib/agent-tab-fields';
 import { DEFAULT_AGENT_PANEL_TYPE, isAgentPanelType } from '@/lib/panel-type';
-import { AGENT_PROVIDER_META, getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { AGENT_PROVIDER_META, getAgentLabel, getAgentProviderMeta } from '@/lib/agent-provider-meta';
+import { listenSendToAgent } from '@/lib/send-to-agent-event';
 import { resolveTerminalWebSocketEndpoint } from '@/lib/terminal-websocket-url';
 import {
   shouldShowPaneSessionRecoveryOverlay,
@@ -95,10 +96,12 @@ const TERMINAL_FONT_SIZES: Record<string, { normal: number; agent: number }> = {
 };
 
 const EMPTY_TABS: ITab[] = [];
+const ASK_AGENT_FOCUS_DELAY_MS = 350;
 
 const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
   const t = useTranslations('terminal');
   const tSession = useTranslations('session');
+  const tDiff = useTranslations('diff');
 
   const pane = useLayoutStore((s) => (s.layout ? findPane(s.layout.root, paneId) : null));
   const tabs = pane?.tabs ?? EMPTY_TABS;
@@ -735,6 +738,27 @@ const PaneContainer = memo(({ paneId, paneNumber }: IPaneContainerProps) => {
     }, 100);
     return () => window.clearTimeout(timer);
   }, [activePanelType]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    return listenSendToAgent(window, (detail) => {
+      if (detail.paneId !== paneId || detail.tabId !== activeTabId) return;
+      if (isAgentPanelType(activePanelType)) {
+        if (agentInputVisible && sessionView === 'timeline') {
+          setInputValueRef.current?.(detail.text);
+          // The sonner toast that fired this pulls focus back to the element focused before it, both when focus
+          // leaves the toast and when the toast unmounts 200 ms after closing. Focus once it is gone.
+          window.setTimeout(() => focusInputRef.current?.(), ASK_AGENT_FOCUS_DELAY_MS);
+          return;
+        }
+        toast.info(tDiff('askAgentNoInput', { agent: getAgentLabel(activePanelType) }));
+        return;
+      }
+      handleSendToAgent(detail.text);
+      // The side panel's sync button stays mounted, so focus it once the toast is gone, as above.
+      window.setTimeout(() => focusInputRef.current?.(), ASK_AGENT_FOCUS_DELAY_MS);
+    });
+  }, [paneId, activeTabId, activePanelType, agentInputVisible, sessionView, handleSendToAgent, tDiff]);
 
   const handleWebUrlChange = useCallback((url: string) => {
     if (!activeTabId || !layoutWsId) return;

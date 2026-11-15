@@ -33,5 +33,8 @@
   "agentPromptNoUpstream": "The {branch} branch has no upstream. Please push to origin and set up the tracking branch.",
   "agentPromptLocalChanges": "Git pull failed because local uncommitted changes would be overwritten by merge. Please stash or commit the changes, pull from {upstream}, and reapply the stash if you stashed.",
   "agentPromptTimeout": "Git sync timed out. Please check the network connection and retry.",
-  "agentPromptGeneric": "Git sync failed. Please review the error below and resolve it."
+  "agentPromptGeneric": "Git sync failed. Please review the error below and resolve it.",
+  "sidePanelEmpty": "Open a terminal or agent tab first",
+  "sidePanelClose": "Close Git panel",
+  "askAgentNoInput": "{agent} has no input box yet. Open the conversation, then try again"
 }

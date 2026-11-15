@@ -5,6 +5,7 @@ import { RefreshCw, GitBranch, Columns2, Rows2, ArrowUp, ArrowDown, ArrowDownUp,
 import { cn } from '@/lib/utils';
 import { getAgentLabel } from '@/lib/agent-provider-meta';
 import { DEFAULT_AGENT_PANEL_TYPE } from '@/lib/panel-type';
+import type { TAgentPanelType } from '@/types/terminal';
 import Spinner from '@/components/ui/spinner';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import useIsMobile from '@/hooks/use-is-mobile';
@@ -14,6 +15,9 @@ import DiffFileList from '@/components/features/workspace/diff-file-list';
 interface IDiffPanelProps {
   sessionName: string;
   onSendToAgent?: (text: string) => void;
+  refreshKey?: number;
+  askAgentPanelType?: TAgentPanelType;
+  compact?: boolean;
 }
 
 interface IHeadCommit {
@@ -89,7 +93,13 @@ const fetchWithTimeout = async (url: string) => {
   }
 };
 
-const DiffPanel = ({ sessionName, onSendToAgent }: IDiffPanelProps) => {
+const DiffPanel = ({
+  sessionName,
+  onSendToAgent,
+  refreshKey,
+  askAgentPanelType,
+  compact = false,
+}: IDiffPanelProps) => {
   const t = useTranslations('diff');
   const isMobile = useIsMobile();
 
@@ -221,7 +231,7 @@ const DiffPanel = ({ sessionName, onSendToAgent }: IDiffPanelProps) => {
         toast.error(t(messageKey), {
           duration: ERROR_TOAST_DURATION,
           action: onSendToAgent ? {
-            label: t('askAgent', { agent: getAgentLabel(DEFAULT_AGENT_PANEL_TYPE) }),
+            label: t('askAgent', { agent: getAgentLabel(askAgentPanelType ?? DEFAULT_AGENT_PANEL_TYPE) }),
             onClick: () => {
               const promptKey = AGENT_PROMPT_KEYS[kind];
               const intro = t(promptKey, {
@@ -247,7 +257,14 @@ const DiffPanel = ({ sessionName, onSendToAgent }: IDiffPanelProps) => {
     } finally {
       setSyncing(false);
     }
-  }, [sessionName, syncing, t, fetchDiff, onSendToAgent, branch]);
+  }, [sessionName, syncing, t, fetchDiff, onSendToAgent, branch, askAgentPanelType]);
+
+  const initialRefreshKeyRef = useRef(refreshKey);
+  useEffect(() => {
+    if (refreshKey === undefined || refreshKey === initialRefreshKeyRef.current) return;
+    initialRefreshKeyRef.current = refreshKey;
+    void fetchDiff();
+  }, [refreshKey, fetchDiff]);
 
   useEffect(() => {
     fetchDiff().then(() => pollForChanges());
@@ -340,7 +357,7 @@ const DiffPanel = ({ sessionName, onSendToAgent }: IDiffPanelProps) => {
                 <span className="text-xs text-ui-blue">{t('hasChanges')}</span>
               )}
 
-              {activeTab === 'changes' && !isMobile && (
+              {activeTab === 'changes' && !isMobile && !compact && (
                 <Tooltip>
                   <TooltipTrigger
                     className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -445,7 +462,7 @@ const DiffPanel = ({ sessionName, onSendToAgent }: IDiffPanelProps) => {
 
       <div className="min-h-0 flex-1 overflow-auto">
         {activeTab === 'history' ? (
-          <DiffHistoryView sessionName={sessionName} refreshToken={historyRefreshToken} viewMode={viewMode} />
+          <DiffHistoryView sessionName={sessionName} refreshToken={historyRefreshToken} viewMode={compact ? 'unified' : viewMode} />
         ) : (
           <>
             {error && !loading && (
@@ -466,7 +483,7 @@ const DiffPanel = ({ sessionName, onSendToAgent }: IDiffPanelProps) => {
                 </div>
               </div>
             )}
-            {diff && <DiffFileList diff={diff} viewMode={viewMode} sessionName={sessionName} />}
+            {diff && <DiffFileList diff={diff} viewMode={viewMode} sessionName={sessionName} compact={compact} />}
           </>
         )}
       </div>

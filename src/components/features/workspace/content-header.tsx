@@ -17,6 +17,7 @@ import isElectron from '@/hooks/use-is-electron';
 import SystemResources from '@/components/layout/system-resources';
 import { buildEditorUrl, isSafeEditorTarget, isWebEditorUrl } from '@/lib/editor-url';
 import { EditorIcon } from '@/components/icons/editor-icons';
+import GitPanelToggleButton from '@/components/features/workspace/git-panel-toggle-button';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
 const isLocalAccess = typeof window !== 'undefined'
@@ -52,6 +53,8 @@ interface IContentHeaderProps {
   onSplitPane: (paneId: string, orientation: 'horizontal' | 'vertical') => void;
   onEqualizeRatios: () => void;
   onUpdateTabPanelType: (paneId: string, tabId: string, panelType: TPanelType) => void;
+  gitPanelOpen: boolean;
+  onToggleGitPanel: () => void;
 }
 
 const ContentHeader = ({
@@ -63,6 +66,8 @@ const ContentHeader = ({
   onSplitPane,
   onEqualizeRatios,
   onUpdateTabPanelType,
+  gitPanelOpen,
+  onToggleGitPanel,
 }: IContentHeaderProps) => {
   const t = useTranslations('terminal');
   const isMac = useIsMac();
@@ -282,6 +287,10 @@ const ContentHeader = ({
               />
             </div>
           )}
+
+          <div className="h-5 w-px bg-border" />
+
+          <GitPanelToggleButton open={gitPanelOpen} onToggle={onToggleGitPanel} />
         </div>
       </TooltipProvider>
       </div>

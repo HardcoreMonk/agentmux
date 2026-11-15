@@ -576,6 +576,49 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   격리 live 확인: CLI로 만들고 CLI `tab send`로만 prompt를 받은 Codex 탭이 UI에서 session 목록이 아니라 timeline(보낸 prompt)과
   웹 입력으로 열렸다(고치기 전에는 session 목록). 격리 증명(tab process environ), 사용자 파일·live service 불변, Codex prompt 1개.
 
+## 설계 2-2: Git side panel과 모바일 재연결 새로고침 (2026-11-15)
+
+- spec: `docs/superpowers/specs/2026-11-15-git-side-panel-reload-recovery-design.md`, plan:
+  `docs/superpowers/plans/2026-11-15-git-side-panel-reload-recovery.md`.
+- 사용자 결정: Git side panel은 접근 A(workspace 오른쪽 단일 패널, focus된 탭 추적, workspace별 열림·너비 기억)로 진행하고, 모바일 Git 전체 화면은 제외(지금처럼 탭을 Diff mode로 바꾸는 것으로 충분)한다.
+- 작업 체계: agy 구현, Claude 검증. Task 1~3마다 독립 검토 지적 0건.
+- 구현 commit(branch `feat/git-side-panel`):
+  - `2c18c57a` 순수 module(대상 탭 `git-side-panel-target.ts`, 저장 설정 `git-side-panel-prefs.ts`, turn 끝 판정 `isAgentTurnEnd`, agent에게 넘기기 event `send-to-agent-event.ts`)
+  - `509a024c` desktop Git side panel(header `GitCompareArrows` 버튼, workspace별 열림·너비 20~60%/기본 35% 저장, focus 탭 추적과 닫힌 탭 안내, `busy` → `ready-for-review`/`idle` 전이 시 즉시 diff 새로고침, unified 고정 보기, active 탭일 때만 sync 실패 toast에서 대상 agent 웹 입력창에 채우기)
+  - `77800b95` 모바일 재연결 새로고침(`reload-recovery.ts`, `use-reconnect-failures-store.ts`, `use-page-visible.ts`, `mobile-reload-recovery-banner.tsx`; 모바일 기기에서 화면이 보일 때 terminal·timeline WebSocket 연속 5회 실패 시 상단 새로고침 버튼 표시, 재연결 시도 유지 및 연결 시 해제)
+  - `ad94df12` 문서
+  - live 확인 뒤(controller): `817747a2`, `79098e6b` "…에게 묻기" 뒤 입력창 focus(아래)
+  - branch 최종 검토(Opus, "Ready to merge", Minor 2) 뒤: `d736abfa` terminal 보기 탭에서 묻기 뒤에도 같은 focus 처리.
+    다른 Minor(가로 모드 폰의 banner)는 `FOLLOW-UP.md` "설계 2-2 후속"
+
+### 전체 gate와 격리 live 확인
+
+- 전체 gate(`77800b95`): `check:project-design`·`check:product-name` 통과, lint error 0(기존 경고 6), `tsc --noEmit`와
+  deploy-check 통과, 임시 HOME·`CODEX_HOME` 없음으로 전체 test 354 files / 2533 통과 / 3 skipped, `pnpm build` 통과.
+  live 확인 뒤 고친 `79098e6b`도 build·tsc·lint 통과.
+- 격리 live 확인(2026-11-15 20:17~20:35 KST, port 18122, 격리 data dir·`TMUX_TMPDIR`·`CODEX_HOME`, build `77800b95`→`79098e6b`):
+  - 먼저 격리를 증명했다. tab의 zsh·codex process environ에 격리 `CODEX_HOME`이 있었고, 사용자 `~/.codex/config.toml`·
+    `hooks.json`·`~/.claude/settings.json` hash가 그대로였다. folder trust와 hook trust 카드는 격리 home에만 기록했다.
+  - desktop
+    - Git 버튼으로 열고 닫기, 너비 35%→50% 끌기, 닫았다 다시 열기, page 새로고침 뒤 열림·너비 유지를 확인했다.
+    - pane 재생성 없음: 패널을 여닫아도 `.xterm` DOM node가 그대로였고 terminal에 쳐 둔 글자도 남았다.
+    - focus 따라가기: pane 1 Codex 탭 → `alpha.txt`, pane 2 terminal 탭(`cd` 뒤) → `beta.txt`.
+    - turn 끝 새로고침: Codex prompt 1개(파일에 한 줄 추가)의 turn이 약 6.6초에 끝나고 약 0.5초 뒤 패널에 새 줄이 보였다.
+      10초 주기 확인은 "업데이트 있음" 표시만 켜므로 새 줄은 turn 끝 신호의 새로고침이다.
+    - upstream 없는 branch에서 동기화 → toast "Codex에게 묻기" → 이미 timeline인 Codex 탭 입력창에 채워지고 보내지지 않았다.
+  - live 확인에서 찾아 고친 것: "…에게 묻기" 뒤 커서가 동기화 버튼에 남았다. sonner toast가 focus가 toast 밖으로 나갈 때와
+    닫힌 뒤 200ms에 unmount될 때 원래 버튼으로 focus를 되돌리기 때문이다. 100ms(`817747a2`)로는 부족해 350ms(`79098e6b`)로
+    바꿨고, 다시 확인해 입력창에 focus가 가고 이어 친 글자가 입력창에 들어가며 보내지지 않았다. 최종 검토가 짚은 terminal
+    보기 경로(`d736abfa`)도 확인했다. Codex 탭을 Terminal 보기로 바꾼 뒤 묻기를 누르면 Codex 보기로 돌아와 입력창에 채워지고
+    focus가 가며 보내지지 않았다.
+  - 모바일(Android user agent·touch, 412×915): 연결된 상태에서 격리 server를 멈추면 약 15.3초 뒤 "새로고침" banner가
+    떴다(버튼 높이 44px, 기존 "재연결 중" 표시와 겹치지 않음). spec의 "약 31초"는 계산 실수였다(재연결 간격 1·2·4·8초 뒤
+    5번째 실패). server를 다시 켜면 다음 재연결(약 16.8초 뒤)에 연결되며 banner가 사라졌다.
+  - 찾았지만 고치지 않은 것(사용자 결정 2026-11-15 "그대로 merge, 후속 기록"): Runtime v2 terminal 탭(`rtv2-…`)은 Git API가
+    예전 tmux socket만 봐서 `/api/layout/diff`·`/api/layout/cwd`가 404다. live 설정(`new-tabs`)에서는 웹으로 새로 연 일반
+    terminal 탭이 이 탭이다. main의 기존 Diff mode에도 있던 제약이다. `FOLLOW-UP.md` "설계 2-2 후속".
+  - 안전 확인: 사용자 파일 hash, live tmux session 목록, `agentmux.service` MainPID `724678`(NRestarts 0)가 그대로였다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -594,13 +637,18 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 - 설계 1 단계 3: plan-eng-review 반영(`2a749a2e`), Task 1~10 implement와 task별 code-review, 전체 gate, 격리 browser·live 확인(5개 통과, 1개 부분), branch 최종 code-review(Critical/Important 0, Minor 1 반영)를 마쳤다. PR #49, main merge(`ad32559d`), live 배포(2026-11-11 09:28 KST)와 배포 뒤 확인을 마쳤다. operate. Worktree와 로컬 branch는 정리했다.
 - 설계 1 단계 4: plan 승인(2026-11-11), Task 1~9 implement와 task별 code-review, 전체 gate, 격리 live 확인, 최종 code-review와 수정,
   PR #50, main merge(`14b8da96`), live 배포(2026-11-12 01:32 KST)와 배포 뒤 확인을 마쳤다. operate. 설계 1 완료.
+- 설계 2-1(Codex 보조)과 후속(Codex hook session 묶기): PR #54(`555feb0b`), PR #55(`0e887fd4`), live 배포(2026-11-15 18:22 KST). operate.
+- 설계 2-2(Git side panel, 모바일 재연결 새로고침): plan 승인(2026-11-15), Task 1~3 implement와 task별 독립 검토(지적 0건),
+  문서, 전체 gate, 격리 live 확인과 live 확인 수정(`79098e6b`), branch 최종 검토(Ready to merge, Minor 1 반영 `d736abfa`)를
+  마쳤다. 다음은 PR, main merge, 사용자 배포.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-설계 1(단계 1~4)은 live에 배포됐다(`14b8da96`). 다음은 배포 도구 보완(아래 Follow-Up의 `deploy:local` 두 항목)과 설계 2
-brainstorming이다. 설계 2의 첫 후보는 Codex hook 검토 화면 문제다(Codex를 위임 대상으로 쓰려면 먼저 필요).
+설계 2-2 branch(`feat/git-side-panel`)의 PR을 올리고 CI 통과를 확인한 뒤 로컬 merge commit을 만든다. 사용자가
+`git push agentmux main`과 `corepack pnpm deploy:local`을 실행한다. 새 dependency는 없다. 배포 뒤 health와 log를 보고,
+desktop에서 Git 패널을 한 번 열어 본다. 그다음은 설계 3(회신·상호 리뷰) brainstorming이다.
 단계 3 이전 build(`d1accfc6` 등)로 내릴 때는 Claude 탭을 먼저 닫는다.
 단계 4 rollback은 위 "배포와 rollback 절차"(schema v6 in-place downgrade)를 따른다. 단계 3 rollback(통계 cache v5→v4)은
 service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json` 뒤 이전 build를 시작하는 방식이다

@@ -6,5 +6,7 @@
   "runtimeV2Disabled": "Runtime v2 disabled",
   "disconnected": "Disconnected",
   "reconnect": "Reconnect",
-  "terminalDisconnected": "Terminal disconnected"
+  "terminalDisconnected": "Terminal disconnected",
+  "reloadRecoveryMessage": "The connection keeps failing. Reloading may restore it.",
+  "reloadRecoveryAction": "Reload"
 }

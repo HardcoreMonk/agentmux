@@ -101,5 +101,7 @@
   "codexUpdating": "Updating Codex…",
   "codexUpdateSuccess": "Updated. Restart Codex",
   "codexUpdateFailed": "The update failed. Check the error in the terminal",
-  "codexUpdateRestart": "Restart"
+  "codexUpdateRestart": "Restart",
+  "gitPanelOpen": "Open Git panel",
+  "gitPanelClose": "Close Git panel"
 }
