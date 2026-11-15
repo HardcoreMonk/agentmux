@@ -83,6 +83,7 @@ class MyDocument extends Document<IDocumentProps> {
           <link rel="manifest" href="/api/manifest" />
           <meta name="msapplication-TileColor" content="#131313" />
           <meta name="theme-color" content="#131313" />
+          <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <script dangerouslySetInnerHTML={{ __html: STALE_CHUNK_RELOAD_SCRIPT }} />
           <link rel="apple-touch-startup-image" href="/splash/splash-1320x2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3)" />
