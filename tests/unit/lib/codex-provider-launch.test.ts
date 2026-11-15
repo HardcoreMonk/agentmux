@@ -120,6 +120,16 @@ describe('codex provider launch command', () => {
     expect(command).not.toContain('--cd');
   });
 
+  it('uses the polling guide in developer_instructions when agentReportsEnabled is false', async () => {
+    mocks.getConfig.mockResolvedValue({ agentReportsEnabled: false });
+
+    const command = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
+
+    expect(command).toContain(quotedConfig(buildDelegationGuide('codex', { reportsEnabled: false })));
+    expect(command).toContain('no more often than every 10 seconds');
+    expect(command).not.toContain('into your input');
+  });
+
   it('keeps the env vars but skips the guide when the cwd is unknown', async () => {
     mocks.getSessionCwd.mockResolvedValue(null);
 
