@@ -650,6 +650,38 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 - 사용자: "후속 작업 순차 진행", 방식 "A로 진행"(기록 파일이 없을 때 화면으로 판단), 설계 승인("후속 작업 승인 합니다.").
 - 설계 겸 계획과 결과: `docs/superpowers/specs/2026-11-15-codex-first-turn-state-design.md`.
 
+## 설계 3: agent 자동 보고 (2026-11-16)
+
+- Spec: `docs/superpowers/specs/2026-11-16-agent-reports-design.md` (Approved 2026-11-16).
+- Plan: `docs/superpowers/plans/2026-11-16-agent-reports.md` (독립 plan review 반영 완료).
+- Branch: `feat/agent-reports` (worktree `.worktrees/agent-reports`, base `1a693421`).
+- 사용자 결정(2026-11-16):
+  - 흐름 A: 맡은 agent의 결과가 맡긴 agent에게 자동으로 가고, 맡긴 agent가 검토하고 필요하면 고칠 점을 다시 보내며 만족하면 사람에게 보고한다.
+  - 전달 방법 A("A로 진행"): 서버가 보고를 맡긴 agent의 입력창에 자동으로 넣고 보낸다.
+  - Spec 승인("승인합니다"), Plan 승인(2026-11-16).
+- 작업 체계: agy(`builder`)가 task를 구현하고 Claude(controller)가 검증과 task별 검토를 수행했다.
+
+### Task별 commit 목록 (`1a693421..HEAD`)
+
+| 단계 / Task | Commit | 내용 |
+| --- | --- | --- |
+| Spec · Plan | `ebe83cbe`, `06f74c7e`, `4aad24ce`, `00a6dcb2` | 설계 3 spec 작성·승인 표시, plan 작성 및 독립 plan review 반영 |
+| Task 1 (입력창 화면 견본) | `dee5b8a4` | Codex·Claude Code 입력창 화면 ANSI fixture 캡처 |
+| Task 2 (보고 형식과 입력창 빈 상태 판정) | `0a4cc9b8`, `f53c250d` | `agent-report.ts`, `agent-composer.ts`, `tmux.ts` `capturePaneAnsi` 및 붙여 넣기·색상 반례 test 고정 |
+| Task 3 (보고 대기열과 반복·만료) | `180cc453` | `agent-report-queue.ts` 대기열, 묶음, 5회 연속 정지, 사람 입력 리셋, 30분 만료 |
+| Task 4 (CLI 보내기·생성 제한과 대상 확인 분리) | `1c79fcc8` | `checkAgentSendTarget` 추출, 400 `reserved-report-prefix`, 403 `delegation-depth` |
+| Task 5 (자동 보고 서비스와 StatusManager·알림 연결) | `0f11d180`, `a615063d`, `ed001d36`, `13c50cd1`, `009ec600` | `agent-report-service.ts`, `StatusManager` 배선, status/web-push payload, client 알림 표시, 전달 직전 turn 대기 무장·초기 연결 알림 억제·빈 대기열 config 읽기 생략 |
+| Task 6 (설정 스위치와 위임 안내 변경) | `b58ff18b`, `a79ba135` | `agentReportsEnabled` 설정·UI 스위치, 위임 안내 자동 보고 문구와 off 분기 test 고정 |
+| Task 7 (timeline의 보고 표시) | `697c14c5` | `agent-report-message.tsx` 및 `timeline-view.tsx` 라우팅, 한·영 문구 |
+
+### 전체 gate와 격리 live 확인
+
+(controller가 채움)
+
+### 배포
+
+(controller가 채움)
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -672,6 +704,7 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 - 설계 2-2(Git side panel, 모바일 재연결 새로고침): plan 승인(2026-11-15), Task 1~3 implement와 task별 독립 검토(지적 0건),
   문서, 전체 gate, 격리 live 확인과 live 확인 수정(`79098e6b`), branch 최종 검토(Ready to merge, Minor 1 반영 `d736abfa`),
   PR #56, main merge(`737bd0f9`), live 배포(2026-11-15 21:08 KST)를 마쳤다. operate.
+- 설계 3(agent 자동 보고): plan 승인, Task 1~7 구현과 task별 검토 완료, 문서. 다음은 전체 gate, 격리 live 확인, 배포.
 - iPad 홈 화면 웹 앱: 짧은 설계 승인, 구현, gate, 격리 확인을 마쳤다. 다음은 PR, main merge, 사용자 배포, 실제 iPad 확인.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).

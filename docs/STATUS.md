@@ -214,6 +214,7 @@ Notification 정책은 foreground toast, native notification, Web Push를 같은
 - `notificationsEnabled=false`이면 사용자 notification을 보내지 않습니다.
 - `soundOnCompleteEnabled=false`이면 완료 사운드를 재생하지 않고 system notification도 silent로 요청합니다.
 - 같은 tab/session/action 조합의 중복 완료 알림은 dedupe합니다.
+- 위임으로 만든 자식 agent 탭(`createdByTabId`)이 `ready-for-review`·`needs-input`이 되면 `StatusManager`(`AgentReportService`)가 부모 agent 탭에 자동 보고를 전달하거나 대기열에 넣고, `prompt-submit` hook으로 자동 보고 turn과 사람 입력을 구분합니다(상세는 `docs/CLI.md` "자동 보고", ADR-039).
 - Raw prompt, full command, terminal output, token-like 값은 notification payload에 넣지 않습니다.
 
 ## 이벤트 모델
@@ -364,3 +365,4 @@ adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 lega
 | `src/lib/status/hook-session-binding.ts` | hook session 다시 묶기와 `needs-input` 해제 판단 |
 | `src/lib/statusline-script.ts` | `statusline.cjs` 생성(사용자 statusLine 대신 실행) |
 | `src/lib/trust-prompt-detector.ts` | Folder trust 화면 감지와 응답 key |
+| `src/lib/agent-report-service.ts` | 위임 자식 탭 완료·막힘 시 부모 탭 자동 보고 전달과 대기열·알림 연동 |

@@ -344,6 +344,18 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | 가로 모드 폰의 새로고침 banner | 해결(branch `feat/ipad-touch-layout`): `useIsMobile`에 `(hover: none) and (pointer: coarse)`를 더해 손가락이 주 입력인 기기는 화면 폭과 상관없이 모바일 화면(`mobile-surface-view`)을 유지함 |
 | `pane-container` 묻기 분기 test | agent 보기·입력창 없음·terminal 보기 세 분기에 unit test 없음(vitest에 jsdom 없음). 격리 live 확인으로 대신함 |
 
+## 설계 3 후속
+
+설계 3(agent 자동 보고와 상호 리뷰, `docs/superpowers/specs/2026-11-16-agent-reports-design.md`)에서 남긴 한계와 후속 후보입니다.
+
+| 항목 | 내용 |
+| --- | --- |
+| 재시작 시 대기 보고 유실 | 대기열, 연속 횟수, 보고 기록은 `StatusManager`(Runtime v2에서는 status worker) 메모리에만 둠. 서버나 worker가 재시작하면 대기 중이던 보고는 사라지며, 재시작 뒤에는 맡긴 agent가 `agentmux tab status`로 확인함 |
+| `agentmux tab wait` (대안 B) | 맡긴 agent가 자기 turn 안에서 완료를 기다리는 명령은 이번 범위에서 제외했고 나중의 편의 기능 후보로 남김 |
+| 비목표 범위 | 맡은 탭을 옆 pane에 자동으로 띄우는 agent split, 검토자·구현자 역할 preset(Herdr template), Runtime v2 agent 탭의 자동 보고는 비목표로 유지 |
+| 입력창 화면 규칙의 CLI 버전 의존 | `isAgentComposerEmpty`는 Codex `0.169.0`(굵은 `›` 줄과 SGR `2` 흐림 placeholder)과 Claude Code `2.1.325`(`❯`+NBSP 줄, SGR `2` 흐림, 아래 `─` 상자 테두리) 화면 모양을 기준으로 판정함. 두 CLI의 TUI 모양이나 SGR 속성이 바뀌면 fixture와 판정 규칙을 다시 확인해야 함 |
+| prompt 본문 없는 `prompt-submit` 분류 | hook payload에 prompt 문자열이 없을 때는 서버가 보고를 넣은 직후의 첫 `prompt-submit` 하나만 자동 보고로 보고 그 다음 `prompt-submit`부터 사람 입력으로 침 |
+
 ## Codex lifecycle 기준
 
 - `domain-architecture` pass를 `superpowers:brainstorming / writing-spec` 뒤, `grill-me` 앞에 둡니다.
