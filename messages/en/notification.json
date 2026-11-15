@@ -37,5 +37,7 @@
   "showMore": "{count} more",
   "showLess": "Show less",
   "toastCompleteTitle": "Task complete",
-  "openTab": "Open"
+  "openTab": "Open",
+  "agentReportsPaused": "Agent reports paused after 5 in a row · {count} waiting",
+  "agentReportsExpired": "Dropped {count} agent report(s) not delivered within 30 min"
 }

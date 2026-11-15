@@ -26,6 +26,7 @@ export interface IConfigData {
   codexShowTerminal?: boolean;
   agentShowTerminal?: boolean;
   agentDelegationGuideEnabled?: boolean;
+  agentReportsEnabled?: boolean;
   claudeModel?: string | null;
   claudePermissionMode?: TClaudePermissionMode | null;
   editorUrl?: string;

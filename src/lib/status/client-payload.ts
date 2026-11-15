@@ -24,6 +24,7 @@ export const toStatusClientTabEntry = (entry: ITabStatusEntry): IClientTabStatus
   lastEvent: entry.lastEvent,
   eventSeq: entry.eventSeq,
   approvalPromptMetadata: entry.approvalPromptMetadata,
+  agentReportNotice: entry.agentReportNotice,
 });
 
 export const buildStatusUpdateMessage = (
@@ -52,6 +53,7 @@ export const buildStatusUpdateMessage = (
   lastEvent: entry.lastEvent,
   eventSeq: entry.eventSeq,
   approvalPromptMetadata: entry.approvalPromptMetadata,
+  agentReportNotice: entry.agentReportNotice,
 });
 
 export const buildStatusRemoveMessage = (tabId: string): IStatusUpdateMessage => ({

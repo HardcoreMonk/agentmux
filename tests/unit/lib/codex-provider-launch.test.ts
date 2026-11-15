@@ -93,7 +93,7 @@ describe('codex provider launch command', () => {
 
     expect(mocks.getSessionCwd).toHaveBeenCalledWith(tab.sessionName);
     expect(command).toContain(`AMUX_WORKSPACE_ID='ws-1' AMUX_TAB_ID='tab-1' PATH=`);
-    expect(command).toContain(`${quotedConfig(`user rule\n\n${buildDelegationGuide('codex')}`)} resume ${threadId}`);
+    expect(command).toContain(`${quotedConfig(`user rule\n\n${buildDelegationGuide('codex', { reportsEnabled: true })}`)} resume ${threadId}`);
     expect(command).not.toContain('--cd');
   });
 
@@ -116,8 +116,18 @@ describe('codex provider launch command', () => {
     const command = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
 
     expect(mocks.getSessionCwd).not.toHaveBeenCalled();
-    expect(command).toContain(quotedConfig(buildDelegationGuide('codex')));
+    expect(command).toContain(quotedConfig(buildDelegationGuide('codex', { reportsEnabled: true })));
     expect(command).not.toContain('--cd');
+  });
+
+  it('uses the polling guide in developer_instructions when agentReportsEnabled is false', async () => {
+    mocks.getConfig.mockResolvedValue({ agentReportsEnabled: false });
+
+    const command = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
+
+    expect(command).toContain(quotedConfig(buildDelegationGuide('codex', { reportsEnabled: false })));
+    expect(command).toContain('no more often than every 10 seconds');
+    expect(command).not.toContain('into your input');
   });
 
   it('keeps the env vars but skips the guide when the cwd is unknown', async () => {

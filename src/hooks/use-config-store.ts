@@ -25,6 +25,7 @@ export interface IConfigInitialData {
   codexShowTerminal?: boolean;
   agentShowTerminal?: boolean;
   agentDelegationGuideEnabled?: boolean;
+  agentReportsEnabled?: boolean;
   claudeModel?: string | null;
   claudePermissionMode?: TClaudePermissionMode | null;
   editorUrl?: string;
@@ -52,6 +53,7 @@ interface IConfigState {
   codexSearchEnabled: boolean;
   agentShowTerminal: boolean;
   agentDelegationGuideEnabled: boolean;
+  agentReportsEnabled: boolean;
   claudeModel: string;
   claudePermissionMode: TClaudePermissionMode | '';
   editorUrl: string;
@@ -79,6 +81,7 @@ interface IConfigState {
   setCodexSearchEnabled: (enabled: boolean) => void;
   setAgentShowTerminal: (enabled: boolean) => void;
   setAgentDelegationGuideEnabled: (enabled: boolean) => void;
+  setAgentReportsEnabled: (enabled: boolean) => void;
   setClaudeModel: (model: string) => void;
   setClaudePermissionMode: (mode: TClaudePermissionMode | '') => void;
   setEditorUrl: (url: string) => void;
@@ -113,6 +116,7 @@ const initialConfig = {
   codexSearchEnabled: false,
   agentShowTerminal: true,
   agentDelegationGuideEnabled: true,
+  agentReportsEnabled: true,
   claudeModel: '',
   claudePermissionMode: '' as TClaudePermissionMode | '',
   hasAuthPassword: false,
@@ -143,6 +147,7 @@ const useConfigStore = create<IConfigState>((set, get) => ({
   codexSearchEnabled: initialConfig.codexSearchEnabled,
   agentShowTerminal: initialConfig.agentShowTerminal,
   agentDelegationGuideEnabled: initialConfig.agentDelegationGuideEnabled,
+  agentReportsEnabled: initialConfig.agentReportsEnabled,
   claudeModel: initialConfig.claudeModel,
   claudePermissionMode: initialConfig.claudePermissionMode,
   editorUrl: initialConfig.editorUrl,
@@ -173,6 +178,7 @@ const useConfigStore = create<IConfigState>((set, get) => ({
       agentShowTerminal: data.agentShowTerminal ?? data.codexShowTerminal ?? true,
       // Absent means on, matching the server (`value !== false`).
       agentDelegationGuideEnabled: data.agentDelegationGuideEnabled !== false,
+      agentReportsEnabled: data.agentReportsEnabled !== false,
       claudeModel: data.claudeModel ?? '',
       claudePermissionMode: data.claudePermissionMode ?? '',
       editorUrl: data.editorUrl ?? '',
@@ -233,6 +239,12 @@ const useConfigStore = create<IConfigState>((set, get) => ({
     if (get().agentDelegationGuideEnabled === enabled) return;
     set({ agentDelegationGuideEnabled: enabled });
     saveConfig({ agentDelegationGuideEnabled: enabled });
+  },
+
+  setAgentReportsEnabled: (enabled) => {
+    if (get().agentReportsEnabled === enabled) return;
+    set({ agentReportsEnabled: enabled });
+    saveConfig({ agentReportsEnabled: enabled });
   },
 
   setClaudeModel: (model) => {

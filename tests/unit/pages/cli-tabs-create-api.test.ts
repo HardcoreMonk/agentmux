@@ -281,6 +281,20 @@ describe('POST /api/cli/tabs with a caller tab', () => {
     expect(mocks.getSessionCwd).not.toHaveBeenCalled();
   });
 
+  it('refuses with delegation-depth when the caller tab was itself created by another agent', async () => {
+    seedDelegatedTabs(1);
+
+    const response = await callCreate({ workspaceId: 'ws-a', cwd: '/not-even-checked' }, 'tab-delegated-0');
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({
+      error: 'delegation-depth',
+      message: 'A tab created by another agent cannot create tabs',
+    });
+    expect(mocks.getSessionCwd).not.toHaveBeenCalled();
+    expect(mocks.createWorkspaceTab).not.toHaveBeenCalled();
+  });
+
   it('refuses with delegation-limit at six delegated tabs and creates nothing', async () => {
     seedDelegatedTabs(6);
 

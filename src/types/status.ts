@@ -18,6 +18,14 @@ export interface ICurrentAction {
   summary: string;
 }
 
+export type TAgentReportNoticeKind = 'paused' | 'expired';
+
+export interface IAgentReportNotice {
+  kind: TAgentReportNoticeKind;
+  count: number;
+  at: number;
+}
+
 export interface ITabStatusEntry {
   cliState: TCliState;
   workspaceId: string;
@@ -43,6 +51,7 @@ export interface ITabStatusEntry {
   eventSeq?: number;
   lastInterruptTs?: number;
   approvalPromptMetadata?: IApprovalPromptMetadata | null;
+  agentReportNotice?: IAgentReportNotice | null;
 }
 
 export type TTabDisplayStatus = 'busy' | 'ready-for-review' | 'needs-input' | 'idle' | 'unknown';
@@ -77,6 +86,7 @@ export interface IStatusUpdateMessage {
   lastEvent?: ILastEvent | null;
   eventSeq?: number;
   approvalPromptMetadata?: IApprovalPromptMetadata | null;
+  agentReportNotice?: IAgentReportNotice | null;
 }
 
 export interface IRateLimitWindow {

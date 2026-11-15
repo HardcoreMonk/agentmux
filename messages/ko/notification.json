@@ -37,5 +37,7 @@
   "showMore": "이전 기록 {count}개",
   "showLess": "접기",
   "toastCompleteTitle": "작업 완료",
-  "openTab": "열기"
+  "openTab": "열기",
+  "agentReportsPaused": "자동 보고가 5번 이어져 멈췄습니다 · 대기 {count}",
+  "agentReportsExpired": "30분 동안 전달하지 못한 보고 {count}개를 버렸습니다"
 }

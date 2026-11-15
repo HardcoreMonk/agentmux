@@ -290,6 +290,11 @@ describe('runtime ipc', () => {
           terminalStatus: 'running',
           lastEvent: null,
           eventSeq: 2,
+          agentReportNotice: {
+            kind: 'paused',
+            count: 2,
+            at: 1000,
+          },
         },
       },
       rateLimits: {},
@@ -303,6 +308,11 @@ describe('runtime ipc', () => {
           terminalStatus: 'running',
           lastEvent: null,
           eventSeq: 2,
+          agentReportNotice: {
+            kind: 'paused',
+            count: 2,
+            at: 1000,
+          },
         },
       },
       rateLimits: {},
@@ -317,10 +327,20 @@ describe('runtime ipc', () => {
       terminalStatus: 'running',
       lastEvent: { name: 'notification', at: 10, seq: 4 },
       eventSeq: 4,
+      agentReportNotice: {
+        kind: 'expired',
+        count: 1,
+        at: 2000,
+      },
     })).toMatchObject({
       tabId: 'tab-a',
       cliState: 'needs-input',
       lastEvent: { name: 'notification', at: 10, seq: 4 },
+      agentReportNotice: {
+        kind: 'expired',
+        count: 1,
+        at: 2000,
+      },
     });
 
     expect(parseRuntimeEventPayload('status.session-history-update', {

@@ -98,4 +98,36 @@ describe('status Web Push payload builder', () => {
       soundOnCompleteEnabled: true,
     }).body).toBe('tab-a');
   });
+
+  it('builds agent-report-paused and agent-report-expired payloads', () => {
+    const paused = buildStatusWebPushPayload({
+      tabId: 'tab-parent',
+      pushType: 'agent-report-paused',
+      workspaceName: 'agentmux',
+      workspaceDir: '/work/agentmux',
+      entry: makeEntry({
+        tabName: 'Parent',
+        panelType: 'claude',
+        agentReportNotice: { kind: 'paused', count: 3, at: 1000 },
+      }),
+    });
+    expect(paused.title).toBe('Agent Reports Paused');
+    expect(paused.body).toBe('3 report(s) waiting · Parent');
+    expect(paused.silent).toBe(false);
+
+    const expired = buildStatusWebPushPayload({
+      tabId: 'tab-parent',
+      pushType: 'agent-report-expired',
+      workspaceName: 'agentmux',
+      workspaceDir: '/work/agentmux',
+      entry: makeEntry({
+        tabName: 'Parent',
+        panelType: 'claude',
+        agentReportNotice: { kind: 'expired', count: 2, at: 2000 },
+      }),
+    });
+    expect(expired.title).toBe('Agent Reports Dropped');
+    expect(expired.body).toBe('2 report(s) not delivered in 30 min · Parent');
+    expect(expired.silent).toBe(false);
+  });
 });

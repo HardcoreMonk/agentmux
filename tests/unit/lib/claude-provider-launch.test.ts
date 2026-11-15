@@ -51,7 +51,7 @@ describe('claude provider launch command', () => {
     const command = await claudeProvider.buildResumeCommand(sessionId, resumeOptions);
 
     const guidePath = path.join(dataDir, 'delegation', 'claude.md');
-    expect(await fs.readFile(guidePath, 'utf-8')).toBe(buildDelegationGuide('claude'));
+    expect(await fs.readFile(guidePath, 'utf-8')).toBe(buildDelegationGuide('claude', { reportsEnabled: true }));
     expect(await fs.readFile(path.join(dataDir, 'bin', 'agentmux'), 'utf-8')).toContain('agentmux.js');
     expect(command.startsWith(`AMUX_WORKSPACE_ID='ws-1' AMUX_TAB_ID='tab-1' PATH='${path.join(dataDir, 'bin')}':"$PATH" claude `))
       .toBe(true);

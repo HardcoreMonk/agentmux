@@ -29,7 +29,9 @@
     "keyboardShortcutsDescription": "View and customize all keyboard shortcuts.",
     "openShortcuts": "Open",
     "delegationGuide": "Give agents the delegation guide",
-    "delegationGuideDescription": "When on, Claude Code and Codex started by agentmux can hand work to other tabs with `agentmux tab`. Applies to agents started or resumed after the change."
+    "delegationGuideDescription": "When on, Claude Code and Codex started by agentmux can hand work to other tabs with `agentmux tab`. Applies to agents started or resumed after the change.",
+    "agentReports": "Automatic agent reports",
+    "agentReportsDescription": "When a tab an agent created finishes or stops at a permission prompt, agentmux types a report into the input of the agent that delegated it. It waits while you are typing there or the agent is working. Turning this off drops waiting reports."
   },
   "appearance": {
     "customCSS": "Custom CSS",

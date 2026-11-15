@@ -25,9 +25,8 @@ const toastIdFor = (tabId: string) => `tab-complete:${tabId}`;
 const useToastNotification = () => {
   useEffect(() => {
     const unsubTabs = useTabStore.subscribe((state, prev) => {
-      const { toastOnCompleteEnabled, soundOnCompleteEnabled, toastDuration } = useConfigStore.getState();
-      if (!toastOnCompleteEnabled) return;
       if (typeof document === 'undefined' || document.hidden) return;
+      const { toastOnCompleteEnabled, soundOnCompleteEnabled, toastDuration } = useConfigStore.getState();
 
       let focusedTabId: string | null | undefined;
       let playedSound = false;
@@ -35,6 +34,22 @@ const useToastNotification = () => {
       for (const [tabId, tab] of Object.entries(state.tabs)) {
         const prevTab = prev.tabs[tabId];
         if (!prevTab) continue;
+
+        const notice = tab.agentReportNotice;
+        if (prev.statusSynced && notice && notice.at !== prevTab.agentReportNotice?.at) {
+          const key = notice.kind === 'paused' ? 'agentReportsPaused' : 'agentReportsExpired';
+          const workspaceId = tab.workspaceId;
+          toast.warning(t('notification', key, { count: String(notice.count) }), {
+            id: `agent-report:${tabId}`,
+            description: tab.tabName || tabId,
+            action: {
+              label: t('notification', 'openTab'),
+              onClick: () => navigateToTab(workspaceId, tabId),
+            },
+          });
+        }
+
+        if (!toastOnCompleteEnabled) continue;
         if (prevTab.cliState === tab.cliState) continue;
         if (tab.cliState !== 'ready-for-review') continue;
         if (focusedTabId === undefined) focusedTabId = getFocusedTabId();

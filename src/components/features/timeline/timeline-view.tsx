@@ -15,6 +15,8 @@ import type {
   TTimelineConnectionStatus,
 } from '@/types/timeline';
 import UserMessageItem from '@/components/features/timeline/user-message-item';
+import AgentReportMessage from '@/components/features/timeline/agent-report-message';
+import { isAgentReportText } from '@/lib/agent-report';
 import AssistantMessageItem from '@/components/features/timeline/assistant-message-item';
 import AgentGroupItem from '@/components/features/timeline/agent-group-item';
 import TaskNotificationItem from '@/components/features/timeline/task-notification-item';
@@ -142,10 +144,12 @@ const SessionExitItem = () => {
   );
 };
 
-const TimelineEntryRenderer = memo(({ entry, sessionName, panelType }: { entry: ITimelineEntry; sessionName?: string; panelType?: TPanelType }) => {
+export const TimelineEntryRenderer = memo(({ entry, sessionName, panelType }: { entry: ITimelineEntry; sessionName?: string; panelType?: TPanelType }) => {
   switch (entry.type) {
     case 'user-message':
-      return <UserMessageItem entry={entry} />;
+      return isAgentReportText(entry.text) && !entry.images?.length
+        ? <AgentReportMessage text={entry.text} />
+        : <UserMessageItem entry={entry} />;
     case 'assistant-message':
       return <AssistantMessageItem entry={entry} />;
     case 'agent-group':

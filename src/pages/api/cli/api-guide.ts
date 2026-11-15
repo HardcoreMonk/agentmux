@@ -20,9 +20,11 @@ input typed into a shell tab would run commands without the agent's own command 
 Errors added for delegation use { "error": "<code>", "message": "<readable text>" }:
   400 invalid-panel-type          panelType is not one of the values below
   400 invalid-cwd                 cwd is not an absolute path to an existing directory
+  400 reserved-report-prefix      an agent tried to send text that starts with "[agentmux report"
   404 caller-tab-not-found        the caller tab header names no tab
   409 agent-unavailable           the agent for panelType is not installed or not compatible
   409 delegation-limit            the workspace already has 6 agent-created tabs
+  403 delegation-depth            a tab created by another agent tried to create a tab
   403 delegation-send-forbidden   an agent tried to send to a tab that is not an agent tab
                                   (nothing is typed)
   403 delegation-close-forbidden  an agent tried to close a tab it did not create

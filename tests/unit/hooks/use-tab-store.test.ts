@@ -223,4 +223,58 @@ describe('useTabStore agent process view state', () => {
       cliState: 'idle',
     })).toBe(false);
   });
+
+  it('stores and clears agentReportNotice from syncAllFromServer and updateFromServer', () => {
+    useTabStore.getState().setStatusWsConnected(true);
+    const syncTransitions: boolean[] = [];
+    useTabStore.getState().initTab('tab-parent', {
+      workspaceId: 'ws-test',
+      panelType: 'claude',
+    });
+
+    const unsub = useTabStore.subscribe((state, prev) => {
+      const tab = state.tabs['tab-parent'];
+      const prevTab = prev.tabs['tab-parent'];
+      if (tab?.agentReportNotice && tab.agentReportNotice.at !== prevTab?.agentReportNotice?.at) {
+        syncTransitions.push(prev.statusSynced);
+      }
+    });
+
+    try {
+      useTabStore.getState().syncAllFromServer({
+        'tab-parent': {
+          workspaceId: 'ws-test',
+          panelType: 'claude',
+          cliState: 'idle',
+          agentReportNotice: { kind: 'paused', count: 2, at: 1000 },
+        },
+      });
+
+      expect(useTabStore.getState().tabs['tab-parent']?.agentReportNotice).toEqual({
+        kind: 'paused',
+        count: 2,
+        at: 1000,
+      });
+
+      useTabStore.getState().updateFromServer('tab-parent', {
+        cliState: 'idle',
+        workspaceId: 'ws-test',
+        panelType: 'claude',
+        agentReportNotice: { kind: 'paused', count: 3, at: 2000 },
+      });
+
+      expect(syncTransitions).toEqual([false, true]);
+
+      useTabStore.getState().updateFromServer('tab-parent', {
+        cliState: 'busy',
+        workspaceId: 'ws-test',
+        panelType: 'claude',
+        agentReportNotice: null,
+      });
+
+      expect(useTabStore.getState().tabs['tab-parent']?.agentReportNotice).toBeNull();
+    } finally {
+      unsub();
+    }
+  });
 });

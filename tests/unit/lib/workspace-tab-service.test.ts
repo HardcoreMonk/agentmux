@@ -85,6 +85,7 @@ vi.mock('@/lib/logger', () => ({
 import { sendBracketedPaste } from '@/lib/tmux';
 import { getProviderByPanelType } from '@/lib/providers';
 import {
+  checkAgentInputTarget,
   closeWorkspaceTab,
   countDelegatedTabs,
   createWorkspaceTab,
@@ -366,6 +367,108 @@ describe('isAgentProcessRunning', () => {
   });
 });
 
+describe('checkAgentInputTarget', () => {
+  const CODEX_UPDATE_SCREEN = [
+    '  ✨ Update available! 0.166.0 -> 0.167.0',
+    '',
+    '  Release notes: https://example.com/releases',
+    '',
+    '› 1. Update now',
+    '  2. Skip',
+    '  3. Skip until next version',
+    '',
+    '  Press enter to continue',
+  ].join('\n');
+
+  const IDLE_AGENT_SCREEN = '› \n\n  gpt-5 high · 100% context left\n';
+
+  beforeEach(() => {
+    mocks.getSessionPanePid.mockResolvedValue(4242);
+    vi.spyOn(getProviderByPanelType('codex')!, 'isAgentRunning').mockResolvedValue(true);
+    vi.spyOn(getProviderByPanelType('claude')!, 'isAgentRunning').mockResolvedValue(true);
+    mocks.capturePaneContent.mockResolvedValue(IDLE_AGENT_SCREEN);
+  });
+
+  it('refuses needs-input state with target-needs-input', async () => {
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'codex' }), 'needs-input')).resolves.toEqual({
+      ok: false,
+      code: 'target-needs-input',
+      message: 'The target agent is waiting for the user to answer a prompt',
+    });
+  });
+
+  it.each([
+    ['inactive', 'The target agent is not ready (state: inactive)'],
+    ['unknown', 'The target agent is not ready (state: unknown)'],
+    ['cancelled', 'The target agent is not ready (state: cancelled)'],
+    [null, 'The target agent is not ready (state: unknown)'],
+  ] as const)('refuses state %s with target-not-ready', async (cliState, message) => {
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'codex' }), cliState)).resolves.toEqual({
+      ok: false,
+      code: 'target-not-ready',
+      message,
+    });
+  });
+
+  it('refuses an idle tab whose agent process is gone (shell only)', async () => {
+    vi.spyOn(getProviderByPanelType('codex')!, 'isAgentRunning').mockResolvedValue(false);
+
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'codex' }), 'idle')).resolves.toEqual({
+      ok: false,
+      code: 'target-not-ready',
+      message: 'The agent is not running in the target tab',
+    });
+  });
+
+  it('refuses when the screen cannot be read', async () => {
+    mocks.capturePaneContent.mockResolvedValue(null);
+
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'claude' }), 'idle')).resolves.toEqual({
+      ok: false,
+      code: 'target-not-ready',
+      message: 'The target tab screen could not be read',
+    });
+  });
+
+  it('refuses a busy tab that shows a permission prompt with target-needs-input', async () => {
+    mocks.capturePaneContent.mockResolvedValue(PERMISSION_SCREEN);
+
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'claude' }), 'busy')).resolves.toEqual({
+      ok: false,
+      code: 'target-needs-input',
+      message: 'The target tab shows a permission prompt',
+    });
+  });
+
+  it.each([
+    ['folder trust', TRUST_SCREEN],
+    ['Codex update', CODEX_UPDATE_SCREEN],
+    ['Codex hook review', HOOKS_REVIEW_SCREEN],
+  ])('refuses the %s startup screen with target-not-ready', async (label, screen) => {
+    mocks.capturePaneContent.mockResolvedValue(screen);
+
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'codex' }), 'idle')).resolves.toEqual({
+      ok: false,
+      code: 'target-not-ready',
+      message: `The target tab shows the ${label} screen`,
+    });
+  });
+
+  it.each(['idle', 'busy', 'ready-for-review'] as const)('allows sending to a %s tab with an ordinary screen', async (cliState) => {
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'codex' }), cliState)).resolves.toEqual({
+      ok: true,
+    });
+  });
+
+  it('allows sending to an idle tab with an empty screen', async () => {
+    mocks.capturePaneContent.mockResolvedValue('');
+
+    await expect(checkAgentInputTarget(agentTab({ panelType: 'claude' }), 'idle')).resolves.toEqual({
+      ok: true,
+    });
+  });
+});
+
 describe('readLastAssistantMessage', () => {
   let dir: string;
 
@@ -486,6 +589,26 @@ describe('readLastAssistantMessage', () => {
 
       await expect(readLastAssistantMessage(codexTab())).resolves.toBeNull();
       expect(resolve).not.toHaveBeenCalled();
+    });
+
+    it('uses hint.jsonlPath or hint.agentSessionId without reading the status entry or supervisor', async () => {
+      vi.stubEnv('AGENTMUX_RUNTIME_STATUS_V2_MODE', 'default');
+      const jsonlPath = await rollout();
+      const resolve = vi.spyOn(getProviderByPanelType('codex')!, 'resolveJsonlPath').mockResolvedValue(jsonlPath);
+
+      await expect(readLastAssistantMessage(codexTab(), { jsonlPath })).resolves.toMatchObject({ text: 'OK' });
+      expect(resolve).not.toHaveBeenCalled();
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+      expect(mocks.getRuntimeSupervisor).not.toHaveBeenCalled();
+
+      await expect(readLastAssistantMessage(codexTab(), { agentSessionId: THREAD_ID })).resolves.toMatchObject({ text: 'OK' });
+      expect(resolve).toHaveBeenCalledWith(THREAD_ID, '/repo');
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+      expect(mocks.getRuntimeSupervisor).not.toHaveBeenCalled();
+
+      await expect(readLastAssistantMessage(codexTab(), {})).resolves.toBeNull();
+      expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+      expect(mocks.getRuntimeSupervisor).not.toHaveBeenCalled();
     });
   });
 

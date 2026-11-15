@@ -38,6 +38,11 @@ const entry: ITabStatusEntry = {
     fileHints: [],
     fallbackReason: null,
   },
+  agentReportNotice: {
+    kind: 'paused',
+    count: 2,
+    at: 1700000000000,
+  },
 };
 
 describe('status client payload helpers', () => {
@@ -62,6 +67,7 @@ describe('status client payload helpers', () => {
       lastEvent: { name: 'notification', at: 6, seq: 7 },
       eventSeq: 7,
       approvalPromptMetadata: entry.approvalPromptMetadata,
+      agentReportNotice: entry.agentReportNotice,
     });
   });
 
@@ -89,6 +95,7 @@ describe('status client payload helpers', () => {
       lastEvent: { name: 'notification', at: 6, seq: 7 },
       eventSeq: 7,
       approvalPromptMetadata: entry.approvalPromptMetadata,
+      agentReportNotice: entry.agentReportNotice,
     });
   });
 

@@ -3,6 +3,43 @@ import { describe, expect, it } from 'vitest';
 import { reduceCodexState, reduceHookState } from '@/lib/status-state-machine';
 
 describe('reduceHookState', () => {
+  it('keeps a running Codex turn busy when the session-start hook arrives after prompt-submit', () => {
+    // Codex runs its SessionStart hook on the first turn, after UserPromptSubmit.
+    const decision = reduceHookState({
+      currentState: 'busy',
+      eventName: 'session-start',
+      providerId: 'codex',
+      statusBehavior: {
+        watchJsonlWhenBound: true,
+        deferStopHookUntilJsonlIdle: true,
+        sessionStartMayArriveMidTurn: true,
+      },
+    });
+
+    expect(decision).toMatchObject({ nextState: 'busy', changed: false, deferStopHook: false });
+  });
+
+  it('moves a busy Claude tab to idle on session-start when sessionStartMayArriveMidTurn is not set', () => {
+    const decision = reduceHookState({
+      currentState: 'busy',
+      eventName: 'session-start',
+      providerId: 'claude',
+      statusBehavior: {
+        watchJsonlWhenBound: false,
+        deferStopHookUntilJsonlIdle: false,
+      },
+    });
+
+    expect(decision).toMatchObject({ nextState: 'idle', changed: true, deferStopHook: false });
+  });
+
+  it('still moves a waiting tab to idle on session-start', () => {
+    for (const currentState of ['unknown', 'inactive', 'ready-for-review'] as const) {
+      expect(reduceHookState({ currentState, eventName: 'session-start', providerId: 'claude' }))
+        .toMatchObject({ nextState: 'idle', changed: true });
+    }
+  });
+
   it('keeps provider stop hooks out of direct ready-for-review transitions when the adapter requests JSONL verification', () => {
     const decision = reduceHookState({
       currentState: 'busy',

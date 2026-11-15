@@ -112,3 +112,23 @@ describe('config API agentDelegationGuideEnabled', () => {
     expect(mocks.updateConfig).not.toHaveBeenCalled();
   });
 });
+
+describe('config API agentReportsEnabled', () => {
+  beforeEach(() => {
+    mocks.getConfig.mockReset();
+    mocks.updateConfig.mockReset();
+    mocks.updateConfig.mockResolvedValue(undefined);
+  });
+
+  it.each([true, false])('stores boolean %s', async (value) => {
+    const response = await patch({ agentReportsEnabled: value });
+    expect(response.statusCode).toBe(200);
+    expect(mocks.updateConfig).toHaveBeenCalledWith({ agentReportsEnabled: value });
+  });
+
+  it.each(['no', 1, null])('rejects non-boolean %s', async (value) => {
+    const response = await patch({ agentReportsEnabled: value });
+    expect(response.statusCode).toBe(400);
+    expect(mocks.updateConfig).not.toHaveBeenCalled();
+  });
+});

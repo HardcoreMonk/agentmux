@@ -452,6 +452,19 @@ export const capturePaneContent = async (sessionName: string): Promise<string | 
   }
 };
 
+export const capturePaneAnsi = async (sessionName: string): Promise<string | null> => {
+  try {
+    const { stdout } = await execFile(
+      'tmux',
+      ['-L', TMUX_SOCKET, 'capture-pane', '-p', '-e', '-t', sessionName],
+      { timeout: CMD_TIMEOUT },
+    );
+    return stdout;
+  } catch {
+    return null;
+  }
+};
+
 export const capturePaneContentWithHistory = async (
   sessionName: string,
   historyLines: number,
