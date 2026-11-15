@@ -669,7 +669,7 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 | Task 1 (입력창 화면 견본) | `dee5b8a4` | Codex·Claude Code 입력창 화면 ANSI fixture 캡처 |
 | Task 2 (보고 형식과 입력창 빈 상태 판정) | `0a4cc9b8`, `f53c250d` | `agent-report.ts`, `agent-composer.ts`, `tmux.ts` `capturePaneAnsi` 및 붙여 넣기·색상 반례 test 고정 |
 | Task 3 (보고 대기열과 반복·만료) | `180cc453` | `agent-report-queue.ts` 대기열, 묶음, 5회 연속 정지, 사람 입력 리셋, 30분 만료 |
-| Task 4 (CLI 보내기·생성 제한과 대상 확인 분리) | `1c79fcc8` | `checkAgentSendTarget` 추출, 400 `reserved-report-prefix`, 403 `delegation-depth` |
+| Task 4 (CLI 보내기·생성 제한과 대상 확인 분리) | `1c79fcc8` | `checkAgentInputTarget` 추출, 400 `reserved-report-prefix`, 403 `delegation-depth` |
 | Task 5 (자동 보고 서비스와 StatusManager·알림 연결) | `0f11d180`, `a615063d`, `ed001d36`, `13c50cd1`, `009ec600` | `agent-report-service.ts`, `StatusManager` 배선, status/web-push payload, client 알림 표시, 전달 직전 turn 대기 무장·초기 연결 알림 억제·빈 대기열 config 읽기 생략 |
 | Task 6 (설정 스위치와 위임 안내 변경) | `b58ff18b`, `a79ba135` | `agentReportsEnabled` 설정·UI 스위치, 위임 안내 자동 보고 문구와 off 분기 test 고정 |
 | Task 7 (timeline의 보고 표시) | `697c14c5` | `agent-report-message.tsx` 및 `timeline-view.tsx` 라우팅, 한·영 문구 |

@@ -112,19 +112,19 @@ agent 탭에는 다음 경우 입력을 거절합니다.
 
 - **발생 조건:** C의 `createdByTabId`가 P를 가리키고, C와 P가 모두 legacy(Runtime v1) agent 탭(`claude`, `codex`)일 때 동작합니다. Runtime v2 탭(`runtimeVersion === 2`)과 `createdByTabId`가 없는 탭은 제외됩니다. C의 상태가 `ready-for-review`로 바뀌면 `done` 보고를, `needs-input`으로 바뀌면 `blocked` 보고를 만듭니다. C의 turn이 P의 `tab send`로 시작했든 사람이 C에 직접 친 입력으로 시작했든 C가 P의 자식이고 P가 살아 있으면 보고합니다. 같은 turn 완료는 `completionKey` dedupe로 한 번만 보내고, 서버 시작·복원 때의 조용한 전환(`silent` 전환)은 보고하지 않습니다.
 - **보고 형식:** 한 덩어리 text이며 첫 줄 태그는 `[agentmux report · <C 이름 또는 id> (<provider>) · done|blocked]`(접두어 상수 `AGENT_REPORT_PREFIX = '[agentmux report'`)입니다.
-  - `done`: C의 마지막 답(`readLastAssistantMessage`, 비어 있으면 화면 `readTabScreen` 끝 20줄)을 앞에서 최대 800자 넣습니다. 800자를 넘으면 `…`를 붙이고 다음 줄에 `full result: agentmux tab result <C id>`를 둡니다.
-  - `blocked`: 고정 문장 `"이 탭이 권한 질문을 기다립니다. 사람이 그 탭에서 답해야 합니다. agentmux는 대신 답하지 않습니다."`와 권한 질문 화면 끝 12줄을 넣습니다.
+  - `done`: C의 마지막 답(`readLastAssistantMessage`)을 앞에서 최대 800자 넣습니다. 800자를 넘으면 `…`를 붙이고 다음 줄에 `full result: agentmux tab result <C id>`를 둡니다. 마지막 답을 읽지 못하면 `(no final message; see agentmux tab result <C id>)`입니다. 답 안에서 `[agentmux report`로 시작하는 줄은 앞에 `> `를 붙여 보고 머리줄로 보이지 않게 합니다.
+  - `blocked`: 고정 문장 `"이 탭이 권한 질문을 기다립니다. 사람이 그 탭에서 답해야 합니다. agentmux는 대신 답하지 않습니다."`를 넣습니다.
   - 마지막 줄: `reply: agentmux tab send <C id> '...'`
   - P의 timeline에서 `[agentmux report`로 시작하는 사용자 메시지는 일반 사용자 말풍선 대신 "agent 보고" 카드(출처 탭 이름과 끝남/막힘 상태 표시)로 그립니다.
 - **전달 조건:** 다음을 모두 만족할 때만 P에 `writeTabInput(P, text, { guardFollowUpEnter: true })`로 씁니다. 서버는 권한 질문·trust·Codex update·hook 검토 화면에 글자를 쓰지 않고 사용자 대신 답하지 않습니다.
   - P가 살아 있는 legacy agent 탭이고 상태가 `idle` 또는 `ready-for-review`입니다(`busy`이면 현재 turn을 끊지 않기 위해 기다립니다).
-  - `tab send`와 같은 대상 확인(`checkAgentSendTarget`: `target-needs-input`, `target-not-ready` 없음)을 통과합니다.
+  - `tab send`와 같은 대상 확인(`checkAgentInputTarget`: `target-needs-input`, `target-not-ready` 없음)을 통과합니다.
   - P의 입력창이 비어 있어 사람이 쓰던 draft와 섞이지 않습니다(`capturePaneAnsi`와 `isAgentComposerEmpty`). Codex는 마지막 굵은 `›` 줄 뒤 보이는 글자가 하나 이상이고 모두 SGR `2`(흐림)일 때만 빈 것으로 봅니다. Claude Code는 마지막 `❯`+NBSP 줄 뒤 보이는 글자가 없거나 모두 SGR `2`이고 바로 아래 줄이 상자 테두리(`─`)일 때만 빈 것으로 봅니다. 붙여 넣은 `[Pasted Content …]` 표시나 일반/확장 색 글자가 있으면 비지 않은 것(`false`)이며, 입력창 줄을 찾지 못하면 판정 불가(`null`)로 보내지 않고 기다립니다.
-- **대기열, 묶음, 이전 보고 turn 대기:** 전달 조건이 맞지 않으면 보고를 P별 대기열에 넣고, P의 상태가 바뀌거나 주기 확인(poll) 때 다시 시도합니다. 여러 보고가 쌓여 있으면 `---` 구분선으로 이어 붙여 한 번에 하나의 메시지로 묶어 보냅니다. 보고 하나를 P에 쓴 직후에는 그 보고로 시작될 turn이 올라올 때까지(최대 60초, 또는 첫 `prompt-submit` hook / `busy` 진입까지) 다음 보고를 보내지 않고 기다립니다.
+- **대기열, 묶음, 이전 보고 turn 대기:** 전달 조건이 맞지 않으면 보고를 P별 대기열에 넣고, P의 상태가 바뀌거나 주기 확인(poll) 때 다시 시도합니다. 여러 보고가 쌓여 있으면 빈 줄 하나로 이어 한 번에 하나의 메시지로 묶어 보냅니다(각 보고의 첫 줄 태그 유지). 보고를 쓰기 직전에 표시를 해 두고, 그 보고로 시작된 turn의 `prompt-submit` hook이 오거나 60초가 지날 때까지 다음 보고를 보내지 않습니다.
 - **반복 제한(5회)과 만료(30분):**
-  - 사람 입력 없이 자동 보고가 P에 연달아 5번 들어가면, 6번째부터는 보내지 않고 대기열에 둡니다(`paused`). 사람이 P에 입력하면(`prompt-submit` hook의 prompt가 `[agentmux report`로 시작하지 않거나, hook payload에 prompt 본문이 없을 때는 보고 직후 첫 `prompt-submit` 다음의 `prompt-submit`) 연속 횟수를 0으로 되돌리고 대기열을 다시 보냅니다.
+  - 사람 입력 없이 자동 보고가 P에 연달아 5번 들어가면, 6번째부터는 보내지 않고 대기열에 둡니다(`paused`). 사람이 P에 입력하면 연속 횟수를 0으로 되돌리고 대기열을 다시 보냅니다. hook에는 prompt 본문이 없으므로, 보고 표시 뒤 첫 `prompt-submit` 하나(60초 안)는 보고로, 그 밖의 `prompt-submit`은 사람 입력으로 봅니다.
   - 대기열에 들어간 지 30분이 지나도 보내지 못한 보고는 버립니다(`expired`).
-- **알림:** 5번 연속 정지(`paused`)와 30분 만료 폐기(`expired`)는 P 탭의 상태 알림(`agentReportNotice` 및 탭 상태 문구 `currentAction`), 웹 화면 toast, Web Push(`sendWebPush`)로 사람에게 알립니다.
+- **알림:** 5번 연속 정지(`paused`)와 30분 만료 폐기(`expired`)는 P 탭의 상태 필드 `agentReportNotice`(알림 목록에 한 줄로 표시), 웹 화면 toast, Web Push(`sendWebPush`)로 사람에게 알립니다. 사람 입력이 오면 표시를 지웁니다.
 - **설정:** Settings → General의 "agent 자동 보고" 스위치(`agentReportsEnabled`, 기본값 `true`)로 켜고 끕니다. 위임 안내(`agentDelegationGuideEnabled`)가 꺼져 있으면 이 스위치도 비활성화됩니다. 스위치를 끄면 대기 중인 보고를 모두 버리고, 새로 띄우는 agent의 위임 안내는 상태 확인(`tab status`) 방식 문구로 돌아갑니다.
 - **한계:** 대기열과 연속 횟수는 `StatusManager`(Runtime v2에서는 status worker) 메모리에만 두므로, 서버나 status worker가 재시작하면 대기 중이던 보고는 사라집니다. 재시작 뒤에는 맡긴 agent가 `agentmux tab status`로 자식 탭 상태를 확인할 수 있습니다. 또한 이미 실행 중인 agent 탭은 다음 시작이나 재개 때부터 바뀐 위임 안내를 받습니다.
 
