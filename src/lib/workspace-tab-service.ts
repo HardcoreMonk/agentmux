@@ -232,6 +232,9 @@ export const readTabStatusEntry = async (tab: ITab): Promise<IClientTabStatusEnt
   return getStatusManager().getAllForClient()[tab.id] ?? null;
 };
 
+// `tab send` accepts input only in these states; a Codex tab counts as ready only when it would.
+export const AGENT_SENDABLE_STATES: ReadonlySet<TCliState> = new Set<TCliState>(['idle', 'busy', 'ready-for-review']);
+
 export const readTabCliState = async (tab: ITab): Promise<TCliState | null> => {
   const entry = await readTabStatusEntry(tab);
   return entry?.cliState ?? tab.cliState ?? null;
@@ -361,7 +364,10 @@ export const waitForAgentReady = async (
         return false;
       }
       inputSince ??= Date.now();
-      return Date.now() - inputSince >= settleMs;
+      if (Date.now() - inputSince < settleMs) return false;
+      // The status reconcile can lag the screen; tab send rejects until it leaves inactive.
+      const cliState = await readTabCliState(tab).catch(() => null);
+      return cliState !== null && AGENT_SENDABLE_STATES.has(cliState);
     }
     : async () => isAgentReadyEntry(await readTabStatusEntry(tab).catch(() => null), launchStartedAt);
   while (!(await isReady())) {

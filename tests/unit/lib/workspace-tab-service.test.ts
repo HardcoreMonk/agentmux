@@ -491,13 +491,31 @@ describe('waitForAgentReady for Codex', () => {
   beforeEach(() => {
     mocks.getSessionPanePid.mockResolvedValue(4242);
     vi.spyOn(getProviderByPanelType('codex')!, 'isAgentRunning').mockResolvedValue(true);
+    mocks.statusManager.getAllForClient.mockReturnValue({ 'tab-a': { cliState: 'busy', lastEvent: null } });
   });
 
   it('is ready when the process runs and the TUI input box is shown, without a session-start entry', async () => {
     mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
 
     await expect(wait()).resolves.toBe(true);
-    expect(mocks.statusManager.getAllForClient).not.toHaveBeenCalled();
+  });
+
+  it('stays not ready while the status is inactive even though the screen is ready, then is ready once busy', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+    mocks.statusManager.getAllForClient
+      .mockReturnValueOnce({ 'tab-a': { cliState: 'inactive', lastEvent: null } })
+      .mockReturnValueOnce({ 'tab-a': { cliState: 'inactive', lastEvent: null } })
+      .mockReturnValue({ 'tab-a': { cliState: 'busy', lastEvent: null } });
+
+    await expect(waitForAgentReady(codexTab(), { launchStartedAt, timeoutMs: 500, pollMs: 10, settleMs: 0 })).resolves.toBe(true);
+    expect(mocks.statusManager.getAllForClient).toHaveBeenCalledTimes(3);
+  });
+
+  it('times out when the status stays inactive', async () => {
+    mocks.capturePaneContent.mockResolvedValue(screen('tui-ready'));
+    mocks.statusManager.getAllForClient.mockReturnValue({ 'tab-a': { cliState: 'inactive', lastEvent: null } });
+
+    await expect(wait()).resolves.toBe(false);
   });
 
   it('times out while the hook review is shown', async () => {
