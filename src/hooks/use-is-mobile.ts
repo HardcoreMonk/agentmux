@@ -2,8 +2,11 @@ import { useSyncExternalStore, useCallback } from 'react';
 
 const DEFAULT_BREAKPOINT = 768;
 
+export const buildMobileMediaQuery = (breakpoint: number): string =>
+  `(max-width: ${breakpoint - 1}px), (hover: none) and (pointer: coarse)`;
+
 const useIsMobile = (breakpoint: number = DEFAULT_BREAKPOINT): boolean => {
-  const query = `(max-width: ${breakpoint - 1}px)`;
+  const query = buildMobileMediaQuery(breakpoint);
 
   const subscribe = useCallback(
     (callback: () => void) => {
