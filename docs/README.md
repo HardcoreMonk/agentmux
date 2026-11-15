@@ -94,6 +94,7 @@ UI 시각 계약을 담당합니다.
 | 문서 | 기준 |
 | --- | --- |
 | `ANDROID.md` | Linux engine에 연결하는 선택 Android Capacitor client와 mobile regression 기준 |
+| `IPAD.md` | iPad Safari 홈 화면 웹 앱 설치, 손가락 기기 화면 판정, 한계 |
 | `SYSTEMD.md` | Linux 단일 엔진의 `systemd --user` 운영 기준 |
 | `TAURI-EVALUATION.md` | Rust/Tauri 도입 검토 기록 |
 | `operations/` | 실제 배포, smoke, handoff 기록 |

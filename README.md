@@ -233,6 +233,7 @@ Pages route로 fallback하지 않습니다.
 | [docs/PROJECT-DESIGN.md](docs/PROJECT-DESIGN.md) | 제품·아키텍처 설계 요약 |
 | [docs/ARCHITECTURE-LOGIC.md](docs/ARCHITECTURE-LOGIC.md) | server, runtime, storage 흐름 |
 | [docs/SYSTEMD.md](docs/SYSTEMD.md) | Linux 단일 엔진 user service 운영 |
+| [docs/IPAD.md](docs/IPAD.md) | iPad 홈 화면 웹 앱 설치와 한계 |
 | [docs/DATA-DIR.md](docs/DATA-DIR.md) | durable state와 projection 저장 경계 |
 | [docs/PURPLEMUX-ADOPTION-AUDIT.md](docs/PURPLEMUX-ADOPTION-AUDIT.md) | Purplemux 비교와 선택 이식 우선순위 |
 | [docs/TESTING.md](docs/TESTING.md) | test tier와 platform smoke |

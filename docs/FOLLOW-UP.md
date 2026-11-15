@@ -340,7 +340,7 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | Runtime v2 terminal 탭의 Git | Git API(`/api/layout/diff`, `cwd`, `git-log`, `commit-diff`, `file-content`, `/api/git/sync`)가 예전 tmux socket의 session만 찾아 Runtime v2 terminal 탭(`rtv2-…`)에는 404. live 설정(`new-tabs`)에서 웹으로 새로 연 일반 terminal 탭이 해당. Git side panel과 기존 Diff mode 모두 영향. Runtime v2 worker를 거쳐 session 폴더를 읽어야 하므로(지금 `RUNTIME_TMUX_SOCKET`은 terminal worker만 씀) Runtime v2 agent 탭 지원과 묶음. 사용자 결정(2026-11-15): 설계 2-2는 그대로 merge하고 후속으로 기록 |
 | CLI로 만든 Codex 탭의 첫 화면 | 격리 live 확인: `agentmux tab create -t codex`로 만든 탭에서 folder trust와 hook trust를 웹 카드로 마친 뒤, 첫 turn 전까지 `cliState`가 `busy`로 남고 웹은 "Codex 시작이 오래 걸리고 있습니다" 화면이었음. 첫 turn(terminal에서 입력) 뒤 timeline과 입력창으로 정상 전환. 설계 2-1 영역 |
 | "…에게 묻기" focus 지연 | 입력창 focus를 350ms 뒤에 줌(sonner 2.0.7이 toast 밖으로 focus가 나갈 때와 unmount 때 원래 요소로 focus를 되돌림). sonner를 올리면 다시 확인 |
-| 가로 모드 폰의 새로고침 banner | 최종 검토 Minor: 화면을 고르는 기준이 폭(768px 미만이면 모바일 화면)이라, 폰이나 Android 앱을 가로로 돌려 desktop 화면이 되면 banner를 그리는 곳(`mobile-surface-view`)이 없음. 모바일 기기 판정은 banner가 직접 하므로 desktop pane의 연결 표시 근처에도 두면 됨(pane terminal `retryCount`와 `selectMaxReconnectFailures`). Android 앱은 방향을 고정하지 않음 |
+| 가로 모드 폰의 새로고침 banner | 해결(branch `feat/ipad-touch-layout`): `useIsMobile`에 `(hover: none) and (pointer: coarse)`를 더해 손가락이 주 입력인 기기는 화면 폭과 상관없이 모바일 화면(`mobile-surface-view`)을 유지함 |
 | `pane-container` 묻기 분기 test | agent 보기·입력창 없음·terminal 보기 세 분기에 unit test 없음(vitest에 jsdom 없음). 격리 live 확인으로 대신함 |
 
 ## Codex lifecycle 기준
