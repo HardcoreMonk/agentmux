@@ -358,6 +358,8 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | 대기 보고 재시도 간격 | 입력창에 사람 글이 있거나 막는 화면이라 기다린 보고는 맡긴 탭의 다음 상태 전환이나 상태 주기 확인(탭 수에 따라 30~60초) 때 다시 시도함. 글을 지운 뒤 바로 가지 않고 최대 한 주기를 기다림 |
 | Codex 승인 정책 값 | 설정 `codexApprovalPolicy`가 `untrusted`·`on-failure`를 받지만 Codex `0.169.0`은 `--ask-for-approval`에 `on-request`·`never`만 받아 탭 실행이 실패함(설계 3 격리 live 확인에서 발견) |
 | 거절 뒤 Codex `needs-input` | 사람이 Codex 권한 질문을 Esc로 거절해 "Conversation interrupted"가 된 뒤에도 탭 상태가 `needs-input`에 남음(설계 3 격리 live 확인에서 발견) |
+| 맡은 탭의 직접 `tab send` | 맡은 탭이 `tab send`로 맡긴 탭에 직접 입력하면(설계 1 경로) 맡긴 탭의 `prompt-submit`이 사람 입력으로 세어져 자동 보고 반복 제한이 0으로 돌아감. 막으려면 맡은 탭에서 부모로의 `tab send`를 제한하는 spec 변경이 필요함(설계 3 최종 검토) |
+| 전체 test의 log 쓰기 경쟁 | 설계 3 gate의 전체 실행 1회에서 `tests/unit/lib/layout-store-agent-session.test.ts`가 지운 임시 data dir의 `logs/codexmux.*.log`를 pino-roll이 열려다 `ENOENT` 처리되지 않은 오류가 났음(test는 모두 통과, 종료 코드 1). 단독 3회와 전체 재실행에서는 재현되지 않음. 이 branch가 바꾸지 않은 파일 |
 
 ## Codex lifecycle 기준
 
