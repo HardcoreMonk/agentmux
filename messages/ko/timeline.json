@@ -40,5 +40,8 @@
   "bootWaitingSessionHint": "첫 메시지가 여기에 표시됩니다",
   "bootRecoverTitle": "{agent} 시작이 오래 걸리고 있습니다",
   "bootRecoverHint": "터미널에 표시된 내용을 확인하세요",
-  "bootCheckTerminal": "터미널 보기"
+  "bootCheckTerminal": "터미널 보기",
+  "agentReport": "agent 보고",
+  "agentReportDone": "끝남",
+  "agentReportBlocked": "막힘"
 }
