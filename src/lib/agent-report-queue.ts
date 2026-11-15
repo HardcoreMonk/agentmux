@@ -60,11 +60,20 @@ export class AgentReportQueue {
     };
   }
 
-  commitBatch(parentTabId: string, count: number, now: number): void {
+  beginDelivery(parentTabId: string, now: number): void {
+    const state = this.getOrCreateParent(parentTabId);
+    state.expectingTurnStartAt = now;
+  }
+
+  commitBatch(parentTabId: string, count: number): void {
     const state = this.getOrCreateParent(parentTabId);
     state.pending.splice(0, count);
     state.consecutiveCount += 1;
-    state.expectingTurnStartAt = now;
+  }
+
+  hasPending(parentTabId: string): boolean {
+    const state = this.parents.get(parentTabId);
+    return (state?.pending.length ?? 0) > 0;
   }
 
   isPaused(parentTabId: string): boolean {

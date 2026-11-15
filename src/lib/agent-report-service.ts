@@ -81,7 +81,7 @@ export class AgentReportService implements IAgentReportServiceLike {
         return;
       }
       if (opts.silent) return;
-      if (!this.rememberCompletionKey(opts.completionKey)) return;
+      if (opts.completionKey && this.seenCompletionKeys.has(opts.completionKey)) return;
 
       const childFound = await this.deps.findTab(childTabId);
       if (!childFound) return;
@@ -111,6 +111,8 @@ export class AgentReportService implements IAgentReportServiceLike {
         lastMessage = await this.deps.readLastMessage(childTab);
       }
 
+      if (opts.completionKey && this.seenCompletionKeys.has(opts.completionKey)) return;
+
       const text = buildAgentReport({
         childTabId: childTab.id,
         childName: childTab.name ? childTab.name : null,
@@ -124,6 +126,7 @@ export class AgentReportService implements IAgentReportServiceLike {
         text,
         enqueuedAt: this.deps.now(),
       });
+      this.rememberCompletionKey(opts.completionKey);
 
       await this.flush(parentTabId);
     } catch (err) {
@@ -140,6 +143,10 @@ export class AgentReportService implements IAgentReportServiceLike {
       if (this.flushingParents.has(parentTabId)) return 'waiting';
       this.flushingParents.add(parentTabId);
       try {
+        if (!this.queue.hasPending(parentTabId)) {
+          return 'empty';
+        }
+
         const parentFound = await this.deps.findTab(parentTabId);
         if (!parentFound) {
           this.queue.forgetTab(parentTabId);
@@ -157,10 +164,6 @@ export class AgentReportService implements IAgentReportServiceLike {
             this.deps.notify(parentTabId, 'paused', pausedCount);
           }
           return 'paused';
-        }
-
-        if (!this.queue.parentsWithPending().includes(parentTabId)) {
-          return 'empty';
         }
 
         const initialBatch = this.queue.peekBatch(parentTabId, this.deps.now());
@@ -182,8 +185,9 @@ export class AgentReportService implements IAgentReportServiceLike {
         const currentBatch = this.queue.peekBatch(parentTabId, this.deps.now());
         if (!currentBatch) return 'waiting';
 
+        this.queue.beginDelivery(parentTabId, this.deps.now());
         await this.deps.writeInput(parentTab, currentBatch.text);
-        this.queue.commitBatch(parentTabId, currentBatch.count, this.deps.now());
+        this.queue.commitBatch(parentTabId, currentBatch.count);
         return 'delivered';
       } finally {
         this.flushingParents.delete(parentTabId);

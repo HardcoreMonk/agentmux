@@ -36,7 +36,7 @@ const useToastNotification = () => {
         if (!prevTab) continue;
 
         const notice = tab.agentReportNotice;
-        if (notice && notice.at !== prevTab.agentReportNotice?.at) {
+        if (prev.statusSynced && notice && notice.at !== prevTab.agentReportNotice?.at) {
           const key = notice.kind === 'paused' ? 'agentReportsPaused' : 'agentReportsExpired';
           const workspaceId = tab.workspaceId;
           toast.warning(t('notification', key, { count: String(notice.count) }), {

@@ -31,11 +31,13 @@ describe('AgentReportQueue', () => {
       count: 2,
     });
 
-    queue.commitBatch('parent-1', 2, 1_200);
+    queue.beginDelivery('parent-1', 1_200);
+    queue.commitBatch('parent-1', 2);
     queue.onPromptSubmit('parent-1');
 
     expect(queue.peekBatch('parent-1', 1_300)).toBeNull();
     expect(queue.parentsWithPending()).toEqual([]);
+    expect(queue.hasPending('parent-1')).toBe(false);
   });
 
   it('pauses after five consecutive committed batches and emits takePauseNotice once per pause cycle', () => {
@@ -50,7 +52,8 @@ describe('AgentReportQueue', () => {
       });
       const batch = queue.peekBatch('parent-1', now);
       expect(batch?.count).toBe(1);
-      queue.commitBatch('parent-1', 1, now);
+      queue.beginDelivery('parent-1', now);
+      queue.commitBatch('parent-1', 1);
       expect(queue.onPromptSubmit('parent-1')).toBe('report');
       now += 100;
     }
@@ -84,7 +87,8 @@ describe('AgentReportQueue', () => {
         text: `report-${i}`,
         enqueuedAt: now,
       });
-      queue.commitBatch('parent-1', 1, now);
+      queue.beginDelivery('parent-1', now);
+      queue.commitBatch('parent-1', 1);
       expect(queue.onPromptSubmit('parent-1')).toBe('report');
       now += 100;
     }
@@ -112,7 +116,8 @@ describe('AgentReportQueue', () => {
           enqueuedAt: now,
         });
       }
-      queue.commitBatch('parent-1', 1, now);
+      queue.beginDelivery('parent-1', now);
+      queue.commitBatch('parent-1', 1);
       expect(queue.onPromptSubmit('parent-1')).toBe('report');
       now += 100;
     }
@@ -135,7 +140,8 @@ describe('AgentReportQueue', () => {
       text: 'first',
       enqueuedAt: t,
     });
-    queue.commitBatch('parent-1', 1, t);
+    queue.beginDelivery('parent-1', t);
+    queue.commitBatch('parent-1', 1);
 
     queue.enqueue('parent-1', {
       childTabId: 'child-2',
@@ -151,7 +157,8 @@ describe('AgentReportQueue', () => {
       count: 1,
     });
 
-    queue.commitBatch('parent-1', 1, t + 500);
+    queue.beginDelivery('parent-1', t + 500);
+    queue.commitBatch('parent-1', 1);
     queue.enqueue('parent-1', {
       childTabId: 'child-3',
       text: 'third',
@@ -180,7 +187,8 @@ describe('AgentReportQueue', () => {
         text: `report-${i}`,
         enqueuedAt: now,
       });
-      queue.commitBatch('parent-1', 1, now);
+      queue.beginDelivery('parent-1', now);
+      queue.commitBatch('parent-1', 1);
       if (i < AGENT_REPORT_MAX_CONSECUTIVE - 1) {
         expect(queue.onPromptSubmit('parent-1', now + 10)).toBe('report');
         now += 100;

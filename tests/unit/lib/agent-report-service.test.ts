@@ -426,4 +426,54 @@ describe('AgentReportService', () => {
     expect(h.deps.notify).toHaveBeenCalledWith('parent-1', 'expired', 1);
     expect(h.queue.parentsWithPending()).toEqual([]);
   });
+
+  it('classifies prompt-submit arriving inside writeInput as report and pauses on the 6th delivery', async () => {
+    const h = createHarness();
+    const submitResults: Array<'report' | 'human'> = [];
+    vi.mocked(h.deps.writeInput).mockImplementation(async () => {
+      submitResults.push(h.service.onPromptSubmit('parent-1'));
+      return { followUpEnterSkipped: false };
+    });
+
+    for (let i = 1; i <= AGENT_REPORT_MAX_CONSECUTIVE; i += 1) {
+      await h.service.onChildStateChange('child-1', 'ready-for-review', {
+        completionKey: `in-write-${i}`,
+      });
+    }
+
+    expect(submitResults).toEqual(['report', 'report', 'report', 'report', 'report']);
+    expect(h.deps.writeInput).toHaveBeenCalledTimes(AGENT_REPORT_MAX_CONSECUTIVE);
+
+    await h.service.onChildStateChange('child-1', 'ready-for-review', {
+      completionKey: 'in-write-6',
+    });
+
+    expect(await h.service.flush('parent-1')).toBe('paused');
+    expect(h.deps.writeInput).toHaveBeenCalledTimes(AGENT_REPORT_MAX_CONSECUTIVE);
+    expect(h.deps.notify).toHaveBeenCalledWith('parent-1', 'paused', 1);
+  });
+
+  it('does not burn completionKey when a dependency throws before enqueue', async () => {
+    const h = createHarness();
+    vi.mocked(h.deps.findTab).mockRejectedValueOnce(new Error('transient disk error'));
+
+    await h.service.onChildStateChange('child-1', 'ready-for-review', {
+      completionKey: 'retry-key',
+    });
+    expect(h.deps.writeInput).not.toHaveBeenCalled();
+
+    await h.service.onChildStateChange('child-1', 'ready-for-review', {
+      completionKey: 'retry-key',
+    });
+    expect(h.deps.writeInput).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns empty without calling findTab when flushing a tab with nothing pending', async () => {
+    const h = createHarness();
+
+    const result = await h.service.flush('parent-1');
+
+    expect(result).toBe('empty');
+    expect(h.deps.findTab).not.toHaveBeenCalled();
+  });
 });
