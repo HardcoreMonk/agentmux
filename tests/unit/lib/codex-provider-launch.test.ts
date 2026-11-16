@@ -162,4 +162,14 @@ describe('codex provider launch command', () => {
     expect(Buffer.byteLength(command)).toBeLessThanOrEqual(CODEX_COMMAND_SAFE_BYTES);
     expect(mocks.warn).toHaveBeenCalled();
   });
+
+  it('omits --ask-for-approval when stored codexApprovalPolicy is untrusted and keeps never', async () => {
+    mocks.getConfig.mockResolvedValue({ codexApprovalPolicy: 'untrusted' });
+    const withoutFlag = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
+    expect(withoutFlag).not.toContain('--ask-for-approval');
+
+    mocks.getConfig.mockResolvedValue({ codexApprovalPolicy: 'never' });
+    const withFlag = await codexProvider.buildLaunchCommand({ ...tab, cwd: project });
+    expect(withFlag).toContain('--ask-for-approval never');
+  });
 });

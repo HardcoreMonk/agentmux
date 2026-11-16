@@ -12,8 +12,11 @@ export const isValidCodexThreadId = (id: unknown): id is string =>
 export const CODEX_SANDBOX_MODES = ['read-only', 'workspace-write', 'danger-full-access'] as const;
 export type TCodexSandboxMode = typeof CODEX_SANDBOX_MODES[number];
 
-export const CODEX_APPROVAL_POLICIES = ['untrusted', 'on-failure', 'on-request', 'never'] as const;
+export const CODEX_APPROVAL_POLICIES = ['on-request', 'never'] as const;
 export type TCodexApprovalPolicy = typeof CODEX_APPROVAL_POLICIES[number];
+
+export const isCodexApprovalPolicy = (value: unknown): value is TCodexApprovalPolicy =>
+  typeof value === 'string' && (CODEX_APPROVAL_POLICIES as readonly string[]).includes(value);
 
 export interface ICodexCommandOptions {
   cwd?: string;

@@ -132,3 +132,17 @@ describe('config API agentReportsEnabled', () => {
     expect(mocks.updateConfig).not.toHaveBeenCalled();
   });
 });
+
+describe('config API codexApprovalPolicy', () => {
+  beforeEach(() => {
+    mocks.getConfig.mockReset();
+    mocks.updateConfig.mockReset();
+    mocks.updateConfig.mockResolvedValue(undefined);
+  });
+
+  it('rejects on-failure with 400', async () => {
+    const response = await patch({ codexApprovalPolicy: 'on-failure' });
+    expect(response.statusCode).toBe(400);
+    expect(mocks.updateConfig).not.toHaveBeenCalled();
+  });
+});

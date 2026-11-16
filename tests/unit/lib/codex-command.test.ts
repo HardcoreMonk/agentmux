@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCodexLaunchCommand,
   buildCodexResumeCommand,
+  CODEX_APPROVAL_POLICIES,
+  isCodexApprovalPolicy,
   isValidCodexThreadId,
 } from '@/lib/codex-command';
 
@@ -13,6 +15,15 @@ describe('codex command helpers', () => {
     expect(isValidCodexThreadId('019dcf1f-3a02-73a0-a79e-8703b99a2f30')).toBe(true);
     expect(isValidCodexThreadId('latest')).toBe(false);
     expect(isValidCodexThreadId(null)).toBe(false);
+  });
+
+  it('accepts only on-request and never as Codex approval policies', () => {
+    expect(CODEX_APPROVAL_POLICIES).toEqual(['on-request', 'never']);
+    expect(isCodexApprovalPolicy('on-request')).toBe(true);
+    expect(isCodexApprovalPolicy('never')).toBe(true);
+    for (const invalid of ['untrusted', 'on-failure', '', null, 1]) {
+      expect(isCodexApprovalPolicy(invalid)).toBe(false);
+    }
   });
 
   it('builds a launch command with common runtime options', () => {

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { TEditorPreset } from '@/lib/editor-url';
 import type { TToastPosition } from '@/lib/toast-position';
-import type { TCodexApprovalPolicy, TCodexSandboxMode } from '@/lib/codex-command';
+import { isCodexApprovalPolicy, type TCodexApprovalPolicy, type TCodexSandboxMode } from '@/lib/codex-command';
 import { isValidClaudeModel, type TClaudePermissionMode } from '@/lib/claude-config-values';
 import { DEFAULT_LOCALE, normalizeLocale } from '@/lib/locales';
 
@@ -172,7 +172,7 @@ const useConfigStore = create<IConfigState>((set, get) => ({
       dangerouslySkipPermissions: data.dangerouslySkipPermissions ?? false,
       codexModel: data.codexModel ?? '',
       codexSandbox: data.codexSandbox ?? '',
-      codexApprovalPolicy: data.codexApprovalPolicy ?? '',
+      codexApprovalPolicy: isCodexApprovalPolicy(data.codexApprovalPolicy) ? data.codexApprovalPolicy : '',
       codexSearchEnabled: data.codexSearchEnabled ?? false,
       // Legacy codexShowTerminal is read as a fallback only; writes go to agentShowTerminal.
       agentShowTerminal: data.agentShowTerminal ?? data.codexShowTerminal ?? true,

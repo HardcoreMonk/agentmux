@@ -254,8 +254,6 @@
     "approvalPolicy": "Approval policy",
     "approvalPolicyDescription": "Controls when Codex asks before running commands.",
     "approvalOptions": {
-      "untrusted": "untrusted",
-      "on-failure": "on-failure",
       "on-request": "on-request",
       "never": "never"
     },

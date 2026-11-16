@@ -254,8 +254,6 @@
     "approvalPolicy": "승인 정책",
     "approvalPolicyDescription": "Codex가 명령 실행 전에 승인을 요청하는 조건입니다.",
     "approvalOptions": {
-      "untrusted": "untrusted",
-      "on-failure": "on-failure",
       "on-request": "on-request",
       "never": "never"
     },
