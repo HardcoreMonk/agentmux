@@ -726,6 +726,12 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
 
 남은 설계 3 후속(재시작 시 대기 보고 유실, `tab wait`, CLI 화면 모양 의존 등)은 FOLLOW-UP에 그대로 둔다.
 
+- Gate: 전체 test 364 files / 2679 통과 / 3 skipped, tsc 2종, lint error 0, 문서 검사 2종, build. 독립 검토(Sonnet) 지적 0건.
+- 배포: PR #63, CI `check` 통과(1m56s), 로컬 merge `f61031a1`, main push, `deploy:local`(2026-11-16 15:47 KST): health commit
+  `f61031a1`, MainPID 1016429, NRestarts 0, 배포 뒤 log 오류 0, live tmux session 10개와 사용자 `~/.codex`·`~/.claude/settings.json`
+  hash 그대로. Worktree, 로컬·원격 branch 정리.
+- 새 위임 안내 문장(`send-to-parent`)은 이미 떠 있는 agent 탭에는 다음 실행이나 재개 때 들어간다. 거절 자체는 서버 쪽이라 배포 직후부터 동작한다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),
@@ -749,15 +755,16 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   문서, 전체 gate, 격리 live 확인과 live 확인 수정(`79098e6b`), branch 최종 검토(Ready to merge, Minor 1 반영 `d736abfa`),
   PR #56, main merge(`737bd0f9`), live 배포(2026-11-15 21:08 KST)를 마쳤다. operate.
 - 설계 3(agent 자동 보고): plan 승인, Task 1~8 구현과 task별 검토, 문서, 전체 gate, 격리 live 확인(7개 통과, 첫 turn 결함 수정 `404aae8f`), branch 최종 검토와 수정, PR #62, main merge(`41aa8973`), live 배포(2026-11-16 07:28 KST). operate.
+- 설계 3 후속(Codex 승인 정책 값, Esc 거절 뒤 `needs-input`, `send-to-parent`, test log 경쟁): PR #63, main merge(`f61031a1`), live 배포(2026-11-16 15:47 KST). operate.
 - iPad 홈 화면 웹 앱: 짧은 설계 승인, 구현, gate, 격리 확인을 마쳤다. 다음은 PR, main merge, 사용자 배포, 실제 iPad 확인.
 - Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
 
-iPad branch(`feat/ipad-touch-layout`)의 PR을 올리고 CI 통과를 확인한 뒤 로컬 merge commit을 만든다. 사용자가
-`git push agentmux main`과 `corepack pnpm deploy:local`을 실행하고, 실제 iPad에서 홈 화면에 추가해 확인한다. 새
-dependency는 없다. 그다음은 설계 2-2 후속과 설계 3(회신·상호 리뷰) brainstorming이다.
+Multi-agent 설계 1→2→3과 설계 3 후속 결함은 모두 배포했다. 남은 것은 사용자 결정이나 새 설계가 필요한 후보다:
+FOLLOW-UP "설계 3 후속"의 재시작 시 대기 보고 유실과 `agentmux tab wait`(대안 B), 보류 중인 실제 iPad 확인(사용자 보류
+2026-11-16). 새 작업은 사용자가 고른 뒤 brainstorming부터 시작한다.
 단계 3 이전 build(`d1accfc6` 등)로 내릴 때는 Claude 탭을 먼저 닫는다.
 단계 4 rollback은 위 "배포와 rollback 절차"(schema v6 in-place downgrade)를 따른다. 단계 3 rollback(통계 cache v5→v4)은
 service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache.json` 뒤 이전 build를 시작하는 방식이다
