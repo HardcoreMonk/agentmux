@@ -9,6 +9,9 @@ const configMocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/cli-token', () => ({ getCliToken: () => 'test-token' }));
 vi.mock('@/lib/config-store', () => ({ getConfig: configMocks.getConfig }));
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({ trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+}));
 
 import { normalizePanelType } from '@/lib/panel-type';
 import { buildAgentSessionRelationship } from '@/lib/agent-session-relationship';

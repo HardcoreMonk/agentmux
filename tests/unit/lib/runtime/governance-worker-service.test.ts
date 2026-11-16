@@ -2,6 +2,11 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({ trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+}));
+
 import { getDataDir, prepareDataDir } from '@/lib/app-identity';
 import { createRuntimeCommand, runtimeCommandRegistry } from '@/lib/runtime/ipc';
 import { createGovernanceWorkerService } from '@/lib/runtime/governance/worker-service';

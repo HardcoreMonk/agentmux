@@ -28,6 +28,9 @@ vi.mock('@/lib/runtime/storage-read-owner', () => ({
 vi.mock('@/lib/runtime/storage-mirror', () => ({
   mirrorLegacyStorageToRuntimeV2BestEffort: mocks.mirrorLegacyStorageToRuntimeV2BestEffort,
 }));
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({ trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+}));
 vi.mock('@/lib/sync-server', () => ({ broadcastSync: vi.fn() }));
 vi.mock('@/lib/workspace-store', () => ({
   updateWorkspaceDirectories: vi.fn().mockResolvedValue(undefined),

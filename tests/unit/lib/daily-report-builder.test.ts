@@ -24,6 +24,9 @@ vi.mock('@/lib/preflight', () => ({
   getCachedRuntimePreflight: mocks.getCachedRuntimePreflight,
   getShellPath: mocks.getShellPath,
 }));
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({ trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+}));
 
 describe('daily report builder', () => {
   it('builds codex exec args supported by current non-interactive CLI', () => {

@@ -22,6 +22,9 @@ vi.mock('@/lib/tmux', () => ({
 }));
 vi.mock('@/lib/runtime/supervisor', () => ({ getRuntimeSupervisor: vi.fn() }));
 vi.mock('@/lib/sync-server', () => ({ broadcastSync: vi.fn() }));
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({ trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+}));
 
 const provider = {
   readSessionId: readAgentSessionId,
