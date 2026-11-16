@@ -1,13 +1,13 @@
 ---
 title: 세션 운영
-description: Codex Session Catalog를 검색하고, 필터링하고, 복기하고, annotation과 rebuild를 관리합니다.
+description: Session Catalog를 검색하고, 필터링하고, 복기하고, annotation과 rebuild를 관리합니다.
 eyebrow: 운영 가이드
 permalink: /ko/docs/session-operations/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-세션 운영은 local Codex JSONL을 검색 가능한 Session Catalog로 투영합니다. 완료된 작업의 결정과
-맥락을 다시 찾기 위한 기능이며 live terminal을 대체하거나 Codex 소유 원본 로그를 변경하지
+세션 운영은 local Codex와 Claude Code JSONL을 검색 가능한 Session Catalog로 투영합니다. 완료된 작업의 결정과
+맥락을 다시 찾기 위한 기능이며 live terminal을 대체하거나 agent 소유 원본 로그를 변경하지
 않습니다.
 
 ## 세션 탐색기 열기
@@ -19,6 +19,8 @@ Timeline Worker health, catalog freshness, 저장 필터, 검색 조건, 결과�
 다음 조건을 조합할 수 있습니다.
 
 - 메시지 내용
+
+- 에이전트(Codex 또는 Claude Code)
 - 프로젝트와 모델
 - 시작일과 종료일
 - 태그
@@ -40,7 +42,7 @@ Pin, tag와 저장 filter는 agentmux durable storage가 소유합니다. 원본
 
 ## Catalog health와 rebuild
 
-Timeline Worker는 local Codex session directory의 파일을 증분 index합니다. 화면은 다음 상태를
+Timeline Worker는 local Codex와 Claude Code session directory의 파일을 증분 index합니다. 화면은 다음 상태를
 구분합니다.
 
 | 상태 | 의미 | 대응 |

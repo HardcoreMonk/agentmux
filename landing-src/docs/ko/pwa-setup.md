@@ -37,6 +37,10 @@ agentmux를 PWA로 설치하면 브라우저 탭이 홈 화면 아이콘으로 �
 
 이 아이콘으로 처음 실행하는 순간부터 iOS가 PWA로 취급합니다. 푸시 권한 프롬프트도 일반 Safari 탭이 아니라 이 standalone 창 안에서 띄워야 합니다.
 
+### iPad
+
+iPad에서도 Safari의 **공유** 버튼에서 **홈 화면에 추가**를 선택해 설치합니다. 홈 화면 웹 앱은 일반 Safari 탭과 쿠키·로그인 저장소가 분리되어 있으므로 홈 화면 앱 안에서 한 번 더 로그인해야 합니다. 손가락이 주 입력인 기기에서는 화면 폭과 관계없이 모바일 화면을 표시하므로 다중 pane 분할과 Git side panel은 없고, Git 변경은 탭의 보기를 **Diff**로 바꿔 확인합니다. 연결 재시도가 연속 5회 이상 실패하면 화면 위쪽에 **새로고침** 버튼이 나타나 주소창 없이도 페이지를 다시 불러올 수 있습니다. 자세한 내용은 repository의 [docs/IPAD.md](https://github.com/HardcoreMonk/agentmux/blob/main/docs/IPAD.md)를 참고하세요.
+
 ## Android Chrome
 
 Chrome은 매니페스트를 자동 감지해서 설치 배너를 띄웁니다. 보이지 않는다면:

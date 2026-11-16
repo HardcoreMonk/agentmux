@@ -66,7 +66,9 @@ $env:LOG_LEVELS = "status=debug,tmux=trace"; agentmux
 | `~/.agentmux/port` | 현재 outer server port | CLI, hook/bridge script |
 | `~/.agentmux/cli-token` | 32-byte CLI token | `x-agentmux-token` 인증 |
 
-CLI는 `AMUX_PORT`, `AMUX_TOKEN` 환경 변수가 있으면 파일보다 우선합니다.
+CLI는 `AMUX_PORT`, `AMUX_TOKEN` 환경 변수가 있으면 파일보다 우선합니다. `AGENTMUX_DATA_DIR`을 지정하면 `port`, `cli-token`을 그 data directory에서 읽습니다.
+
+agentmux가 띄운 Claude Code·Codex 탭에는 `AMUX_WORKSPACE_ID`(`agentmux tab`의 기본 workspace)와 `AMUX_TAB_ID`(호출 탭)가 설정됩니다. 자세한 내용은 [CLI 레퍼런스](/agentmux/docs/cli-reference/)를 참고하세요.
 
 ## 다음 단계
 

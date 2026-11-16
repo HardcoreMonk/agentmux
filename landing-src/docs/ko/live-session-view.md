@@ -6,7 +6,7 @@ permalink: /ko/docs/live-session-view/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-탭에서 Codex가 실행 중일 때, agentmux는 raw 터미널 뷰 대신 구조화된 타임라인을 보여줍니다. 같은 세션, 같은 JSONL 트랜스크립트지만 — 스캔하고 스크롤하고 링크할 수 있는 개별 이벤트로 펼쳐서 보여줍니다.
+탭에서 Codex나 Claude Code가 실행 중일 때, agentmux는 raw 터미널 뷰 대신 구조화된 타임라인을 보여줍니다. 같은 세션, 같은 JSONL 트랜스크립트지만 — 스캔하고 스크롤하고 링크할 수 있는 개별 이벤트로 펼쳐서 보여줍니다.
 
 ## 왜 타임라인이 스크롤백보다 나은가
 
@@ -23,18 +23,19 @@ Codex CLI는 인터랙티브합니다. 15분 전에 무엇을 했는지 터미�
 
 ## 보이는 것들
 
-타임라인의 각 행은 Codex JSONL 트랜스크립트의 항목에 대응합니다:
+타임라인의 각 행은 Codex JSONL 또는 Claude Code 트랜스크립트의 항목에 대응합니다:
 
 | 타입 | 내용 |
 |---|---|
 | **사용자 메시지** | 작성한 프롬프트가 채팅 버블로 |
-| **어시스턴트 메시지** | Codex의 답변, Markdown으로 렌더링 |
+| **어시스턴트 메시지** | agent의 답변, Markdown으로 렌더링 |
 | **툴 호출** | 툴 이름·핵심 인자·응답 — `read`, `edit`, `bash` 등 |
 | **툴 그룹** | 연속된 툴 호출이 한 카드로 collapse |
 | **태스크 / 플랜** | 다단계 플랜과 체크박스 진행 상황 |
 | **서브 에이전트** | 에이전트 호출이 진행 상황과 함께 그룹화 |
-| **권한/입력 프롬프트** | 가로챈 프롬프트가 Codex가 제시한 옵션 그대로 |
-| **Compacting** | Codex가 컨텍스트 자동 압축 중일 때의 미묘한 인디케이터 |
+| **권한/입력 프롬프트** | 가로챈 프롬프트가 agent가 제시한 옵션 그대로 |
+| **agent 보고** | 맡긴 agent 탭이 끝나거나 막혔다는 자동 보고. 말풍선 대신 출처 탭 이름과 끝남/막힘 상태가 있는 카드 |
+| **Compacting** | agent가 컨텍스트 자동 압축 중일 때의 미묘한 인디케이터 |
 
 긴 어시스턴트 메시지는 스니펫으로 collapse되고 펼침 affordance가 붙습니다. 긴 툴 출력은 잘려서 "더 보기" 토글로 표시됩니다.
 
@@ -64,13 +65,13 @@ Codex가 `busy`인 동안에는 이런 것도 함께 보입니다:
 
 ## 인라인 권한/입력 프롬프트
 
-Codex가 툴 실행, 파일 편집 권한, resume directory 선택을 요청하면 모달이 아니라 notification panel과 타임라인에 프롬프트가 나타납니다. notification panel은 prompt type과 risk badge를 함께 보여주며, 옵션을 클릭하거나, 매칭되는 숫자 키를 누르거나, Web Push를 눌러 해당 tab으로 이동한 뒤 선택할 수 있습니다. 전체 흐름은 [권한/입력 프롬프트](/agentmux/ko/docs/permission-prompts/) 참고.
+Codex나 Claude Code가 툴 실행, 파일 편집 권한, resume directory 선택을 요청하면 모달이 아니라 notification panel과 타임라인에 프롬프트가 나타납니다. notification panel은 prompt type과 risk badge를 함께 보여주며, 옵션을 클릭하거나, 매칭되는 숫자 키를 누르거나, Web Push를 눌러 해당 tab으로 이동한 뒤 선택할 수 있습니다. 전체 흐름은 [권한/입력 프롬프트](/agentmux/ko/docs/permission-prompts/) 참고.
 
 ## 한 탭의 여러 모드
 
 상단 바에서 같은 세션에 대해 우측 패널이 보여줄 내용을 전환할 수 있습니다:
 
-- **Codex** — 타임라인 (기본)
+- **Codex** 또는 **Claude Code** — 타임라인 (기본). 탭 종류에 따라 CODEX 또는 CLAUDE로 표시됩니다
 - **터미널** — 원시 xterm.js 뷰
 - **Diff** — 작업 디렉토리의 Git 변경
 

@@ -22,9 +22,9 @@ agentmux는 앱 테마, 글꼴 크기, 터미널 팔레트를 전역 설정으�
 
 | preset | 용도 |
 |---|---|
-| `Small` | 좁은 화면에서 정보 밀도 우선 |
-| `Default` | 일반 desktop 환경 |
+| `Normal` | 일반 desktop 환경(기본값) |
 | `Large` | 큰 화면 또는 높은 가독성 필요 |
+| `X-Large` | 더 큰 글꼴이 필요할 때 |
 
 UI는 `rem` 단위를 사용하므로 sidebar, dialog, table이 함께 scale됩니다.
 

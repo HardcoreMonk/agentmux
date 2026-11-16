@@ -9,6 +9,7 @@ permalink: /docs/data-directory/index.html
 agentmux의 영속 상태는 `~/.agentmux/` 아래에 저장됩니다. `~`는 active Linux service
 user의 Node.js `os.homedir()`입니다. Codex CLI의 원본 session JSONL은
 `~/.codex/sessions/`에 있으며 agentmux는 읽기 전용으로만 접근합니다.
+Claude Code의 transcript(`~/.claude/projects/`)와 설정(`~/.claude/`)도 읽기 전용입니다.
 
 ## 구조
 
@@ -30,7 +31,11 @@ user의 Node.js `os.homedir()`입니다. Codex CLI의 원본 session JSONL은
 ├── backups/
 ├── hooks.json
 ├── status-hook.cjs
-├── statusline.sh
+├── statusline.cjs
+├── codex-hook-trust.json
+├── claude-tabs/{tabId}.json
+├── bin/agentmux
+├── delegation/claude.md
 ├── rate-limits.json
 ├── session-history.json
 ├── session-index.json
@@ -60,7 +65,7 @@ Codex tab 실행은 native session-layer hook override와 capability를 통해 s
 
 | 파일 | 내용 | 삭제 가능 여부 |
 |---|---|---|
-| `config.json` | login hash, session secret, theme, Codex option | 가능. onboarding 재실행 |
+| `config.json` | login hash, session secret, theme, Codex/Claude Code option, 위임 안내 설정 | 가능. onboarding 재실행 |
 | `workspaces.json` | workspace 목록과 sidebar 상태 | 가능. 모든 workspace 초기화 |
 | `workspaces/{wsId}/layout.json` | pane/tab tree와 tab metadata | 가능. 해당 workspace layout 초기화 |
 | `workspaces/{wsId}/message-history.json` | workspace별 web input history | 가능. 해당 workspace 입력 history 초기화 |
@@ -69,6 +74,9 @@ Codex tab 실행은 native session-layer hook override와 capability를 통해 s
 | `governance/index.db` | Knowledge Index와 lifecycle/check/audit projection | quarantine 후 refresh 가능 |
 | `cli-token` | CLI와 hook bridge token | 가능. 재시작 시 재생성 |
 | `port` | 현재 server port | 가능. 재시작 시 재생성 |
+| `claude-tabs/` | Claude Code 탭별 `--settings` 파일(hook과 statusLine, `0600`) | 가능. 실행·재개마다 다시 쓰고 탭을 닫으면 삭제 |
+| `bin/agentmux`, `delegation/claude.md` | agent 탭 `PATH`의 CLI shim과 Claude Code 위임 안내 | 가능. server 시작이나 agent 실행 때 다시 씀 |
+| `codex-hook-trust.json` | agentmux hook의 fingerprint 기록. 웹 hook 검토 카드의 trust 버튼 표시용 | 가능. Codex 자신의 trust는 `$CODEX_HOME/config.toml`에 있음 |
 | `cmux.lock` | 단일 인스턴스 guard | process가 없을 때만 삭제 |
 | `session-index.json` | 로컬 Codex session list metadata cache | 가능. 다음 refresh에서 재생성되며 첫 목록은 현재 snapshot일 수 있음 |
 | `approval-audit.jsonl` | sanitized approval action/push outcome event | 가능. audit history 삭제 |

@@ -17,9 +17,11 @@ agentmux는 웹 앱이므로 사용 경험은 브라우저에 따라 달라집�
 | Safari | 17+ | macOS Sonoma 이상에서 PWA 완전 지원. Web Push는 macOS 13+ 에서 PWA 설치 후 사용 가능. |
 | Firefox | 115+ ESR | 정상 동작. PWA 설치는 수동 (설치 프롬프트 없음). |
 
-xterm.js 터미널, 라이브 타임라인, Codex 세션 뷰, Git diff 패널 — 모든 기능이 이들 엔진에서 동일하게 동작합니다.
+xterm.js 터미널, 라이브 타임라인, Codex·Claude Code 세션 뷰, Git diff 패널과 오른쪽 Git 패널 — 모든 기능이 이들 엔진에서 동일하게 동작합니다.
 
 ## 모바일
+
+손가락이 주 입력인 기기(iPad 포함)는 화면 폭과 관계없이 모바일 화면을 표시합니다. trackpad가 달린 키보드를 연결하면 desktop 화면으로 바뀔 수 있습니다.
 
 | 브라우저 | 최소 버전 | 비고 |
 |---|---|---|
