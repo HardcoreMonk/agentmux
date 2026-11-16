@@ -21,7 +21,7 @@ smoke를 통과했습니다. 현재 public npm `latest`는 이전 package `codex
 - Linux
 - Node.js 20.9 이상
 - tmux 3.0 이상
-- Git과 로그인된 Codex CLI
+- Git과 로그인된 Codex 또는 Claude Code CLI (둘 중 하나면 됩니다)
 
 {% call callout('warning', 'npm 미배포') %}
 `@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았습니다. 배포 전까지는 source checkout으로 실행하세요(`git clone https://github.com/HardcoreMonk/agentmux.git`).

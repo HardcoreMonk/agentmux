@@ -25,7 +25,7 @@ permalink: /ko/docs/quick-prompts-attachments/index.html
 본문에 작성한 내용은 그대로 전송됩니다 — 슬래시 커맨드, 멀티라인 프롬프트, "에디터에 열린 파일을 설명하고 개선점을 한 가지 제안해줘" 같은 템플릿 요청도 가능합니다. 전송 시 prompt 본문은 bracketed paste frame으로 들어가며 Enter가 같은 frame에 포함됩니다. 긴 입력 확인 흐름을 위해 후속 Enter도 한 번 더 보냅니다.
 
 {% call callout('tip', '슬래시 커맨드도 됩니다') %}
-퀵 프롬프트는 Codex 슬래시 커맨드를 한 번에 트리거하는 용도로 잘 어울립니다. `/review`를 가리키는 "Review this PR" 칩 하나로 매번 몇 번의 키 입력을 줄일 수 있습니다.
+퀵 프롬프트는 Codex와 Claude Code의 슬래시 커맨드를 한 번에 트리거하는 용도로 잘 어울립니다. `/review`를 가리키는 "Review this PR" 칩 하나로 매번 몇 번의 키 입력을 줄일 수 있습니다.
 {% endcall %}
 
 ## 이미지 드래그 앤 드롭
@@ -70,7 +70,7 @@ permalink: /ko/docs/quick-prompts-attachments/index.html
 | <kbd>⌘I</kbd> / <kbd>Ctrl+I</kbd> | 세션 뷰 어디서든 입력에 포커스 |
 | <kbd>Enter</kbd> | 전송 |
 | <kbd>⇧Enter</kbd> | 줄바꿈 삽입 |
-| <kbd>Esc</kbd> | Codex가 busy일 때 interrupt 전송 |
+| <kbd>Esc</kbd> | 입력창에서 나와 terminal로 포커스 이동 |
 | <kbd>↑</kbd> | (입력 비어 있을 때) 메시지 히스토리 거슬러 올라가기 |
 
 ## 다음으로

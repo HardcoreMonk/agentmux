@@ -1,14 +1,14 @@
 ---
 title: Session Operations
-description: Search, filter, replay, annotate, and rebuild the Codex Session Catalog.
+description: Search, filter, replay, annotate, and rebuild the Session Catalog.
 eyebrow: Operations guide
 permalink: /docs/session-operations/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-Session Operations turns local Codex JSONL into a searchable Session Catalog. It is designed for
+Session Operations turns local Codex and Claude Code JSONL into a searchable Session Catalog. It is designed for
 recovering decisions and reviewing completed work; it does not replace the live terminal or mutate
-Codex-owned source logs.
+agent-owned source logs.
 
 ## Open Session Explorer
 
@@ -19,6 +19,8 @@ Session replay drawer. **Activity** under Workspace is a separate live-status co
 You can filter by:
 
 - message text
+
+- agent (Codex or Claude Code)
 - project and model
 - start and end date
 - tags
@@ -40,7 +42,7 @@ read-only.
 
 ## Catalog health and rebuild
 
-The Timeline Worker incrementally indexes files under the local Codex sessions directory. The page
+The Timeline Worker incrementally indexes files under the local Codex and Claude Code session directories. The page
 separates these states:
 
 | State | Meaning | Action |

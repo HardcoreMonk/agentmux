@@ -1,6 +1,6 @@
 # agentmux 시각 계약
 
-agentmux UI는 코딩 에이전트 CLI 작업(현재 Codex 지원, Claude Code 지원 예정)을 오래 켜 두고 반복적으로 확인하는 운영 도구입니다.
+agentmux UI는 코딩 에이전트 CLI 작업(Codex와 Claude Code)을 오래 켜 두고 반복적으로 확인하는 운영 도구입니다.
 첫인상은 조용하고 밀도 있는 운영실이어야 하며, terminal/input/reconnect
 안정성이 시각 장식보다 항상 우선합니다.
 
@@ -13,7 +13,7 @@ agentmux UI는 코딩 에이전트 CLI 작업(현재 Codex 지원, Claude Code �
 
 ## 시각 방향
 
-- 제품 UI는 dashboard가 아니라 Codex session 운영 surface입니다.
+- 제품 UI는 dashboard가 아니라 agent(Codex, Claude Code) session 운영 surface입니다.
 - 화면은 훑어보기 쉽고 정보 밀도가 높아야 합니다.
 - Marketing hero, 장식용 illustration, floating section card, nested card를
   제품 화면에 넣지 않습니다.

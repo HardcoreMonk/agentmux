@@ -1,13 +1,13 @@
 ---
 title: 아키텍처
-description: custom Node server, Next.js Pages Router, runtime v2와 Codex CLI가 맞물리는 구조.
+description: custom Node server, Next.js Pages Router, runtime v2와 Codex·Claude Code CLI가 맞물리는 구조.
 eyebrow: 레퍼런스
 permalink: /ko/docs/architecture/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
 agentmux는 browser/선택 client, outer custom Node server, Next.js Pages Router, Runtime v2
-worker와 Linux tmux adapter로 구성됩니다. Active Linux engine이 Codex process/JSONL,
+worker와 Linux tmux adapter로 구성됩니다. Active Linux engine이 Codex와 Claude Code process/JSONL,
 app-owned DB와 승인 project read를 소유합니다.
 
 ## 전체 구조
@@ -24,7 +24,7 @@ outer custom Node server
 runtime v2 Supervisor
   ├─ terminal worker -> Linux tmux adapter
   ├─ storage worker  -> runtime-v2/state.db
-  ├─ timeline worker -> Codex JSONL + Session Catalog
+  ├─ timeline worker -> agent JSONL (Codex, Claude Code) + Session Catalog
   ├─ status worker   -> process/status/notification
   └─ governance worker -> approved project read + Knowledge Index
 ```
@@ -36,7 +36,7 @@ runtime v2 Supervisor
 | 구성 | 역할 |
 |---|---|
 | xterm.js terminal | terminal adapter output 렌더링, key/resize/title event 전송 |
-| live timeline | Codex JSONL에서 파싱한 message, tool call, reasoning 표시 |
+| live timeline | Codex·Claude Code JSONL에서 파싱한 message, tool call, reasoning 표시 |
 | status badge | `/api/status`를 통해 idle, busy, needs-input, review 표시 |
 | Session Explorer | session metadata/message 검색, replay, annotation과 saved filter |
 | Project Governance | 승인 project의 guidance, knowledge, lifecycle와 audit read model |
@@ -51,12 +51,13 @@ runtime v2 Supervisor
 | `/api/health` | public build/version health probe |
 | `/api/terminal` | terminal I/O stream |
 | `/api/v2/terminal` | runtime v2 terminal I/O stream |
-| `/api/timeline` | Codex session timeline stream |
-| `/api/timeline/sessions` | local Codex session list page |
+| `/api/timeline` | agent(Codex, Claude Code) session timeline stream |
+| `/api/timeline/sessions` | local agent(Codex, Claude Code) session list page, `providers` query로 좁힘 |
 | `/api/sessions/*` | Session Catalog health, search, replay와 annotation/filter |
 | `/api/governance/*` | 승인 root/project 등록과 read-only governance projection |
 | `/api/v2/runtime/health` | 인증된 core/governance/catalog worker health |
 | `/api/status` | tab status sync와 notification ack |
+| `/api/status/hook`, `/api/status/statusline` | agent hook bridge와 Claude Code statusLine script가 loopback으로 보내는 요청. 둘 다 CLI token이 필요하고 hook은 탭 capability도 확인 |
 | `/api/sync` | workspace state 동기화 |
 | `/api/install` | admission과 lease로 보호된 install PTY WebSocket |
 | `/api/upload-image` | outer-owned raw image upload, 최대 10MiB |
@@ -72,9 +73,10 @@ Upload는 최대 8개/예약 200MiB를 동시에 admission하고 queue 없이 �
 
 ## Terminal runtime
 
-Active Linux 경로는 Runtime v2 Terminal Worker 뒤의 tmux adapter를 사용합니다. tmux session은
-`-L codexmux` socket과 `src/config/tmux.conf`로 격리되며 사용자의 `~/.tmux.conf`는 읽지
-않습니다. Windows node-pty/ConPTY adapter는 별도 package surface입니다.
+Active Linux 경로의 plain terminal tab은 Runtime v2 Terminal Worker 뒤의 tmux adapter를 사용합니다.
+Codex와 Claude Code tab은 Runtime v2가 agent를 지원하기 전까지 legacy tmux adapter(Runtime v1)로
+만듭니다. tmux session은 legacy `-L codexmux`, Runtime v2 `-L codexmux-runtime-v2` socket으로 나뉘고
+`src/config/tmux.conf`로 격리되며 사용자의 `~/.tmux.conf`는 읽지 않습니다. Windows node-pty/ConPTY adapter는 별도 package surface입니다.
 
 ## Codex 연동
 
@@ -91,11 +93,18 @@ Active Linux 경로는 Runtime v2 Terminal Worker 뒤의 tmux adapter를 사용�
 - stats와 daily report는 같은 JSONL을 읽어 계산합니다. stats cache build는 동시 요청이 하나의 in-flight 작업을 공유합니다.
 - timeline tail snapshot, diff short cache, session index, hidden-state polling guard는 source of truth를 바꾸지 않고 반복 계산과 렌더 비용을 줄입니다.
 
+## Claude Code 연동
+
+- `src/lib/providers/claude/`가 Claude Code provider입니다. server가 session UUID를 먼저 탭에 기록하고 `claude --settings <탭 설정 파일> --session-id <uuid>`로 띄웁니다.
+- hook과 statusLine은 탭별 `claude-tabs/<tab-id>.json`(`--settings`)로만 붙고, 같은 `status-hook.cjs` bridge가 loopback hook API를 호출합니다. 사용자 `~/.claude/` 설정은 읽기만 합니다.
+- transcript는 `~/.claude/projects/<project>/<session-id>.jsonl`에서 읽기 전용으로 읽고 timeline, Session Catalog, 통계에 같은 경로로 투영합니다.
+- agent 탭은 provider registry(`codex`, `claude`)의 status flag로 상태 정책을 고르며, `agentmux tab` CLI로 서로 일을 맡길 수 있습니다([CLI 레퍼런스](/agentmux/ko/docs/cli-reference/)).
+
 ## 시작 순서
 
 1. lock을 획득하고 config, shell path, strict auth state를 초기화합니다.
 2. setup process라면 저장 network/`HOST`보다 우선해 loopback bind plan을 고정합니다.
-3. legacy session을 scan하고 workspace/layout과 저장된 Codex session을 복구합니다.
+3. legacy session을 scan하고 workspace/layout과 저장된 agent(Codex, Claude Code) session을 복구합니다.
 4. Runtime v2 Supervisor와 terminal/storage/timeline/status core worker를 준비하고
    Governance Worker를 독립 degraded boundary로 시작합니다.
 5. process-scoped UploadServer를 만들고 Next handler보다 앞에 연결합니다.

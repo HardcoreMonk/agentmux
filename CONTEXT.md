@@ -6,7 +6,7 @@
 
 ## 제품 정체성
 
-agentmux는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정). 범용 터미널 대시보드가 아니라
+agentmux는 코딩 에이전트 웹 세션 매니저입니다 (Codex와 Claude Code 지원). 범용 터미널 대시보드가 아니라
 여러 코딩 에이전트 세션을 workspace, session, tab, timeline, status 중심으로 실행,
 재개, 모니터링, 검토하는 도구입니다.
 
@@ -33,13 +33,15 @@ Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록된 project filesyst
 
 | 표준 용어 | 의미 | 주요 경계 |
 | --- | --- | --- |
-| 코딩 에이전트 웹 세션 매니저 | 코딩 에이전트 CLI 세션을 관리하는 제품 정체성 (현재 Codex 지원, Claude Code 지원 예정) | UI, 문서, README |
+| 코딩 에이전트 웹 세션 매니저 | 코딩 에이전트 CLI 세션을 관리하는 제품 정체성 (Codex와 Claude Code 지원) | UI, 문서, README |
 | Workspace | 여러 tab과 layout을 묶는 작업 단위 | workspace API, layout store |
 | Tab | terminal, Codex, Claude Code, diff, browser 등 panel 실행 단위 | `ITabState`, runtime adapter |
 | 로컬 Codex 세션 | local Codex process와 JSONL을 연결한 투영 | 감지, timeline, status |
 | 로컬 Claude Code 세션 | local Claude Code process와 `~/.claude/projects` transcript JSONL을 연결한 투영. agentmux가 띄운 탭은 탭별 `--settings` hook이 session id를 알려 준다 | 감지, hook, timeline, status |
 | Timeline | agent JSONL(Codex, Claude Code)과 live event를 사용자 검토용 event stream으로 보여주는 surface | timeline server/worker |
 | Status | agent(Codex, Claude Code) 작업 상태, approval, notification 판단 투영 | status manager/worker |
+| Agent 위임 | agentmux가 띄운 agent가 `agentmux tab` CLI로 다른 agent 탭을 만들고 입력·상태·결과를 다루는 흐름. 제한은 실수 방지 장치이며 보안 경계가 아니다 | `docs/CLI.md`, ADR-036 |
+| Agent 보고 | 맡은 탭이 turn을 끝내거나 권한 질문에 막히면 서버가 태그 붙은 보고를 맡긴 agent의 입력창에 쓰는 것 | `AgentReportService`, ADR-039 |
 | 런타임 어댑터 | OS별 terminal/process/service 구현 경계 | runtime v2, tmux legacy, Windows runtime |
 | Linux 단일 엔진 호스트 | server, worker, tmux, Codex 데이터와 project read를 한 Linux host가 소유하는 실행 토폴로지 | Runtime v2, systemd user service |
 | Session Catalog | agent JSONL에서 계산한 session metadata와 검색 projection. Codex rollout과 Claude Code transcript를 함께 index하고 항목마다 provider column(`codex`, `claude`)을 가진다. Session Explorer와 agent 탭 지난 세션 목록은 이 provider로 filter한다 | Timeline Worker, app-owned index DB |
@@ -142,10 +144,11 @@ gate는 ADR-028 `Verified`입니다.
   실제 Linux user service 재시작을 근거로 `Verified`입니다. Windows package 실기 검증은
   이 선택 도입의 완료 조건에서 제외했습니다.
 
-현재 live Linux build는 `a6a49588`, source version은 `0.4.24`입니다. Workspace, Sessions,
+현재 live Linux build는 `f61031a1`, source version은 `0.5.0`입니다. Workspace, Sessions,
 Governance는 고정 `App Area`이며 기존 sidebar `sessions` local state는 `Workspace Activity`로
 normalize합니다. Current route는 `aria-current`, Workspace/Session/Managed Project 선택은
 `aria-selected`, disclosure는 `aria-expanded`, focus는 `focus-visible`로 분리합니다. 등록
 project의 Project Lifecycle evidence 236개는 bounded IPC maximum 2,000 안에서 응답하며
-2,001개 이상은 거부합니다. 최신 배포·rollback 근거는
-`docs/operations/2026-08-23-navigation-selection-clarity-handoff.md`에 있습니다.
+2,001개 이상은 거부합니다. Navigation 배포·rollback 근거는
+`docs/operations/2026-08-23-navigation-selection-clarity-handoff.md`, 최신 배포 근거는
+`docs/operations/2026-11-10-multi-agent-brainstorming-handoff.md`에 있습니다.

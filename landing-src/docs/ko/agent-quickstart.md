@@ -16,14 +16,19 @@ permalink: /ko/docs/agent-quickstart/index.html
 node --version
 tmux -V
 codex --version
+claude --version
 ```
 
 - Node.js 20.9 이상
 - tmux 3.0 이상
-- Git과 로그인된 Codex CLI
+- Git과 로그인된 Codex 또는 Claude Code CLI (둘 중 하나면 됩니다)
 - Linux 단일 엔진으로 사용할 사용자 계정
 
 ## 가장 짧은 실행
+
+{% call callout('warning', 'npm 미배포') %}
+`@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았습니다. 배포 전까지는 아래 Source checkout 단계로 실행하세요(`git clone https://github.com/HardcoreMonk/agentmux.git`).
+{% endcall %}
 
 ```bash
 npx --yes @hardcoremonk/agentmux@latest
@@ -86,6 +91,16 @@ Session Catalog는 별도 readiness를 가지며 한 projection의 저하를 전
 | `AGENTMUX_GOVERNANCE_WRITES=1` | 별도 write 승인 필요 |
 | project scaffold/adoption confirm | preview 검토와 exact project title 확인 필요 |
 | DB/data 삭제 또는 backup prune | destructive 승인과 restore plan 필요 |
+
+## agentmux 탭 안의 agent
+
+agentmux가 띄운 Claude Code와 Codex 탭에는 환경 변수 `AMUX_WORKSPACE_ID`, `AMUX_TAB_ID`가 설정되고 `agentmux` 명령이 `PATH`에 들어갑니다(위임 안내 설정이 켜져 있을 때, 기본 켬). 그래서 `agentmux tab`으로 다른 agent 탭에 일을 맡길 수 있습니다.
+
+- 위임 입력은 agent 탭(`claude`, `codex`)에만 닿고, 권한 질문과 시작 화면(trust, Codex update, Codex hook 검토)에는 입력하지 않으며 사용자 대신 승인하지 않습니다.
+- 맡은 탭이 turn을 끝내거나 권한 질문에 막히면 서버가 맡긴 탭의 입력창에 `[agentmux report`로 시작하는 보고를 자동으로 넣습니다. 자동 보고가 켜져 있는 동안 맡은 탭은 자기를 만든 탭에 직접 `tab send`를 할 수 없습니다.
+- 위임은 **설정 → 일반**의 **Agent에 위임 안내 넣기**, 자동 보고는 같은 화면의 **agent 자동 보고** 스위치로 끄고 켭니다(둘 다 기본 켬). 위임 안내를 끄면 자동 보고도 보내지 않습니다. 서버나 status worker가 재시작되면 대기 중이던 보고는 사라지므로 `agentmux tab status`로 상태를 확인합니다.
+
+전체 명령과 오류 code는 [CLI 레퍼런스](/agentmux/ko/docs/cli-reference/)를 참고하세요.
 
 ## 다음 단계
 

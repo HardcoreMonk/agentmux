@@ -1,18 +1,22 @@
 ---
 title: 문서
-description: agentmux를 설치하고 실시간·과거 Codex 세션을 운영하며 project context를 관리합니다.
+description: agentmux를 설치하고 실시간·과거 Codex와 Claude Code 세션을 운영하며 project context를 관리합니다.
 eyebrow: 여기서 시작
 permalink: /ko/docs/index.html
 ---
-<p>Linux 단일 엔진 runtime, 실시간 Codex 제어, 세션 운영, Project Governance와 recovery 가이드입니다.</p>
+<p>Linux 단일 엔진 runtime, 실시간 Codex·Claude Code 제어, 세션 운영, Project Governance와 recovery 가이드입니다.</p>
 
 <div class="doc-home-start">
   <div>
     <span class="doc-home-kicker">Install · Start · Open</span>
     <h2>3분 안에 첫 세션을 시작하세요.</h2>
-    <p>Node.js 20.9+, tmux 3.0+와 로그인된 Codex CLI가 필요합니다.</p>
+    <p>Node.js 20.9+, tmux 3.0+와 로그인된 Codex CLI 또는 Claude Code CLI가 필요합니다.</p>
   </div>
-  <pre><code>npx --yes @hardcoremonk/agentmux@latest
+  <pre><code>git clone https://github.com/HardcoreMonk/agentmux.git
+cd agentmux
+corepack enable
+corepack pnpm install
+corepack pnpm dev
 # http://127.0.0.1:8122</code></pre>
   <div class="doc-home-actions">
     <a href="/agentmux/ko/docs/quickstart/">사람용 빠른 시작</a>
@@ -22,7 +26,7 @@ permalink: /ko/docs/index.html
 <div class="doc-home-featured">
   <a href="/agentmux/ko/docs/session-operations/">
     <span>세션 운영</span>
-    <strong>지속되는 Codex 작업을 검색하고 복기합니다.</strong>
+    <strong>지속되는 Codex와 Claude Code 작업을 검색하고 복기합니다.</strong>
     <small>Session Catalog · filter · annotation · rebuild</small>
   </a>
   <a href="/agentmux/ko/docs/project-governance/">

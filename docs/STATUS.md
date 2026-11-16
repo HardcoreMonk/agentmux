@@ -60,6 +60,8 @@ Windows에서는 process inspector adapter가 PID, command line, child/descendan
 
 Permission/input prompt는 JSONL marker가 늦거나 없을 수 있으므로 live pane capture를 함께 봅니다.
 
+Codex 탭에 기록 파일(JSONL)이 아직 없으면(Codex는 첫 turn에 만듭니다) 화면으로 판단합니다. 입력창이 보이고 working 줄이 없으면 `idle`, 아니면 `busy`입니다(`reduceCodexState`의 `composerIdle`, 화면 판정은 `codex-screen.ts`의 `isCodexIdleAtComposer`). 그래서 첫 입력 전 기다리는 Codex 탭은 `idle`입니다.
+
 ## Workspace 목록의 작업 유무
 
 Desktop workspace 목록과 mobile navigation sheet의 각 workspace는 기존 탭 아이콘과
@@ -320,7 +322,7 @@ adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 lega
 
 ## 공통 agent UI (설계 1 단계 3)
 
-2026-11-11 단계 3은 branch `feat/claude-provider-phase3`에 구현과 검증을 마쳤습니다. main merge와 live 배포는 아직입니다.
+2026-11-11 단계 3은 PR #49로 main에 merge했고(`ad32559d`) 같은 날 live에 배포했습니다.
 화면과 목록이 Codex 고정에서 provider(`codex`, `claude`) 공통으로 넓어졌습니다. Provider는 데이터에 담고
 (`providerId`/`provider` column) 화면은 `AGENT_PROVIDER_META`의 icon과 짧은 label로 구분합니다.
 
@@ -372,3 +374,6 @@ adapter/policy에 둡니다. Agent 탭은 Runtime v2 agent 지원 전까지 lega
 | `src/lib/statusline-script.ts` | `statusline.cjs` 생성(사용자 statusLine 대신 실행) |
 | `src/lib/trust-prompt-detector.ts` | Folder trust 화면 감지와 응답 key |
 | `src/lib/agent-report-service.ts` | 위임 자식 탭 완료·막힘 시 부모 탭 자동 보고 전달과 대기열·알림 연동 |
+| `src/lib/agent-report-queue.ts` | 부모 탭별 보고 대기열, 5회 연속 제한, 30분 만료, 이전 보고 turn 대기 |
+| `src/lib/agent-report.ts` | 보고 문자열 생성과 `AGENT_REPORT_PREFIX` |
+| `src/lib/codex-screen.ts` | Codex 화면 판정(입력창 비움, 시작·검토 화면). 기록 파일 전 Codex `idle` 판단에 씀 |

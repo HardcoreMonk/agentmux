@@ -10,8 +10,8 @@ permalink: /ko/docs/installation/index.html
 server, Runtime v2 다섯 worker와 Linux tmux adapter를 실행합니다.
 
 {% call callout('note', '현재 package') %}
-`@hardcoremonk/agentmux@0.5.0`은 public npm `latest`(이전 package `codexmux@0.4.23`의 새 이름)이며 격리 tarball install, CLI와 production health
-smoke를 통과했습니다.
+`@hardcoremonk/agentmux@0.5.0`은 아직 npm 배포 전이며 로컬 격리 tarball install, CLI와 production health
+smoke를 통과했습니다. 현재 public npm `latest`는 이전 package `codexmux@0.4.23`입니다.
 {% endcall %}
 
 ## Linux npm 실행
@@ -21,7 +21,11 @@ smoke를 통과했습니다.
 - Linux
 - Node.js 20.9 이상
 - tmux 3.0 이상
-- Git과 로그인된 Codex CLI
+- Git과 로그인된 Codex 또는 Claude Code CLI (둘 중 하나면 됩니다)
+
+{% call callout('warning', 'npm 미배포') %}
+`@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았습니다. 배포 전까지는 source checkout으로 실행하세요(`git clone https://github.com/HardcoreMonk/agentmux.git`).
+{% endcall %}
 
 ```bash
 npx --yes @hardcoremonk/agentmux@latest

@@ -1,6 +1,6 @@
 # 프로젝트 설계 요약
 
-agentmux는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정). 범용 터미널 대시보드가 아니라
+agentmux는 코딩 에이전트 웹 세션 매니저입니다 (Codex와 Claude Code 지원). 범용 터미널 대시보드가 아니라
 여러 코딩 에이전트 세션을 브라우저에서 실행, 재개, 모니터링, 검토하기 위한 도구입니다.
 터미널 접근은 runtime adapter 경계 뒤에 두고, Codex 작업은 status badge와
 timeline 중심으로 보여줍니다.
@@ -10,7 +10,7 @@ Runtime v2 worker, tmux, Codex CLI/JSONL, app-owned DB와 등록된 project read
 Windows installer/updater는 보존된 별도 배포면이며 이번 Session Operations와 Project
 Governance acceptance를 대체하지 않습니다.
 
-2026-08-23 현재 live app build commit `a6a49588`, version `0.4.24`가 `HOST=0.0.0.0`, port `8122`의
+2026-08-23에는 live app build commit `a6a49588`, version `0.4.24`가 `HOST=0.0.0.0`, port `8122`의
 `systemd --user` service로 배포되어 실제 `0.0.0.0:8122` listener와 구성된 browser 인증을
 제공합니다. `AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환)이 systemd drop-in에서 활성화됐고 Governance
 `writeState=ready`입니다. 실제 restart, Managed Project adoption/rollback, Session Catalog
@@ -20,12 +20,14 @@ rebuild/search/replay/annotation과 같은 live session의 301초·11회 재연�
 total 1건으로 일치합니다. Navigation 배포에서는 terminal/reconnect 10-check, Phase 6 12-check,
 Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습니다.
 
+2026-11-16 현재 live app build commit은 `f61031a1`, version은 `0.5.0`이며 같은 `systemd --user` service(port `8122`, browser 인증)로 배포됐습니다. Claude Code 지원, 위임과 자동 보고, Codex 보조는 아래 구현 상태에 있고 배포 근거는 `docs/operations/2026-11-10-multi-agent-brainstorming-handoff.md`에 있습니다.
+
 ## 구현 상태
 
 - 서비스 이름과 실행 파일은 `agentmux`, 짧은 별칭은 `amux`입니다 (legacy `codexmux`/`cmux` 호환 별칭 유지).
 - 데이터 디렉터리는 `~/.agentmux`(legacy 실제 경로 `~/.codexmux`), tmux socket은 `-L codexmux` 및 `codexmux-runtime-v2`, CLI header는 `x-agentmux-token`(legacy `x-cmux-token` 호환)입니다.
-- provider registry에는 `codex` panel type만 등록합니다.
-- Browser는 Codex command를 직접 조립하지 않고 workspace/pane/tab launch intent만 보냅니다. Server는 layout ownership, 안전한 shell, Codex `0.144.1+` preflight를 확인한 뒤 실행 또는 `codex resume <sessionId>` command를 만듭니다.
+- provider registry에는 `codex`와 `claude` panel type을 등록합니다.
+- Browser는 Codex command를 직접 조립하지 않고 workspace/pane/tab launch intent만 보냅니다. Server는 layout ownership, 안전한 shell, agent별 preflight(Codex `0.144.1+`, Claude Code `2.0.0+`)를 확인한 뒤 실행 또는 resume command를 만듭니다. Codex는 `codex resume <sessionId>`, Claude Code는 탭별 `--settings` 파일과 함께 새 session은 `--session-id <uuid>`, 재개는 `--resume <sessionId>`를 씁니다.
 - Codex hook event는 native session-layer TOML override와 HMAC tab/session capability를 사용해 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)로 전달합니다. Hook 명령은 탭과 무관하게 고정이고 탭 값은 환경 변수(`AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`)로 넘겨 사용자가 한 번 준 Codex hook trust가 유지됩니다(ADR-038). User/project/managed/plugin hook은 Codex native discovery가 보존합니다.
 - process detection은 tmux pane 아래의 `codex` process를 찾고 session id, process start time, live process cwd fallback 순서로 JSONL path를 연결합니다.
 - timeline, history, stats, daily report와 rate-limit observation은 `~/.codex/sessions/**/*.jsonl`을 읽어 구성합니다.
@@ -33,6 +35,8 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
 - Rate-limit은 5시간/7일 window별 최신 `observed_at`을 보존하며 reset 뒤 새 관찰이 없으면 0%를 합성하지 않고 `갱신 대기`로 표시합니다.
 - session list는 `~/.agentmux/session-index.json`(legacy 실제 경로 `~/.codexmux/session-index.json`) snapshot을 먼저 읽고, cold refresh 중이면 현재 snapshot을 표시한 뒤 재조회합니다.
 - `~/.codex`는 Codex CLI 소유 데이터이며 agentmux는 읽기 전용으로만 접근합니다.
+- Claude Code 탭은 탭별 `--settings` 파일(`<data dir>/claude-tabs/<tabId>.json`)의 hook으로 session id를 알리고, timeline과 Session Catalog는 `~/.claude/projects` transcript JSONL을 읽기 전용으로 읽습니다. agentmux는 `~/.claude/`와 `$CODEX_HOME` 아래 사용자 설정을 고치지 않고 실행 시점 flag와 탭 환경 변수로만 붙입니다(ADR-035).
+- 위임: agentmux가 띄운 Claude Code·Codex는 `agentmux tab` CLI로 다른 agent 탭에 일을 맡깁니다(ADR-036, `docs/CLI.md`). 자동 보고가 켜져 있으면(`agentReportsEnabled`, 기본 켬) 맡은 탭이 turn을 끝내거나 권한 질문에 막힐 때 서버가 태그 붙은 보고를 맡긴 agent의 입력창에 안전 조건을 확인하고 씁니다(ADR-039). 대기 중인 보고는 서버 재시작 때 사라집니다.
 - Session Catalog는 Timeline Worker가 JSONL read/watch와 app-owned 검색 index를 단독으로
   소유하는 재생성 가능한 projection입니다.
 - Managed Project의 durable catalog는 Storage Worker가 소유합니다. Governance Worker는 registered
@@ -50,7 +54,7 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
 - setup POST는 startup claim latch, loopback Host, same-authority Origin, JSON media type을 요구합니다. `/api/install`은 generic WebSocket 예외가 아니라 setup-local lease 또는 session admission을 사용합니다.
 - `/api/upload-image`와 `/api/upload-file`은 Next proxy/Pages route가 아니라 outer custom server가 소유합니다. Image/file limit은 10MiB/50MiB이고, successful publish는 same-directory hard link의 no-replace commit입니다.
 - Linux 단일 엔진은 source checkout 또는 npm standalone server(`@hardcoremonk/agentmux`)로 실행합니다. Windows Electron installer/updater와 npm registry package는 ADR-030의 독립 배포면이며 npm tarball은 CLI bin, standalone server와 다섯 Runtime v2 worker bundle을 제공합니다.
-- Public npm `latest`는 `@hardcoremonk/agentmux`로 전환 중이며, 이전 이름 `codexmux@0.4.23`에서 registry tarball install, CLI help와 production
+- `@hardcoremonk/agentmux`는 아직 npm에 배포하지 않았고(보류) public `latest`는 이전 이름 `codexmux@0.4.23`입니다. 이 버전에서 registry tarball install, CLI help와 production
   health smoke를 통과했습니다. Local `v0.4.23`은 registry `gitHead`와 같은 `ef27e297`을
   가리키지만 remote tag는 없습니다. 이 tag를 그대로 push하면 tag snapshot에 없는 release
   note를 요구하는 Windows release workflow가 실패하므로 원격 publish는 보류했습니다.
@@ -72,6 +76,9 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
 | 영역 | 파일 | 역할 |
 | --- | --- | --- |
 | provider | `src/lib/providers/codex/` | Codex adapter와 provider contract 구현 |
+| provider | `src/lib/providers/claude/` | Claude Code adapter(탭별 settings, transcript 경로, session 감지) |
+| delegation | `src/lib/delegation-guide.ts`, `bin/agentmux.js` | 위임 안내·shim 생성과 `agentmux tab` CLI |
+| agent report | `src/lib/agent-report.ts`, `src/lib/agent-report-queue.ts`, `src/lib/agent-report-service.ts` | 맡은 탭 완료·막힘 보고 생성, 대기열, 부모 입력창 입력 |
 | command | `src/lib/codex-command.ts` | Codex launch/resume command 생성 |
 | agent launch | `src/lib/agent-launch-service.ts`, `src/pages/api/agent/launch.ts` | Server-side ownership/preflight와 terminal write |
 | session hook | `src/lib/providers/codex/session-hooks.ts`, `src/lib/hook-settings.ts` | Native hook serialization, capability, Node bridge 생성 |
@@ -101,7 +108,7 @@ Governance lifecycle 236-evidence와 desktop/mobile browser gate를 통과했습
 
 새 layout과 status payload는 다음 neutral field를 사용합니다.
 
-- `panelType: "codex"`
+- `panelType: "codex" | "claude"`
 - `agentSessionId`
 - `agentJsonlPath`
 - `agentSummary`
@@ -134,6 +141,7 @@ provider-neutral boundary 또는 Codex provider 내부에 추가합니다.
 
 - Codex JSONL 형식은 CLI 버전에 따라 바뀔 수 있습니다. parser는 permissive하게 두고 fixture를 계속 보강합니다.
 - Hook event는 best-effort observer입니다. Bridge가 실패해도 Codex action을 막지 않고 JSONL/process polling으로 상태를 재조정합니다.
+- 자동 보고의 입력창 빈 상태 판정은 Codex·Claude Code TUI 화면 모양(흐림 SGR, 프롬프트 기호, 테두리)에 의존하므로 CLI 버전이 바뀌면 판정 규칙을 함께 점검해야 합니다(ADR-039).
 - Codex CLI가 process 시작 후 JSONL을 늦게 쓰는 경우가 있어 process start time 매칭은 여유를 두고, cwd fallback은 live Codex process가 확인된 경우에만 씁니다.
 - `~/.codex`에는 auth와 local history가 들어갈 수 있으므로 원본 config/auth 파일을 브라우저에 노출하지 않습니다.
 - process detection은 플랫폼 의존성이 큽니다. Linux `/proc`, `pgrep`, `ps` fallback은 helper에 격리합니다.

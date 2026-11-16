@@ -756,8 +756,8 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   PR #56, main merge(`737bd0f9`), live 배포(2026-11-15 21:08 KST)를 마쳤다. operate.
 - 설계 3(agent 자동 보고): plan 승인, Task 1~8 구현과 task별 검토, 문서, 전체 gate, 격리 live 확인(7개 통과, 첫 turn 결함 수정 `404aae8f`), branch 최종 검토와 수정, PR #62, main merge(`41aa8973`), live 배포(2026-11-16 07:28 KST). operate.
 - 설계 3 후속(Codex 승인 정책 값, Esc 거절 뒤 `needs-input`, `send-to-parent`, test log 경쟁): PR #63, main merge(`f61031a1`), live 배포(2026-11-16 15:47 KST). operate.
-- iPad 홈 화면 웹 앱: 짧은 설계 승인, 구현, gate, 격리 확인을 마쳤다. 다음은 PR, main merge, 사용자 배포, 실제 iPad 확인.
-- Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. operate.
+- iPad 홈 화면 웹 앱: 짧은 설계 승인, 구현, gate, 격리 확인, PR #57, main merge(`35ee322f`), live 배포(2026-11-15)를 마쳤다. 실제 iPad 확인은 사용자 보류(2026-11-16). operate.
+- Android와 웹 logo: release 서명 설치, live 배포, main merge(PR #45) 완료. 2026-11-15 사용자가 폰 보안(USB 디버깅 차단) 때문에 추가 폰 설치 작업을 취소했다. 설치된 release APK `0.5`가 현재 client이고 웹 변경은 서버에서 온다. operate.
 - 이름 변경 프로젝트: operate (npm 배포 보류).
 
 ## Next Action
@@ -783,7 +783,7 @@ service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache
 - Smoke script 결함: `smoke-runtime-v2-isolated.mjs`의 `.codexmux/cli-token` 경로(이름 변경 뒤 `.agentmux`), 실패
   시 남는 dev server, `smoke-runtime-v2-phase2-gate.mjs`의 재시작 race(`stop()`이 wrapper 종료만 기다림), 두
   script 모두 `TMUX_TMPDIR`를 격리하지 않는 점.
-- Codex `0.167.0` "Hooks need review" 화면: 웹 카드가 이 화면을 읽지 못한다. 설계 2(Codex 보조) 범위에서 고친다.
+- (해결: 설계 2-1, PR #54 `555feb0b`, ADR-038) Codex `0.167.0` "Hooks need review" 화면: 웹 카드가 이 화면을 읽지 못한다. 설계 2(Codex 보조) 범위에서 고친다.
   - 확인한 사실(2026-11-10, 읽기만 함): Codex는 `~/.codex/config.toml`의 `[hooks.state."<출처>:<이벤트>:<i>:<j>"]` 아래
     `trusted_hash`(hook 정의의 sha256)로 검토 여부를 기억한다. agentmux는 `-c hooks.*` 명령 안에 실행마다 바뀌는 HMAC
     capability(`expiresAt` 포함)를 넣는다(`providers/codex/session-hooks.ts`).
@@ -803,14 +803,14 @@ service를 멈추고 `cp ~/.codexmux/stats/cache.v4.json ~/.codexmux/stats/cache
     통과한다. 안정화 필요.
   - `tests/unit/lib/layout-store.test.ts`가 실제 data dir 아래 `ws-layout-store-*` directory를 만든다. 이전 실행이 남긴 4개가
     legacy 실제 경로 `~/.codexmux/workspaces`에 있고 live data dir라 지우지 않았다. Test 격리와 정리는 사용자가 정한다.
-  - `vitest.config.ts`가 실행마다 `/tmp/agentmux-vitest-tmux-*` directory를 만들고 지우지 않는다(2026-11-11 기준 123개).
+  - (해결: PR #61 `1a693421`, 실행이 끝나면 지운다) `vitest.config.ts`가 실행마다 `/tmp/agentmux-vitest-tmux-*` directory를 만들고 지우지 않는다(2026-11-11 기준 123개).
     Subagent의 삭제는 auto mode가 막아 Claude가 대신 지우지 않았다. 정리(`rm -rf /tmp/agentmux-vitest-tmux-*`)는 사용자가
     실행하고, 설정이 test 종료 때 지우도록 고친다.
 - 다음 Claude live 확인 때 볼 미검증 항목(단계 2 최종 검토): 병렬 tool 호출에서 자동 승인된 tool 결과가 권한 요청 뒤에
   기록될 때 needs-input이 잘못 풀리는지, 웹 trust 카드 경로(xterm buffer → 카드 → stdin)의 browser 확인, 모바일 보기 전환
   메뉴의 browser 확인(440px 미만), AskUserQuestion·plan 승인이 `permission_prompt` 알림을 보내는지.
 - Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력).
-- 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
+- (해결: 설계 2-1 PR #54·#55, 설계 2-2 PR #56, 설계 3 PR #62·#63) 설계 2(Codex 보조 + 일반 UI), 설계 3(회신·상호 리뷰, agent split 포함 여부 결정) 순서로 brainstorming.
 - npm 첫 배포(보류), `v0.5.0` tag 정책, data 실제 이전은 앞선 인계의 Follow-Up 그대로.
 - 단계 3 후속(2026-11-11 live 확인에서):
   - Live `new-tabs` mode에서는 새 plain Terminal 탭이 Runtime v2라 agent 보기 제안이 뜨지 않는다(v1 Terminal 탭만). Runtime v2

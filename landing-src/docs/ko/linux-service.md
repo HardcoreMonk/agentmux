@@ -7,7 +7,7 @@ permalink: /ko/docs/linux-service/index.html
 {% from "docs/callouts.njk" import callout %}
 
 agentmux의 운영 기준은 한 Linux 사용자 계정이 custom server, Runtime v2 worker, tmux,
-Codex JSONL과 app DB를 소유하는 단일 엔진입니다. Browser와 선택 client는 이 engine에
+Codex·Claude Code JSONL과 app DB를 소유하는 단일 엔진입니다. Browser와 선택 client는 이 engine에
 접속합니다.
 
 ## Source build
@@ -20,7 +20,7 @@ corepack pnpm install --frozen-lockfile
 corepack pnpm build
 ```
 
-Node.js 20.9 이상, tmux 3.0 이상과 로그인된 Codex CLI가 필요합니다. `WorkingDirectory`와
+Node.js 20.9 이상, tmux 3.0 이상과 로그인된 Codex 또는 Claude Code CLI(하나면 됩니다)가 필요합니다. `WorkingDirectory`와
 `ExecStart`는 실제 checkout과 `command -v node`의 절대 경로를 사용합니다.
 
 ## User service
@@ -52,7 +52,7 @@ WantedBy=default.target
 ```
 
 `~/.config/systemd/user/agentmux.service`에 저장한 뒤 시작합니다. `PATH`에는 실제 Node,
-Codex CLI와 tmux를 찾을 수 있는 directory를 지정합니다.
+Codex·Claude Code CLI와 tmux를 찾을 수 있는 directory를 지정합니다.
 
 ```bash
 systemctl --user daemon-reload
@@ -85,6 +85,8 @@ corepack pnpm build
 systemctl --user restart agentmux.service
 curl -fsS http://127.0.0.1:8122/api/health
 ```
+
+source checkout에서는 `corepack pnpm deploy:local`이 이 과정을 보호해 줍니다. `pnpm install --frozen-lockfile`과 type check를 먼저 통과해야 하고, `.next`와 `dist`를 `.deploy-backup/`에 snapshot한 뒤 build합니다. build가 실패하면 snapshot을 복원하고 service를 restart하지 않으며, 성공했을 때만 `systemctl --user restart`와 health 확인을 진행합니다. `deploy:local`은 운영 DB를 backup하지 않으므로 위 "배포 전 backup" 단계는 따로 수행합니다.
 
 인증된 worker 상태:
 

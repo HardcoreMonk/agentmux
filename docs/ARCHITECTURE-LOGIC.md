@@ -1,7 +1,7 @@
 # 아키텍처와 서비스 로직
 
 agentmux는 Next.js Pages Router와 custom Node server를 함께 사용하는 코딩 에이전트 웹 세션
-매니저입니다 (현재 Codex 지원, Claude Code 지원 예정). Active runtime은 Linux 단일 엔진 호스트이며 Runtime v2 worker와 Linux tmux
+매니저입니다 (Codex와 Claude Code 지원). Active runtime은 Linux 단일 엔진 호스트이며 Runtime v2 worker와 Linux tmux
 adapter가 함께 동작합니다. Windows installer/updater 기록은 별도 배포면의 역사적 근거로
 보존합니다.
 
@@ -57,13 +57,15 @@ Runtime v2는 Supervisor와 worker process로 terminal, storage, timeline, statu
 6. process-scoped UploadServer를 만들고 Next.js request handler보다 앞에 연결합니다.
 7. typed WebSocket route와 health/smoke endpoint를 연결합니다.
 
+Bootstrap 뒤에는 tmux session을 훑고 config와 workspace store를 초기화한 다음 `ensureDelegationAssets()`로 위임 shim(`<dataDir>/bin/agentmux`)과 Claude 위임 안내 파일(`delegation/claude.md`)을 쓰고, 그다음 `autoResumeOnStartup`을 실행합니다. 안내 파일 쓰기가 실패해도 시작은 계속하고 warning만 남깁니다.
+
 서버 시작 중 runtime v2 core worker가 준비되지 않으면 해당 surface는 명확한 diagnostic을 반환해야 합니다. Governance Worker는 비핵심 worker이므로 준비 실패가 terminal/storage/timeline/status 시작을 막지 않고 governance surface만 degraded로 둡니다. 브라우저는 stale tab을 조용히 busy/idle로 표시하지 않아야 합니다.
 
 ## HTTP와 WebSocket 라우팅
 
 | 경로 | 용도 |
 | --- | --- |
-| `/api/health` | public health probe. app/version/commit/buildTime 반환 |
+| `/api/health` | public health probe. app/product/version/commit/buildTime 반환 |
 | `/api/terminal` | legacy terminal WebSocket |
 | `/api/v2/terminal` | runtime v2 terminal WebSocket |
 | `/api/timeline` | timeline WebSocket. mode에 따라 legacy 또는 worker backend |
@@ -293,6 +295,8 @@ Storage Worker는 Approved Project Root와 Managed Project의 canonical path를 
 Codex hook event는 server provider가 만든 `hooks.SessionStart`, `hooks.UserPromptSubmit`, `hooks.Stop` session override가 standalone `~/.agentmux/status-hook.cjs`(legacy 실제 경로 `~/.codexmux/status-hook.cjs`)를 호출해 들어옵니다. Bridge는 CLI token과 tab/session/expiry capability를 loopback API에 전달하고 실패 시에도 Codex action을 막지 않습니다. Hook 명령은 탭과 무관하게 고정이고 탭 값(`AMUX_HOOK_SESSION`, `AMUX_HOOK_CAPABILITY`)은 실행 명령 앞 환경 변수로 넘어가므로, 사용자가 Codex 검토 화면에서 한 번 준 hook trust가 유지됩니다(ADR-038). 화면 기반 준비 판정과 웹 카드는 `codex-screen.ts`, `codex-screen-tracker.ts`가 맡습니다. User/project/managed/plugin hook은 native Codex layer discovery가 보존하며 agentmux가 사용자 TOML을 병합하지 않습니다.
 
 Claude Code hook event는 탭별 `--settings` 파일의 SessionStart, UserPromptSubmit, Notification, Stop, StopFailure, PreCompact, PostCompact hook이 같은 bridge를 호출해 들어옵니다. Bridge는 hook stdin에서 `session_id`, `transcript_path`, `source`, `notification_type`만 보내고, provider flag `bindSessionFromHook`이 켜진 Claude Code 탭은 새 session id(`/clear`, `/resume`, fork)로 status entry와 layout을 다시 묶습니다. 사용자 `~/.claude/` 설정은 읽기만 합니다. 자세한 규칙은 `STATUS.md` "Claude Code hook 상태 경로"에 있습니다.
+
+위임으로 만든 자식 agent 탭(`createdByTabId`)이 `ready-for-review`나 `needs-input`이 되면 `StatusManager`가 만드는 `AgentReportService`(`agent-report-service.ts`)가 부모 agent 탭의 입력창에 `[agentmux report …]` 보고를 씁니다. 부모가 `idle`/`ready-for-review`이고 입력창이 비어 있을 때만 쓰고, 아니면 부모별 대기열(`agent-report-queue.ts`)에 둡니다. 사람 입력 없이 5회 연속 보고하면 멈추고 30분이 지난 보고는 버리며, 두 경우 모두 사람에게 알립니다. 대기열은 `StatusManager`(Runtime v2에서는 status worker) 메모리에만 있어 서버 재시작 때 사라집니다. 규칙은 `CLI.md` "자동 보고"와 ADR-039에 있습니다.
 
 Rate limit은 provider별로 둡니다. Codex JSONL tail의 `token_count/rate_limits` observation은 작업 상태 scan과 같은 read에서 추출하고, Claude Code 값은 statusLine script가 보낸 `rate_limits`에서 받습니다. Window별 `observed_at`을 기준으로 newest merge/dedupe하고 reset 뒤 관찰이 없으면 `갱신 대기` 상태를 유지합니다.
 

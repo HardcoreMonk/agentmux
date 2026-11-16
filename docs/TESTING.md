@@ -18,6 +18,8 @@ corepack pnpm test
 `next.config.ts`는 `turbopack.root=process.cwd()`로 active checkout을 고정합니다. 저장소 아래
 `.worktrees/`에서 build해도 parent checkout의 `.next/standalone`을 잘못 읽거나 쓰지 않아야 합니다.
 
+`vitest.config.ts`는 run마다 임시 `TMUX_TMPDIR`을 만들어 test가 실제 tmux socket을 건드리지 않게 하고, run이 끝나면 그 directory를 지웁니다.
+
 Canonical 문서 경계나 `landing-src/`를 바꾸면 landing build도 실행합니다.
 
 ```bash
@@ -509,9 +511,22 @@ corepack pnpm vitest run tests/unit/lib/providers.test.ts
 
 검증 기준:
 
-- Codex provider contract 위반 없음
+- Codex와 Claude Code provider contract 위반 없음
 - invalid provider id, empty display name, invalid panel type 감지
 - duplicate provider id와 duplicate panel type 감지
+
+Claude Code provider, 위임 CLI와 agent 자동 보고 변경:
+
+```bash
+corepack pnpm exec vitest run tests/unit/lib/claude-command.test.ts tests/unit/lib/claude-tab-settings.test.ts tests/unit/lib/claude-provider-launch.test.ts tests/unit/lib/claude-session-detection.test.ts tests/unit/lib/delegation-guide.test.ts tests/unit/lib/agent-report.test.ts tests/unit/lib/agent-report-queue.test.ts tests/unit/lib/agent-report-service.test.ts tests/unit/lib/status-agent-reports-wiring.test.ts tests/unit/bin/cli-tab-commands.test.ts tests/unit/pages/cli-tabs-send-api.test.ts
+```
+
+검증 기준:
+
+- 탭 설정 파일의 hook 7개, statusLine과 `permissions.allow` 6개, 실행·재개 command flag
+- 위임 환경 변수, shim과 안내 파일 내용, `tab send`/`create`/`close` 위임 제한과 오류 code
+- 자동 보고의 형식, 입력창 비움 판정, 대기열(5회 제한, 30분 만료)과 `StatusManager` 연결
+- Codex 화면 판정과 첫 입력 전 상태는 `tests/unit/lib/codex-screen.test.ts`, `tests/unit/lib/codex-screen-tracker.test.ts`, `tests/unit/lib/status-state-machine.test.ts`
 
 Codex launch/resume command 또는 hook override 변경:
 

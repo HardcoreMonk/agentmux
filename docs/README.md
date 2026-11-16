@@ -22,7 +22,7 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `ARCHITECTURE-LOGIC.md` | Linux engine, runtime worker, Session Catalog, Project Governance와 API 흐름 |
 | `RUNTIME-V2-CUTOVER.md` | runtime v2 production 전환 단계와 rollback 기준 |
 | `RUNTIME-V2-PARITY.md` | runtime v2 surface별 parity와 증거 |
-| `STATUS.md` | Codex 작업 상태 감지, notification, timeline metadata |
+| `STATUS.md` | agent(Codex, Claude Code) 작업 상태 감지, notification, timeline metadata |
 | `TMUX.md` | Linux tmux adapter와 terminal WebSocket 계약 |
 | `DATA-DIR.md` | `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`) 저장 구조와 삭제 기준 |
 | `CLI.md` | `agentmux` CLI 명령, 환경 변수, 위임 안내와 위임 제한, 오류 code, Codex 제약 |
@@ -52,7 +52,8 @@ snapshot이고 완성된 번역으로 보지 않습니다. 작성,
 | `operations/2026-08-23-navigation-selection-clarity-handoff.md` | Workspace/Sessions/Governance 탐색 명료화, lifecycle IPC hotfix, live 배포와 rollback 기준 |
 | `operations/2026-08-24-public-site-opencodex-renewal-handoff.md` | Public home/docs 공통 shell 리뉴얼, Pages 배포와 live desktop/mobile smoke |
 | `operations/2026-11-09-agentmux-rename-handoff.md` | agentmux 이름 변경과 tmux 서버 분리 release, live 전환·재부팅 검증, npm 배포 보류 |
-| `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | Multi-agent(Claude Code + Codex) 설계 논의 중간 상태, Herdr 보충 감사, Android 재빌드 확인 |
+| `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | Multi-agent(Claude Code + Codex) 설계 1~3 구현·검증·live 배포 기록(최신 배포 build `f61031a1`), Herdr 보충 감사, Android 재빌드 확인 |
+| `operations/2026-11-16-canonical-documentation-refresh-handoff.md` | 2026-11 canonical/landing 문서 감사 범위, 현행 기준과 보존 정책 |
 
 보존된 Windows stable release `v0.4.22`는 같은 hostname의 Purplemux와 동시 실행하기 위한 cookie namespace 수정을
 포함하고 fresh Windows package/published updater와 privacy gate를 통과해 stable/latest로
@@ -85,6 +86,8 @@ desktop/mobile current/selection 상태를 확인했습니다. Public npm `lates
 2026-08-24에는 public home/docs shell을 `b0bfed43`으로 GitHub Pages에 배포했습니다. 두 Pages
 workflow와 final HTTPS desktop/mobile smoke에서 theme, search, menu, locale/docs selection,
 hero/OG asset, overflow와 page error 0건을 확인해 public surface가 `operate`에 진입했습니다.
+
+2026-11에는 제품 이름을 agentmux로 바꾸고(2026-11-09, ADR-033/034, tmux socket 이름과 legacy 실제 경로 `~/.codexmux`는 유지, npm 배포는 보류) 사용자 결정으로 Multi-agent 설계 1→3을 구현해 live service에 배포했습니다. 설계 1은 Claude Code provider와 공통 agent UI, 위임 안내와 `agentmux tab` CLI(ADR-035~037, `CLI.md`), 설계 2는 Codex 보조(hook trust 유지, 시작 화면 응답, ADR-038)와 desktop Git side panel·모바일 재연결 새로고침 안내, 설계 3은 agent 자동 보고(ADR-039)와 후속 결정(Codex 승인 정책, `send-to-parent` 거절)입니다. 같은 기간 `deploy:local`에 frozen install, deploy-check tsc, `.deploy-backup` 복원을 보강했고, 터치 중심 기기의 모바일 layout과 iPad 홈 화면 웹 앱 안내(`IPAD.md`)를 추가했습니다. 2026-11-16 build `f61031a1`을 `agentmux.service`(port `8122`)에 배포했으며 상세 기록은 `operations/2026-11-09-agentmux-rename-handoff.md`와 `operations/2026-11-10-multi-agent-brainstorming-handoff.md`에 있습니다.
 
 Root `CONTEXT.md`는 도메인 언어와 기준 소스 경계를, root `DESIGN.md`는
 UI 시각 계약을 담당합니다.

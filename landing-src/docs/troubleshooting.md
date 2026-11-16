@@ -27,7 +27,7 @@ journalctl --user -u agentmux.service -n 100 --no-pager
 curl -fsS http://127.0.0.1:8122/api/health
 ```
 
-Unit의 `WorkingDirectory`, `ExecStart` Node 절대 경로, `PATH`, tmux와 Codex CLI login을
+Unit의 `WorkingDirectory`, `ExecStart` Node 절대 경로, `PATH`, tmux와 사용하는 agent CLI(Codex, Claude Code) login을
 확인합니다. Source를 갱신했다면 `CI=true corepack pnpm install --frozen-lockfile`과
 `corepack pnpm build`를 먼저 실행합니다.
 
@@ -186,6 +186,9 @@ Linux engine의 tmux adapter 상태는 `tmux -L codexmux ls`로 확인합니다.
 
 저장된 `agentSessionId`와 `~/.codex/sessions/**/*.jsonl`이 있어야 `codex resume <sessionId>`를 사용할 수 있습니다. JSONL이 삭제됐거나 project가 이동했다면 새 Codex session을 시작하세요. `~/.codex/`는 Codex CLI 소유 영역이므로 agentmux reset 과정에서 삭제하지 않습니다.
 
+
+Claude Code 탭은 저장된 session UUID로 `claude --resume <uuid>`를 씁니다. Claude Code는 첫 prompt 전에는 transcript를 만들지 않으므로, 아직 prompt를 보내지 않은 탭은 같은 id로 `--session-id`를 다시 씁니다. agentmux는 `~/.claude/` 설정을 읽기만 합니다.
+
 ### CODEX 화면이 계속 연결 중이에요
 
 먼저 Electron/browser를 reload하고 `/api/health`의 commit이 현재 build인지 확인합니다. Source tree에서는 다음 smoke로 timeline init과 늦게 생성되는 JSONL mapping을 확인합니다.
@@ -194,6 +197,17 @@ Linux engine의 tmux adapter 상태는 `tmux -L codexmux ls`로 확인합니다.
 corepack pnpm smoke:runtime-v2:timeline-websocket-default
 corepack pnpm smoke:runtime-v2:timeline-session-changed
 ```
+
+
+### Codex 탭에 hook 검토, 업데이트, 폴더 접근 화면이 떠 있어요
+
+Codex가 시작하면서 hook 검토 화면, 업데이트 안내, 폴더 접근(신뢰) 질문을 띄우면 입력창이 막힙니다. agentmux는 이 화면을 읽어 웹에 카드를 보여주므로 terminal 대신 카드 버튼으로 답할 수 있습니다.
+
+- **Codex hook 검토** — **모두 trust하고 계속**은 바뀐 hook이 모두 agentmux가 붙인 것일 때만 보입니다. agentmux 밖의 hook이 섞여 있으면 terminal의 Review hooks에서 목록을 직접 확인해야 합니다. Trust는 한 번 주면 유지되고, Node 경로, data dir, hook 구성이 바뀌면 한 번 더 뜹니다.
+- **Codex 업데이트** — **Update now**, **Skip**, **Skip until next version** 중에서 고릅니다.
+- **폴더 신뢰** — **이 폴더 신뢰** 또는 **종료**를 고릅니다.
+
+이 화면이 떠 있는 동안 `agentmux tab send` 같은 위임 입력은 대상 탭이 준비되지 않았다고 거절되며, agentmux는 사용자 대신 답하지 않습니다.
 
 ### 모든 tab이 `unknown` 또는 `busy`에 머물러요
 
@@ -241,6 +255,9 @@ Open internet의 plain HTTP는 terminal/WebSocket payload를 암호화하지 않
 PWA/mobile browser와 Capacitor Android는 실행 중인 Linux engine에 접속하는 선택 client입니다.
 Background 복귀 문제는 terminal/status/timeline/sync WebSocket을 다시 연결한 뒤 판단하세요.
 
+
+모바일 화면이 보이는 상태에서 재연결이 연속 5번 실패하면 "연결이 계속 실패합니다. 새로고침하면 복구될 수 있습니다." 배너와 **새로고침** 버튼이 나타납니다. 재연결 시도는 계속되고 자동으로 새로고침하지 않으므로, 입력 중인 내용을 정리한 뒤 버튼을 누르세요.
+
 ### Web Push가 오지 않아요
 
 HTTPS, browser notification permission, 앱의 알림 설정, `~/.agentmux/push-subscriptions.json`을 확인합니다. iOS는 Safari 16.4 이상에서 홈 화면에 추가한 PWA가 필요합니다.
@@ -249,7 +266,7 @@ HTTPS, browser notification permission, 앱의 알림 설정, `~/.agentmux/push-
 
 ### 데이터는 어디에 있나요?
 
-앱 상태는 Linux service user의 `~/.agentmux/`, Codex 원본 session은 `~/.codex/`에 있습니다. Upload artifact는 `~/.agentmux/uploads/<workspace>/<tab>/`에 저장되고 기본 24시간 TTL cleanup 대상입니다.
+앱 상태는 Linux service user의 `~/.agentmux/`, Codex 원본 session은 `~/.codex/`, Claude Code 원본 session은 `~/.claude/`에 있습니다. Upload artifact는 `~/.agentmux/uploads/<workspace>/<tab>/`에 저장되고 기본 24시간 TTL cleanup 대상입니다.
 
 ### 외부 network request가 있나요?
 

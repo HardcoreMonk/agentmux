@@ -1,18 +1,22 @@
 ---
 title: Documentation
-description: Install agentmux, operate live and historical Codex sessions, and govern project context.
+description: Install agentmux, operate live and historical Codex and Claude Code sessions, and govern project context.
 eyebrow: Start here
 permalink: /docs/index.html
 ---
-<p>Guides for the Linux single-engine runtime, live Codex control, Session Operations, Project Governance, and recovery.</p>
+<p>Guides for the Linux single-engine runtime, live Codex and Claude Code control, Session Operations, Project Governance, and recovery.</p>
 
 <div class="doc-home-start">
   <div>
     <span class="doc-home-kicker">Install · Start · Open</span>
     <h2>Start a first session in three minutes.</h2>
-    <p>Requires Node.js 20.9+, tmux 3.0+, and an authenticated Codex CLI.</p>
+    <p>Requires Node.js 20.9+, tmux 3.0+, and an authenticated Codex CLI or Claude Code CLI.</p>
   </div>
-  <pre><code>npx --yes @hardcoremonk/agentmux@latest
+  <pre><code>git clone https://github.com/HardcoreMonk/agentmux.git
+cd agentmux
+corepack enable
+corepack pnpm install
+corepack pnpm dev
 # http://127.0.0.1:8122</code></pre>
   <div class="doc-home-actions">
     <a href="/agentmux/docs/quickstart/">Human quickstart</a>
@@ -22,7 +26,7 @@ permalink: /docs/index.html
 <div class="doc-home-featured">
   <a href="/agentmux/docs/session-operations/">
     <span>Session Operations</span>
-    <strong>Search and replay durable Codex work.</strong>
+    <strong>Search and replay durable Codex and Claude Code work.</strong>
     <small>Session Catalog · filters · annotations · rebuild</small>
   </a>
   <a href="/agentmux/docs/project-governance/">

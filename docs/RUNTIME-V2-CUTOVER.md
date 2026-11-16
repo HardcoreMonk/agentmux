@@ -15,6 +15,7 @@ Linux 단일 엔진의 실행 기반입니다. Windows terminal adapter와 packa
 - Linux Session Operations/Governance gate와 Phase 6 default gate가 active runtime release
   기준입니다. Windows release/package gate는 Windows 배포면을 변경할 때만 추가합니다.
 - `0.4.16` 기준 packaged/installed/rollback Phase 6 증거는 완료되었습니다.
+- 2026-11 multi-agent 작업(설계 1~3) 뒤에도 Runtime v2 구조는 같습니다. Agent 탭(Codex, Claude Code)은 legacy tmux adapter로 만들고(ADR-037), Runtime v2 terminal 탭의 Git folder는 terminal worker `terminal.session-info`로 읽으며, Runtime v2 tmux socket이 없어도 stale 탭을 failed로 정리합니다.
 - `v0.4.20` fresh Windows package/release gate는 packaged upload integrity를 포함해 최초
   통과했고, `v0.4.21`은 privacy-safe evidence를 재검증했습니다. `v0.4.22`는 실제
   `v0.4.21 -> v0.4.22` updater, packaged Runtime v2와 세 artifact privacy gate를 반복했습니다.
@@ -53,6 +54,8 @@ Linux 단일 엔진의 실행 기반입니다. Windows terminal adapter와 packa
 | `CODEXMUX_SESSION_CATALOG_MODE` | `off`, `shadow`, `default` | Session Catalog serving 전환. unset 기본값은 `shadow`, live service는 `default` |
 | `CODEXMUX_RUNTIME_TERMINAL_ADAPTER` | `tmux`, `windows` | terminal infrastructure adapter |
 | `CODEXMUX_PROCESS_INSPECTOR_ADAPTER` | `posix`, `windows` | process inspector adapter |
+
+이름 변경(ADR-033) 뒤 기본 이름은 `AGENTMUX_*`이고(`AGENTMUX_RUNTIME_V2`, `AGENTMUX_RUNTIME_TERMINAL_V2_MODE` 등) `CODEXMUX_*`는 legacy 호환입니다. 아래 rollback 값의 `CODEXMUX_` 접두어도 같은 규칙입니다.
 
 ## 0단계: 동등성 목록화
 
@@ -108,7 +111,7 @@ terminal 요청뿐입니다. `src/pages/api/layout/pane/[paneId]/tabs/index.ts`�
 인증, 상태 감시, timeline process 찾기, storage `panel_type` 구분, 화면 캡처와 key 입력)은 Claude Code
 provider 설계 범위 밖의 후속 작업입니다. 결정 근거는
 `superpowers/specs/2026-11-10-claude-code-provider-design.md` 1절과
-`superpowers/reviews/2026-11-10-claude-code-provider-phase1-eng-review.md` #1이며, ADR-037 후보(Draft)입니다.
+`superpowers/reviews/2026-11-10-claude-code-provider-phase1-eng-review.md` #1이며, ADR-037(Accepted, 2026-11-11)에 기록했습니다.
 회귀 test는 `tests/unit/pages/layout-tabs-api.test.ts`입니다.
 
 검증:

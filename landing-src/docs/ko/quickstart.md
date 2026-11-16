@@ -6,12 +6,12 @@ permalink: /ko/docs/quickstart/index.html
 ---
 {% from "docs/callouts.njk" import callout %}
 
-agentmux는 여러 Codex workspace, session, tab을 관리하는 Codex 중심 session manager입니다.
-현재 active runtime은 Linux 단일 엔진이며 한 host가 Runtime v2 worker, tmux, Codex JSONL,
+agentmux는 여러 workspace, session, tab에서 Codex와 Claude Code 작업을 관리하는 agent session manager입니다.
+현재 active runtime은 Linux 단일 엔진이며 한 host가 Runtime v2 worker, tmux, Codex·Claude Code JSONL,
 Session Catalog와 승인 project read를 소유합니다.
 
 {% call callout('note', '현재 배포 기준') %}
-Public npm package는 `@hardcoremonk/agentmux@0.5.0`(이전 package `codexmux@0.4.23`)입니다. Windows Electron package는 별도 배포면의
+Public npm package는 아직 이전 package `codexmux@0.4.23`이며 `@hardcoremonk/agentmux@0.5.0`은 배포 전입니다. Windows Electron package는 별도 배포면의
 보존된 release surface이며 Linux engine 설치를 대체하지 않습니다.
 {% endcall %}
 
@@ -22,9 +22,14 @@ Linux engine에는 다음이 필요합니다.
 - **Node.js 20.9 이상** — `node -v`로 확인
 - **tmux 3.0 이상** — `tmux -V`로 확인
 - **Git** — `git --version`으로 확인
-- **Codex CLI** — `codex --version`과 login 상태 확인
+- **Codex CLI 또는 Claude Code CLI** — `codex --version` 또는 `claude --version`과 login 상태 확인. 하나만 있어도 시작할 수 있습니다
 
 ## npm package 실행
+
+
+{% call callout('warning', 'npm 미배포') %}
+`@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았습니다. 배포 전까지는 source checkout으로 실행하세요(`git clone https://github.com/HardcoreMonk/agentmux.git`).
+{% endcall %}
 
 ```bash
 npx --yes @hardcoremonk/agentmux@latest
@@ -53,9 +58,9 @@ Production build와 장기 실행은 [설치](/agentmux/ko/docs/installation/)�
 1. `http://127.0.0.1:8122`를 로컬에서 엽니다.
 2. 비밀번호, locale, theme, network access를 설정합니다.
 3. 외부 access가 필요하면 setup 완료 후 `HOST` 범위를 명시하고 service를 재시작합니다.
-4. workspace를 만들고 **Codex** tab을 엽니다.
+4. workspace를 만들고 **Codex** 또는 **Claude Code** tab을 엽니다.
 
-Codex tab은 Runtime v2 Terminal Worker와 Linux tmux adapter를 사용합니다. 화면의 고정 1차
+Codex와 Claude Code tab은 legacy tmux adapter(Runtime v1)로 실행합니다. Runtime v2는 아직 agent tab을 지원하지 않습니다. Runtime v2를 켠 service(`AGENTMUX_RUNTIME_V2=1`)에서 새로 여는 plain Terminal tab은 Runtime v2 Terminal Worker와 Linux tmux adapter를 사용합니다. 화면의 고정 1차
 탐색에서 **워크스페이스**, **세션**, **거버넌스**를 전환합니다. **세션**에서는 과거 session
 검색·replay·annotation을, **거버넌스**에서는 승인한 project의 guidance, knowledge, lifecycle과
 audit read model을 확인할 수 있습니다. Workspace 내부 **활동**은 Session Catalog와 다른 운영

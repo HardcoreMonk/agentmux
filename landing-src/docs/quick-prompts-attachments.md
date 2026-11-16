@@ -25,7 +25,7 @@ permalink: /docs/quick-prompts-attachments/index.html
 본문에 작성한 내용은 그대로 전송됩니다 — 슬래시 커맨드, 멀티라인 프롬프트, "에디터에 열린 파일을 설명하고 개선점을 한 가지 제안해줘" 같은 템플릿 요청도 가능합니다. 전송 시 prompt 본문은 bracketed paste frame으로 들어가며 Enter가 같은 frame에 포함됩니다. 긴 입력 확인 흐름을 위해 후속 Enter도 한 번 더 보냅니다.
 
 {% call callout('tip', '슬래시 커맨드도 됩니다') %}
-퀵 프롬프트는 Codex 슬래시 커맨드를 한 번에 트리거하는 용도로 잘 어울립니다. `/review`를 가리키는 "Review this PR" 칩 하나로 매번 몇 번의 키 입력을 줄일 수 있습니다.
+퀵 프롬프트는 Codex와 Claude Code의 슬래시 커맨드를 한 번에 트리거하는 용도로 잘 어울립니다. `/review`를 가리키는 "Review this PR" 칩 하나로 매번 몇 번의 키 입력을 줄일 수 있습니다.
 {% endcall %}
 
 ## 이미지 드래그 앤 드롭
@@ -44,7 +44,7 @@ permalink: /docs/quick-prompts-attachments/index.html
 
 같은 클립 아이콘은 이미지가 아닌 파일에도 동작합니다 — markdown, JSON, CSV, 소스 파일 등 무엇이든. `/api/upload-file`은 파일 한 개당 **50MiB**까지 받고, 저장된 artifact 경로를 현재 cursor 위치에 바로 삽입합니다. 일반 파일은 image thumbnail chip이나 20개 image limit에 포함되지 않습니다.
 
-두 upload route는 outer custom server가 Next.js보다 먼저 처리합니다. Browser session cookie와 same-authority Origin 또는 유효한 `x-cmux-token`이 필요하며, 성공한 파일은 임시 OS directory가 아니라 앱 data directory에 남습니다. Committed artifact는 기본 24시간 TTL cleanup 대상이고, 실패한 transaction stage는 즉시 제거를 시도한 뒤 남으면 최소 30분 후 stale cleanup이 처리합니다.
+두 upload route는 outer custom server가 Next.js보다 먼저 처리합니다. Browser session cookie와 same-authority Origin 또는 유효한 `x-agentmux-token`이 필요하며, 성공한 파일은 임시 OS directory가 아니라 앱 data directory에 남습니다. Committed artifact는 기본 24시간 TTL cleanup 대상이고, 실패한 transaction stage는 즉시 제거를 시도한 뒤 남으면 최소 30분 후 stale cleanup이 처리합니다.
 
 다른 머신에서 붙여넣은 스택 트레이스나 다른 프로젝트의 설정 파일처럼, Codex가 직접 닿을 수 없는 것을 공유하기에 가장 쉬운 방법입니다.
 
@@ -70,7 +70,7 @@ permalink: /docs/quick-prompts-attachments/index.html
 | <kbd>⌘I</kbd> / <kbd>Ctrl+I</kbd> | 세션 뷰 어디서든 입력에 포커스 |
 | <kbd>Enter</kbd> | 전송 |
 | <kbd>⇧Enter</kbd> | 줄바꿈 삽입 |
-| <kbd>Esc</kbd> | Codex가 busy일 때 interrupt 전송 |
+| <kbd>Esc</kbd> | 입력창에서 나와 terminal로 포커스 이동 |
 | <kbd>↑</kbd> | (입력 비어 있을 때) 메시지 히스토리 거슬러 올라가기 |
 
 ## 다음으로

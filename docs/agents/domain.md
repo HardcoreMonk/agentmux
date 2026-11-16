@@ -39,9 +39,9 @@
 
 | 표준 용어 | 의미 |
 | --- | --- |
-| 코딩 에이전트 웹 세션 매니저 | 코딩 에이전트 CLI 세션을 관리하는 agentmux 제품 정체성 (현재 Codex 지원, Claude Code 지원 예정) |
+| 코딩 에이전트 웹 세션 매니저 | 코딩 에이전트 CLI 세션을 관리하는 agentmux 제품 정체성 (Codex와 Claude Code 지원) |
 | Linux 단일 엔진 호스트 | server, worker, tmux, Codex JSONL, app DB와 project read를 소유하는 host |
-| Session Catalog | Codex JSONL에서 계산한 session metadata와 search projection |
+| Session Catalog | agent JSONL(Codex, Claude Code)에서 계산한 session metadata와 search projection |
 | Managed Project | 승인된 canonical root와 governance policy를 가진 project aggregate |
 | Approved Project Root | project 등록, import, scan을 허용한 Linux filesystem capability |
 | Project Governance | guidance, knowledge, check, audit를 제공하는 bounded context |

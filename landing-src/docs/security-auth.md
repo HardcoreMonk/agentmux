@@ -44,7 +44,7 @@ Purplemux가 계속 로그인 화면이나 `401`을 보이면 Purplemux에도 �
 
 잊어버렸다면 server가 완전히 종료됐는지 확인하고 config를 먼저 백업한 뒤
 `authPassword`와 `authSecret`을 함께 제거합니다. `config.json` 전체 삭제는 locale, theme,
-network, Codex option까지 초기화하므로 기본 reset 절차가 아닙니다.
+network, Codex·Claude Code option까지 초기화하므로 기본 reset 절차가 아닙니다.
 
 ```powershell
 $configPath = Join-Path $HOME ".codexmux\config.json"
@@ -80,6 +80,8 @@ iOS Safari는 PWA 설치와 Web Push 등록에 HTTPS를 추가로 요구합니�
 | `cmux.lock` | 단일 인스턴스 락 (`pid`, `port`, `startedAt`) |
 | `runtime-v2/state.db` | workspace/layout/tab/message-history projection |
 | `uploads/<workspace>/<tab>/` | 인증된 첨부 upload의 committed artifact와 transaction stage |
+
+| `claude-tabs/<tab-id>.json` | Claude Code 탭별 설정 파일(hook과 statusLine, 탭 capability 포함). 파일 `0600` |
 | `logs/` | pino-roll 로그 파일 |
 
 전체 목록과 리셋 표는 source-of-truth인 [docs/DATA-DIR.md](https://github.com/HardcoreMonk/agentmux/blob/main/docs/DATA-DIR.md)에 정리되어 있습니다.
