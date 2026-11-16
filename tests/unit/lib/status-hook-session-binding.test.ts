@@ -130,8 +130,34 @@ describe('decideNeedsInputJsonlExit', () => {
     expect(decideNeedsInputJsonlExit({
       ...input,
       behavior: behavior({ leaveNeedsInputOnJsonlGrowth: false }),
+      interrupted: false,
     })).toBe('none');
     expect(decideNeedsInputJsonlExit({ ...input, behavior: null })).toBe('none');
+    expect(decideNeedsInputJsonlExit({ ...input, behavior: null, interrupted: true })).toBe('none');
+  });
+
+  it('returns idle on an abort newer than needs-input even when the growth flag is off', () => {
+    expect(decideNeedsInputJsonlExit({
+      ...input,
+      behavior: behavior({ leaveNeedsInputOnJsonlGrowth: false }),
+      interrupted: true,
+    })).toBe('idle');
+  });
+
+  it('returns none on an abort equal to or older than needs-input when the growth flag is off', () => {
+    const flagOff = behavior({ leaveNeedsInputOnJsonlGrowth: false });
+    expect(decideNeedsInputJsonlExit({
+      ...input,
+      behavior: flagOff,
+      interrupted: true,
+      lastEntryTs: 1_000,
+    })).toBe('none');
+    expect(decideNeedsInputJsonlExit({
+      ...input,
+      behavior: flagOff,
+      interrupted: true,
+      lastEntryTs: 999,
+    })).toBe('none');
   });
 
   it('returns none when the needs-input time is unknown', () => {
