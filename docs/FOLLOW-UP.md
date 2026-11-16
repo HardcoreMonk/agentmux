@@ -356,10 +356,10 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 | 입력창 화면 규칙의 CLI 버전 의존 | `isAgentComposerEmpty`는 Codex `0.169.0`(굵은 `›` 줄과 SGR `2` 흐림 placeholder)과 Claude Code `2.1.325`(`❯`+NBSP 줄, SGR `2` 흐림, 아래 `─` 상자 테두리) 화면 모양을 기준으로 판정함. 두 CLI의 TUI 모양이나 SGR 속성이 바뀌면 fixture와 판정 규칙을 다시 확인해야 함 |
 | prompt 본문 없는 `prompt-submit` 분류 | hook payload에 prompt 문자열이 없을 때는 서버가 보고를 넣은 직후의 첫 `prompt-submit` 하나만 자동 보고로 보고 그 다음 `prompt-submit`부터 사람 입력으로 침 |
 | 대기 보고 재시도 간격 | 입력창에 사람 글이 있거나 막는 화면이라 기다린 보고는 맡긴 탭의 다음 상태 전환이나 상태 주기 확인(탭 수에 따라 30~60초) 때 다시 시도함. 글을 지운 뒤 바로 가지 않고 최대 한 주기를 기다림 |
-| Codex 승인 정책 값 | 설정 `codexApprovalPolicy`가 `untrusted`·`on-failure`를 받지만 Codex `0.169.0`은 `--ask-for-approval`에 `on-request`·`never`만 받아 탭 실행이 실패함(설계 3 격리 live 확인에서 발견) |
-| 거절 뒤 Codex `needs-input` | 사람이 Codex 권한 질문을 Esc로 거절해 "Conversation interrupted"가 된 뒤에도 탭 상태가 `needs-input`에 남음(설계 3 격리 live 확인에서 발견) |
-| 맡은 탭의 직접 `tab send` | 맡은 탭이 `tab send`로 맡긴 탭에 직접 입력하면(설계 1 경로) 맡긴 탭의 `prompt-submit`이 사람 입력으로 세어져 자동 보고 반복 제한이 0으로 돌아감. 막으려면 맡은 탭에서 부모로의 `tab send`를 제한하는 spec 변경이 필요함(설계 3 최종 검토) |
-| 전체 test의 log 쓰기 경쟁 | 설계 3 gate의 전체 실행 1회에서 `tests/unit/lib/layout-store-agent-session.test.ts`가 지운 임시 data dir의 `logs/codexmux.*.log`를 pino-roll이 열려다 `ENOENT` 처리되지 않은 오류가 났음(test는 모두 통과, 종료 코드 1). 단독 3회와 전체 재실행에서는 재현되지 않음. 이 branch가 바꾸지 않은 파일 |
+| Codex 승인 정책 값 | 해결(branch `fix/design3-followups`): 승인 정책 선택지를 Codex `0.169.0`이 받는 `on-request`·`never`로 줄였고(`CODEX_APPROVAL_POLICIES`, `isCodexApprovalPolicy`), config.json에 남은 예전 값(`untrusted`·`on-failure`)은 탭 실행에서 `--ask-for-approval` 없이(CLI 기본값) 띄우고 설정 화면에서 CLI 기본값으로 보이며, 설정 API는 400으로 거절함 |
+| 거절 뒤 Codex `needs-input` | 해결(branch `fix/design3-followups`): Codex는 Esc 거절 때 rollout에 `turn_aborted`를 쓰므로, `decideNeedsInputJsonlExit`가 `needs-input` 전환보다 늦은 중단을 보면 `leaveNeedsInputOnJsonlGrowth`와 관계없이 `idle`로 바꿈(`docs/STATUS.md`) |
+| 맡은 탭의 직접 `tab send` | 해결(branch `fix/design3-followups`, 사용자 결정 2026-11-16 "자동 보고 중엔 거절"): 자동 보고가 켜져 있으면 맡은 탭이 자기를 만든 탭에 보내는 `tab send`를 403 `send-to-parent`로 거절함(ADR-039 후속 결정, `docs/CLI.md`) |
+| 전체 test의 log 쓰기 경쟁 | 해결(branch `fix/design3-followups`): `AGENTMUX_DATA_DIR`를 임시 폴더로 돌리고 지우는 test 8개 파일이 `@/lib/logger`를 mock해 pino-roll file transport를 띄우지 않음 |
 
 ## Codex lifecycle 기준
 

@@ -4,6 +4,7 @@ import {
   buildCodexResumeCommand,
   CODEX_COMMAND_SAFE_BYTES,
   type ICodexCommandOptions,
+  isCodexApprovalPolicy,
   isValidCodexThreadId,
 } from '@/lib/codex-command';
 import { getConfig, type IConfigData } from '@/lib/config-store';
@@ -50,7 +51,7 @@ const log = createLogger('delegation');
 const readCodexCommandOptions = (config: IConfigData): ICodexCommandOptions => ({
   model: config.codexModel?.trim() || undefined,
   sandbox: config.codexSandbox ?? undefined,
-  approvalPolicy: config.codexApprovalPolicy ?? undefined,
+  approvalPolicy: isCodexApprovalPolicy(config.codexApprovalPolicy) ? config.codexApprovalPolicy : undefined,
   search: config.codexSearchEnabled ?? false,
 });
 

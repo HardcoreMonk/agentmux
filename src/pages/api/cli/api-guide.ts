@@ -25,6 +25,8 @@ Errors added for delegation use { "error": "<code>", "message": "<readable text>
   409 agent-unavailable           the agent for panelType is not installed or not compatible
   409 delegation-limit            the workspace already has 6 agent-created tabs
   403 delegation-depth            a tab created by another agent tried to create a tab
+  403 send-to-parent              a tab created by another agent tried to send to the tab that
+                                  created it while agent reports are on (nothing is typed)
   403 delegation-send-forbidden   an agent tried to send to a tab that is not an agent tab
                                   (nothing is typed)
   403 delegation-close-forbidden  an agent tried to close a tab it did not create

@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { isAgentReportText } from '@/lib/agent-report';
 import { verifyCliToken } from '@/lib/cli-token';
+import { getConfig } from '@/lib/config-store';
+import { isAgentReportsEnabled } from '@/lib/delegation-guide';
 import { findTab } from '@/lib/cli-utils';
 import { resolveCliCaller, sendCliError, sendCliServiceError } from '@/lib/cli-caller';
 import { createLogger } from '@/lib/logger';
@@ -54,6 +56,16 @@ const handler = async (req: NextApiRequest, res: NextApiResponse) => {
     // Agents pre-allow `tab send`; typing into a shell tab would run commands without the agent's own approval.
     if (resolved.caller && !isAgentPanelType(tab.panelType)) {
       return sendCliError(res, 403, 'delegation-send-forbidden', 'An agent can send only to agent tabs');
+    }
+    // With reports on, a child reaches its parent only through reports; a direct send would
+    // count as human input on the parent and reset the five-report cap.
+    if (resolved.caller?.tab.createdByTabId === tab.id && isAgentReportsEnabled(await getConfig())) {
+      return sendCliError(
+        res,
+        403,
+        'send-to-parent',
+        'A tab created by another agent reports to that tab automatically and cannot tab send to it',
+      );
     }
 
     const alive = await isTabSessionAlive(tab);

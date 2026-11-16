@@ -37,7 +37,7 @@ const HOW_TO_DELEGATE_REPORTS = `How to delegate:
 6. A "blocked" report means the tab waits for a permission answer. Tell the user to answer it in that tab; you cannot answer it.
 7. After five rounds on the same task, stop and ask the user. agentmux also pauses reports after five in a row.
 8. Reports waiting while the agentmux server restarts are lost; check tab status after a restart.
-If another tab created you: end every turn with a short summary of what you did and what is left (it is forwarded as your report), and do not create tabs (agentmux refuses with delegation-depth).`;
+If another tab created you: end every turn with a short summary of what you did and what is left (it is forwarded as your report), do not create tabs (agentmux refuses with delegation-depth), and do not \`tab send\` to the tab that created you (agentmux refuses with send-to-parent).`;
 
 const GUIDE_LIMITS = `Limits: at most 6 open tabs created by agents per workspace (error delegation-limit). A tab created by another agent cannot create tabs (delegation-depth), and \`tab send\` text must not start with "[agentmux report" (reserved-report-prefix). \`tab send\` refuses a target that is waiting for a permission answer (target-needs-input) or has not started (target-not-ready). Never answer another tab's permission prompt. Do not create tabs in a loop.
 `;
@@ -49,6 +49,10 @@ If the agentmux CLI fails with a network error, your sandbox blocks local networ
 export const isDelegationGuideEnabled = (
   config: Pick<IConfigData, 'agentDelegationGuideEnabled'>,
 ): boolean => config.agentDelegationGuideEnabled !== false;
+
+export const isAgentReportsEnabled = (
+  config: Pick<IConfigData, 'agentDelegationGuideEnabled' | 'agentReportsEnabled'>,
+): boolean => isDelegationGuideEnabled(config) && config.agentReportsEnabled !== false;
 
 export const buildDelegationGuide = (
   provider: TDelegationProvider,

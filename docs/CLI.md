@@ -92,6 +92,7 @@ Codex 위임은 hook trust 뒤에 동작합니다. agentmux가 띄운 Codex는 �
 호출 탭이 있으면 대상은 agent 탭(`claude`, `codex`)이어야 합니다. terminal 탭 등 agent 탭이 아닌 대상은 403 `delegation-send-forbidden`이고 아무것도 입력하지 않습니다. Claude Code는 `tab send`를 미리 허용하므로, shell에 입력이 닿으면 agent 자신의 명령 승인(Bash 권한 확인)을 건너뛰고 shell 명령을 실행하게 되기 때문입니다(ADR-036, 사용자 결정 2026-11-11). 위임 입력은 agent 탭에만 닿고 각 agent 탭은 자체 권한 설정을 따릅니다. 호출 탭이 없는 요청(사람이 실행한 CLI)은 terminal 탭에 확인 없이 입력합니다.
 
 - 호출 탭이 있는 요청에서 입력 앞뒤 공백을 뺀 내용이 `[agentmux report`(`AGENT_REPORT_PREFIX`)로 시작하면 400 `reserved-report-prefix`로 거절하고 아무것도 입력하지 않습니다. 자동 보고 태그 위조를 막기 위한 규칙이며, 사람이 실행한 CLI(호출 탭 없음)는 이 접두어로도 보낼 수 있습니다.
+- 자동 보고가 켜져 있으면(위임 안내 `agentDelegationGuideEnabled`와 `agentReportsEnabled`가 모두 켜짐) 맡은 탭(`createdByTabId`가 있음)이 자기를 만든 탭에 보내는 `tab send`를 403 `send-to-parent`로 거절하고 아무것도 입력하지 않습니다. 맡은 탭의 결과는 turn을 끝낼 때 자동 보고로 전달됩니다. 직접 입력을 허용하면 부모의 `prompt-submit`이 사람 입력으로 세어져 자동 보고 5회 제한이 0으로 돌아가므로, 두 agent가 서로 보내기를 끝없이 반복할 수 있기 때문입니다(사용자 결정 2026-11-16). 자동 보고가 꺼져 있으면 전처럼 보냅니다.
 
 agent 탭에는 다음 경우 입력을 거절합니다.
 
@@ -143,6 +144,7 @@ agent 탭에는 다음 경우 입력을 거절합니다.
 | `reserved-report-prefix` | 400 | 호출 탭이 있는 `tab send`의 내용이 `[agentmux report`로 시작함. 아무것도 입력하지 않음 |
 | `caller-tab-not-found` | 404 | 호출 탭 id를 찾을 수 없음(create, send, close) |
 | `delegation-depth` | 403 | 이미 다른 탭이 만든 맡은 탭(`createdByTabId`가 있음)이 `tab create`를 호출함 |
+| `send-to-parent` | 403 | 자동 보고가 켜져 있을 때 맡은 탭이 자기를 만든 탭에 `tab send`를 호출함. 아무것도 입력하지 않음 |
 | `delegation-send-forbidden` | 403 | 호출 탭이 있는 `tab send`의 대상이 agent 탭(`claude`, `codex`)이 아님. 아무것도 입력하지 않음 |
 | `delegation-close-forbidden` | 403 | 호출 탭이 만들지 않은 탭을 닫으려 함 |
 | `agent-unavailable` | 409 | agent가 설치되어 있지 않음 |

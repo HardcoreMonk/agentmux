@@ -11,6 +11,7 @@ import {
   ensureDelegationAssets,
   getClaudeDelegationGuidePath,
   getDelegationShimDir,
+  isAgentReportsEnabled,
   isDelegationGuideEnabled,
 } from '@/lib/delegation-guide';
 
@@ -49,6 +50,14 @@ describe('isDelegationGuideEnabled', () => {
     expect(isDelegationGuideEnabled({})).toBe(true);
     expect(isDelegationGuideEnabled({ agentDelegationGuideEnabled: true })).toBe(true);
     expect(isDelegationGuideEnabled({ agentDelegationGuideEnabled: false })).toBe(false);
+  });
+});
+
+describe('isAgentReportsEnabled', () => {
+  it('requires both the delegation guide and agentReportsEnabled to be on', () => {
+    expect(isAgentReportsEnabled({})).toBe(true);
+    expect(isAgentReportsEnabled({ agentReportsEnabled: false })).toBe(false);
+    expect(isAgentReportsEnabled({ agentDelegationGuideEnabled: false })).toBe(false);
   });
 });
 
@@ -128,7 +137,7 @@ How to delegate:
 6. A "blocked" report means the tab waits for a permission answer. Tell the user to answer it in that tab; you cannot answer it.
 7. After five rounds on the same task, stop and ask the user. agentmux also pauses reports after five in a row.
 8. Reports waiting while the agentmux server restarts are lost; check tab status after a restart.
-If another tab created you: end every turn with a short summary of what you did and what is left (it is forwarded as your report), and do not create tabs (agentmux refuses with delegation-depth).
+If another tab created you: end every turn with a short summary of what you did and what is left (it is forwarded as your report), do not create tabs (agentmux refuses with delegation-depth), and do not \`tab send\` to the tab that created you (agentmux refuses with send-to-parent).
 
 Limits: at most 6 open tabs created by agents per workspace (error delegation-limit). A tab created by another agent cannot create tabs (delegation-depth), and \`tab send\` text must not start with "[agentmux report" (reserved-report-prefix). \`tab send\` refuses a target that is waiting for a permission answer (target-needs-input) or has not started (target-not-ready). Never answer another tab's permission prompt. Do not create tabs in a loop.
 `;
@@ -136,10 +145,15 @@ Limits: at most 6 open tabs created by agents per workspace (error delegation-li
 
     const guide = buildDelegationGuide('claude', { reportsEnabled: true });
     expect(guide).toBe(expected);
+    expect(guide).toContain('send-to-parent');
     expect(guide).not.toContain('no more often than every 10 seconds');
 
     const codexGuide = buildDelegationGuide('codex', { reportsEnabled: true });
     expect(codexGuide).toBe(`${expected}${expectedSandbox}`);
+    expect(codexGuide).toContain('send-to-parent');
+
+    expect(buildDelegationGuide('claude', { reportsEnabled: false })).not.toContain('send-to-parent');
+    expect(buildDelegationGuide('codex', { reportsEnabled: false })).not.toContain('send-to-parent');
   });
 });
 

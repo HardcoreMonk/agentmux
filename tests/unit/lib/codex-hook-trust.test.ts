@@ -4,6 +4,9 @@ import path from 'path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/cli-token', () => ({ getCliToken: () => 'test-token' }));
+vi.mock('@/lib/logger', () => ({
+  createLogger: () => ({ trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+}));
 
 import { isCodexHookFingerprintTrusted, recordCodexHookTrusted } from '@/lib/codex-hook-trust';
 

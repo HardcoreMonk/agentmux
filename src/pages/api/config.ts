@@ -5,7 +5,7 @@ import type { TNetworkAccess } from '@/lib/network-access';
 import { isBoundToLocalhostOnly, updateAccessFromConfig } from '@/lib/access-filter';
 import { isValidEditorPreset } from '@/lib/editor-url';
 import { isValidToastPosition } from '@/lib/toast-position';
-import { CODEX_APPROVAL_POLICIES, CODEX_SANDBOX_MODES } from '@/lib/codex-command';
+import { CODEX_SANDBOX_MODES, isCodexApprovalPolicy } from '@/lib/codex-command';
 import { isClaudePermissionMode, isValidClaudeModel } from '@/lib/claude-config-values';
 import { isSupportedLocale, normalizeLocale } from '@/lib/locales';
 
@@ -30,7 +30,7 @@ const isValidCodexSandbox = (value: unknown): boolean =>
   value === null || (typeof value === 'string' && (CODEX_SANDBOX_MODES as readonly string[]).includes(value));
 
 const isValidCodexApprovalPolicy = (value: unknown): boolean =>
-  value === null || (typeof value === 'string' && (CODEX_APPROVAL_POLICIES as readonly string[]).includes(value));
+  value === null || isCodexApprovalPolicy(value);
 
 const isValidClaudePermissionMode = (value: unknown): boolean =>
   value === null || isClaudePermissionMode(value);

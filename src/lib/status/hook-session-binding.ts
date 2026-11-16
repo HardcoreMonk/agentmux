@@ -40,7 +40,9 @@ export const decideNeedsInputJsonlExit = ({
   lastEntryTs: number | null;
   interrupted: boolean;
 }): 'none' | 'busy' | 'idle' => {
-  if (!behavior?.leaveNeedsInputOnJsonlGrowth || cliState !== 'needs-input') return 'none';
+  if (!behavior || cliState !== 'needs-input') return 'none';
   if (needsInputSince === null || lastEntryTs === null || lastEntryTs <= needsInputSince) return 'none';
-  return interrupted ? 'idle' : 'busy';
+  // An aborted turn ends the prompt for every provider (Codex: the human declined with Esc).
+  if (interrupted) return 'idle';
+  return behavior.leaveNeedsInputOnJsonlGrowth ? 'busy' : 'none';
 };
