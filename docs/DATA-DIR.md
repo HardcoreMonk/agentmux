@@ -118,7 +118,7 @@ Rollout 안정화 및 이전 버전 rollback 가능성이 해소된 후속 단�
 | `lifecycle-actions.jsonl` | sanitized lifecycle action event |
 | `cli-token` | CLI와 hook bridge용 `x-agentmux-token` (legacy `x-cmux-token` 호환) |
 | `port` | 현재 실행 중인 server port |
-| `stats/` | usage cache와 daily report |
+| `stats/` | usage cache(`cache.json`, 현재 v5. v4에서 옮길 때 원본을 `cache.v4.json`으로 백업)와 daily report |
 | `logs/` | 서버 로그 |
 | `uploads/` | upload artifact와 transaction 중 reserved staged file |
 
@@ -232,6 +232,7 @@ statusLine은 탭별 `claude-tabs/<tab-id>.json`을 `--settings`로 넘겨서만
 | `claudeModel` | Claude Code 탭 실행 시 `--model` 값. 없으면 사용자 Claude 설정을 따름 |
 | `claudePermissionMode` | Claude Code 탭 실행 시 `--permission-mode` 값. 없으면 사용자 Claude 설정을 따름 |
 | `agentDelegationGuideEnabled` | 위임 안내, 탭 환경 변수, `permissions.allow` 사용 여부. 기본 켬. 끄면 위임 관련 값이 붙지 않음(Codex hook 환경 변수는 상태 표시용으로 늘 붙음). 자세한 내용은 `CLI.md` |
+| `agentReportsEnabled` | agent 자동 보고 사용 여부. 기본 켬. `agentDelegationGuideEnabled`가 꺼져 있으면 보고도 보내지 않음. 자세한 내용은 `CLI.md` "자동 보고" |
 
 `config.json` missing은 최초 startup에서만 새 empty config를 만들고 setup을 시작합니다.
 Malformed JSON, 읽기 오류, valid scrypt hash만 있고 `authSecret`이 없는 상태는 자동

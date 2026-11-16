@@ -46,6 +46,8 @@ corepack pnpm test tests/unit/lib/runtime/storage-read-owner.test.ts
 - reattach
 - delete/kill
 - session presence
+- Runtime v2 tmux socket 파일이 없을 때(재부팅 직후) session 없음으로 처리
+- terminal 탭 cwd/Git folder 조회(`terminal.session-info`)
 - runtime metadata projection
 
 검증:

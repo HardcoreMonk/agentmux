@@ -3,7 +3,7 @@
 이 문서는 release 전 확인, 내부 배포 단계, post-MVP backlog를 추적합니다. Active 제품/runtime
 target은 Linux 단일 엔진 호스트입니다. 기존 `v0.4.22` Windows package/updater와 unsigned 내부
 배포 기록은 별도 배포면의 역사적 근거로 보존하며 Linux Session Operations/Project Governance
-acceptance를 대체하지 않습니다. Public npm package의 현재 version은 `0.4.23`입니다.
+acceptance를 대체하지 않습니다. Public npm `latest`는 legacy `codexmux@0.4.23`이며 `@hardcoremonk/agentmux`는 아직 배포하지 않았습니다(보류).
 
 ## 완료된 범위
 
@@ -115,15 +115,15 @@ installer/package gate로 확인합니다.
 
 | 항목 | 상태 |
 | --- | --- |
-| Live build | `d1accfc6`, version `0.5.0` (2026-11-11 hotfix #48 배포: Claude JSONL의 catalog `observeFile` 거절이 timeline worker를 죽이던 결함. 이전 live는 단계 2 `f46890ba`, 단계 2 Task 1 `47ea57e7`, 단계 1 `19a44ca8`, logo 수정 `e369598b`, agentmux 전환 build는 `5b0cf14f`) |
+| Live build | `f61031a1`, version `0.5.0` (2026-11-16 15:47 KST 설계 3 후속 #63 배포. 그 전 live는 설계 3 `41aa8973`(같은 날 07:28 KST), hotfix #48 `d1accfc6`(2026-11-11), agentmux 전환 build `5b0cf14f`. 배포 순서 전체는 `operations/2026-11-10-multi-agent-brainstorming-handoff.md`) |
 | user service | `agentmux.service` enabled, `active/running`, authenticated, port `8122`. Rollback unit `codexmux.service`(legacy)는 disable 보존 |
 | Runtime v2 | terminal `new-tabs`, storage/timeline/status `default` |
 | Session Catalog/Governance | Session Catalog `ready`, Governance `state=ready`, `writeState=disabled`, DB/WAL/SHM `0600` |
 | governance gate | `agentmux.service.d/governance-writes.conf` 미설치 → governed write 비활성. 활성화는 별도 승인 뒤 |
-| latest backup | `runtime-v2-storage-20260823T135639Z`, service 정지 중 durable/workspace state 5개, `0700/0600` |
-| latest restart | 2026-11-11 02:35 KST `deploy:local` 재시작(hotfix #48, 사용자가 직접 실행), PID `1705635`(NRestarts 0), health commit `d1accfc6`, worker 재시작 02:35:38, service log error 0. 같은 날 02:16 KST 단계 2 배포(health `f46890ba`, PID `1471777`). 이전 2026-11-10 21:18 KST 재시작은 PID `2865470`, health `47ea57e7`. tmux 서버 `43870`과 session 1개는 재시작 전후 유지. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`) |
+| latest backup | schema v6 migration backup `runtime-v2-migration-v5-v6-20261111T163212450Z`(설계 1 단계 4 배포, 2026-11-12 01:32 KST). 이전 기록의 수동 storage backup은 `runtime-v2-storage-20260823T135639Z` |
+| latest restart | 2026-11-16 15:47 KST `deploy:local` 재시작(설계 3 후속 #63), PID `1016429`(NRestarts 0), health commit `f61031a1`, 배포 뒤 service log error 0, live tmux session 10개 유지. tmux 서버는 `agentmux-tmux-codexmux.scope`(legacy socket 이름 `codexmux`). 이전 재시작 기록은 `operations/2026-11-10-multi-agent-brainstorming-handoff.md` |
 | issue (이전 이름 저장소 기록) | [Issue #18](https://github.com/HardcoreMonk/codexmux/issues/18), [Issue #19](https://github.com/HardcoreMonk/codexmux/issues/19), [Issue #20](https://github.com/HardcoreMonk/codexmux/issues/20) |
-| 운영 handoff | `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
+| 운영 handoff | `operations/2026-11-10-multi-agent-brainstorming-handoff.md`(최신), `operations/2026-08-23-navigation-selection-clarity-handoff.md` |
 
 Claude Code provider 운영 기록(2026-11-11): 단계 2는 main merge 뒤 02:16 KST에 배포했습니다(health `f46890ba`).
 Live catalog가 shadow mode인 상태에서 Claude JSONL의 `catalog.observeFile` 거절이 처리되지 않아 timeline worker가
@@ -242,7 +242,7 @@ Electron profile의 1회 재로그인과 재연결은 별도 후속 근거가 �
 | Artifact scanner enumeration hardening | 현재 writer는 lowercase regular `.json`만 생성합니다. 대소문자 확장자와 symlink를 명시적으로 거부하는 방어 강화는 후속 비차단 작업입니다. |
 | Browser setup과 외부 bind | fresh config는 local setup 상태입니다. 사용자 비밀번호 설정과 loopback 밖의 bind는 별도 운영 선택이며 현재 engine health blocker가 아닙니다. |
 | Session Catalog filter total | 완료: `0.4.24` live 배포 뒤 annotation selection이 적용된 실제 pinned/tag filter에서 `results=1`, `total=1`, no cursor와 조건 일치를 확인했습니다. |
-| npm `0.4.24` release gate | Source/package version과 Linux live service는 `0.4.24`입니다. Registry publish는 수행하지 않아 public `latest`는 확인 기준 `0.4.23`이며 remote tag/GitHub Windows Release와 Trusted Publisher도 별도 gate입니다. |
+| npm `0.4.24` release gate | Source/package version과 Linux live service는 agentmux `0.5.0`입니다(`0.4.24`는 codexmux 시절 기록). Registry publish는 수행하지 않아 public `latest`는 legacy `codexmux@0.4.23`이며 remote tag/GitHub Windows Release와 Trusted Publisher도 별도 gate입니다. |
 | Local `v0.4.23` tag | Registry `gitHead`와 같은 `ef27e297`을 유지하되 remote에 게시하거나 이동하지 않습니다. 다음 release는 새 version/tag를 사용합니다. |
 
 ## 별도 lifecycle이 필요한 후속 범위
@@ -258,9 +258,9 @@ Plan Grilling, plan review와 별도 release gate를 거쳐야 합니다.
 | Full-output search | bounded message search/snippet만 제공 | secret/terminal output policy, quota, encryption/retention과 explicit opt-in |
 | npm 첫 배포(보류) | `@hardcoremonk/agentmux@0.5.0` 수동 첫 배포, `codexmux`(legacy package) deprecate, trusted publisher 연결 미실행. `v0.5.0` tag push는 Windows release workflow도 실행하므로 별도 결정 | 첫 배포 절차, tag 정책과 Windows release 분리 여부, deprecate 문구 |
 | Data 실제 이전 | `~/.codexmux`가 실제 경로이고 `~/.agentmux`는 별칭 | rollback 창 종료 뒤 `~/.agentmux` 실제 이전, `codexmux.service`와 옛 checkout 정리 |
-| Purplemux 기능 추가 | 사용자 결정(2026-11-10)으로 purplemux에 있고 agentmux에 없는 기능(Claude Code provider, 공통 agent 기반, 위임 안내 주입, Codex 보조, Git side panel 등)을 추가. 목록은 `PURPLEMUX-ADOPTION-AUDIT.md` 보충 분석. 순서 확정: 설계 1(A+B+C) → 설계 2(D+E) → 설계 3(회신·상호 리뷰). 설계 1: `superpowers/specs/2026-11-10-claude-code-provider-design.md`(승인, 위임은 확인 없이 진행). 단계 1(agent 경계 정리)은 main `19a44ca8`로 merge·live 배포. 단계 2(Claude provider core, plan `superpowers/plans/2026-11-10-claude-code-provider-phase2.md`): Task 1은 main `47ea57e7`로 먼저 merge·live 배포, Task 2~10은 branch `feat/claude-provider-phase2`(`e0b03c25..` 이후)에서 구현·검토·전체 gate·격리 live smoke 완료. Branch 최종 검토 수정(`d5f3432a`)과 격리 live 재확인 완료. 결과는 `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | PR과 main CI 통과 뒤 merge. Live 배포는 사용자 확인 뒤(rollback 시 Claude 탭을 먼저 닫음). 이어서 단계 3(통합 세션 목록, Session Explorer, 통계, 설정, onboarding, 전환 잠금 등) plan. Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력)은 설계 1 범위 밖 후속 |
-| Multi-agent (Claude Code + Codex) | brainstorming 중. 한 화면 동시 실행, 일 나누기, 상호 리뷰가 목표이고 Herdr `hc`/desktop app이 참고 모델. 위임 자동화(옛 3번 프로젝트) 통합 여부 미정. `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | 사람 개입 시점, 위임 주체, Claude Code 상태 감지 방식, agent 간 회신 계약을 정한 설계 문서 승인 |
-| Android 앱 `0.5.0` | Linux 서버 client 유지로 결정. Launcher 표시 문구 정리, product name gate 범위 확장, debug/release APK와 release AAB 빌드(label agentmux, `versionCode=500`, app ID와 release 서명 인증서 유지) 완료. 실제 폰에서 debug `0.5`로 `smoke:android:foreground` 통과 뒤 사용자 결정으로 signed release `0.5`로 재설치(저장 주소·로그인 초기화) | 웹 UI logo(`app-logo.tsx`)의 옛 이름은 `e369598b`로 고쳐 live 배포했고 폰에서 `agent`+`mux` 표시 확인. Branch push와 PR. Release 앱은 WebView devtools가 꺼져 CDP smoke 대상이 아님 |
+| Purplemux 기능 추가 | 사용자 결정(2026-11-10)으로 purplemux에 있고 agentmux에 없는 기능(Claude Code provider, 공통 agent 기반, 위임 안내 주입, Codex 보조, Git side panel 등)을 추가. 목록은 `PURPLEMUX-ADOPTION-AUDIT.md` 보충 분석. 순서 확정: 설계 1(A+B+C) → 설계 2(D+E) → 설계 3(회신·상호 리뷰). 설계 1: `superpowers/specs/2026-11-10-claude-code-provider-design.md`(승인, 위임은 확인 없이 진행). 단계 1(agent 경계 정리)은 main `19a44ca8`로 merge·live 배포. 단계 2(Claude provider core, plan `superpowers/plans/2026-11-10-claude-code-provider-phase2.md`): Task 1은 main `47ea57e7`로 먼저 merge·live 배포, Task 2~10은 branch `feat/claude-provider-phase2`(`e0b03c25..` 이후)에서 구현·검토·전체 gate·격리 live smoke 완료. Branch 최종 검토 수정(`d5f3432a`)과 격리 live 재확인 완료. 결과는 `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | 완료(2026-11-16): 설계 1(PR #48~#50), 설계 2-1(#54, #55), 설계 2-2(#56), 설계 3(#62, #63)을 main에 merge하고 live 배포했습니다(ADR-035~039, `operations/2026-11-10-multi-agent-brainstorming-handoff.md`). rollback 시 Claude 탭을 먼저 닫습니다. Runtime v2 agent 탭 지원(hook 인증, 상태 감시, timeline process 찾기, storage `panel_type`, 화면 캡처·key 입력)은 설계 1 범위 밖 후속 |
+| Multi-agent (Claude Code + Codex) | 완료(2026-11-16, 설계 1~3 배포). 한 화면 동시 실행, 일 나누기, 상호 리뷰가 목표였고 Herdr `hc`/desktop app이 참고 모델. 위임 자동화(옛 3번 프로젝트) 통합 여부 미정. `operations/2026-11-10-multi-agent-brainstorming-handoff.md` | 남은 후보는 위 "설계 3 후속"(재시작 시 대기 보고 유실, `agentmux tab wait`) |
+| Android 앱 `0.5.0` | Linux 서버 client 유지로 결정. Launcher 표시 문구 정리, product name gate 범위 확장, debug/release APK와 release AAB 빌드(label agentmux, `versionCode=500`, app ID와 release 서명 인증서 유지) 완료. 실제 폰에서 debug `0.5`로 `smoke:android:foreground` 통과 뒤 사용자 결정으로 signed release `0.5`로 재설치(저장 주소·로그인 초기화) | 웹 UI logo(`app-logo.tsx`)의 옛 이름은 `e369598b`로 고쳐 live 배포했고 폰에서 `agent`+`mux` 표시 확인. Main merge(PR #45) 완료. Release 앱은 WebView devtools가 꺼져 CDP smoke 대상이 아님. 2026-11-15 사용자가 폰 보안이 USB 디버깅을 막는다며 추가 폰 설치 작업을 취소함: 설치된 release APK `0.5`가 현재 client이고 웹 변경은 서버에서 옴 |
 
 ## Claude Code provider 단계 2 후속
 
@@ -290,7 +290,7 @@ hook `transcriptPath`를 탭 provider root로만 검사하게 했습니다.
 
 단계 3(공통 agent UI: 공통 session 목록과 provider 간 재개, Session Explorer provider column·filter, 통계·일일 리포트의
 Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, provider별 onboarding, 중립 문구)은 branch
-`feat/claude-provider-phase3`에 구현과 검증을 마쳤고 main merge와 live 배포는 전입니다. 단계 2 후속 중 단계 3이 닫은
+`feat/claude-provider-phase3`에서 구현하고 PR #49(`ad32559d`)로 main에 merge해 2026-11-11 09:28 KST에 live 배포했습니다. 단계 2 후속 중 단계 3이 닫은
 것은 `/tools-required`의 provider별 표시입니다. 단계 4(위임 안내, `permissions.allow`, CLI 변경)는 별도입니다.
 
 | 항목 | 내용 |
@@ -309,7 +309,7 @@ Claude, 전환 잠금과 보기 제안, 시작 진행 표시, Claude 설정, pro
 
 단계 4(위임 안내, 탭 환경 변수와 CLI shim, `permissions.allow`, `agentmux tab` CLI·API 변경, Runtime v2 schema v6)는 branch
 `feat/claude-provider-phase4`에 구현했습니다. 설계는 ADR-035, ADR-036, ADR-037, CLI는 `CLI.md`에 있습니다. gate, 격리 live
-확인, PR, main merge와 live 배포는 이 절 작성 뒤 이어집니다(결과는 handoff 단계 4 절).
+확인, PR #50 main merge(`14b8da96`)와 live 배포(2026-11-12 01:32 KST)를 마쳤습니다(결과는 handoff 단계 4 절).
 
 | 항목 | 내용 |
 | --- | --- |

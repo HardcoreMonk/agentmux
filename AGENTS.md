@@ -8,7 +8,7 @@ AI가 생성한 코드도 시니어 엔지니어가 작성한 것처럼 보여�
 
 ## 프로젝트 개요
 
-- 제품: agentmux는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정).
+- 제품: agentmux는 코딩 에이전트 웹 세션 매니저입니다 (Codex와 Claude Code 지원).
 - 제품 목표: Linux 단일 엔진 호스트에서 Codex 세션 운영과 프로젝트 거버넌스를
   통합합니다. Windows installer/updater와 Electron/Android 기록은 역사적 release 또는
   선택 client surface로 보존하며 Linux runtime acceptance를 대체하지 않습니다.
@@ -91,6 +91,9 @@ Server helper:
 | `isCodexRunning(panePid)` | `src/lib/codex-session-detection.ts` | pane 아래에서 Codex가 실행 중인지 확인 |
 | `detectActiveCodexSession(panePid)` | `src/lib/codex-session-detection.ts` | active Codex session metadata 감지 |
 | `watchCodexSessions(panePid, cb)` | `src/lib/codex-session-detection.ts` | Codex session start/stop 감시 |
+| `isClaudeRunning(panePid, childPids?)` | `src/lib/providers/claude/session-detection.ts` | pane 아래에서 Claude Code가 실행 중인지 확인 |
+| `detectActiveClaudeSession(...)` | `src/lib/providers/claude/session-detection.ts` | active Claude Code session metadata 감지 |
+| `watchClaudeSessions(...)` | `src/lib/providers/claude/session-detection.ts` | Claude Code session start/stop 감시 |
 
 ## 공유 상태
 
@@ -142,6 +145,8 @@ Root `CONTEXT.md`는 도메인 언어와 기준 소스 경계를 담당합니다
 | `docs/STYLE.md` | theme과 color 사용 규칙 |
 | `docs/ELECTRON.md` | Electron desktop 개발과 packaging |
 | `docs/ANDROID.md` | Android Capacitor 개발, build, install |
+| `docs/IPAD.md` | iPad 홈 화면 웹 앱 설치, 터치 기기 화면 판정, 한계 |
+| `docs/CLI.md` | `agentmux` CLI, agent 위임 안내와 제한, 자동 보고 |
 | `docs/FOLLOW-UP.md` | release 확인과 post-MVP backlog |
 
 status 관련 코드(`TCliState`, `ITabState`, `StatusManager`, `selectSessionView`,

@@ -33,7 +33,7 @@
 ## ADR-003: Codex provider 중심 모델
 
 - 상태: 승인
-- 결정: 현재 provider는 Codex이며, client/store field는 migration 범위를 줄이기 위해 `agent*` 이름을 유지합니다.
+- 결정: provider는 Codex와 Claude Code(`claude`) 두 개이며, client/store field는 migration 범위를 줄이기 위해 `agent*` 이름을 유지합니다.
 - 이유: UI와 저장 데이터가 provider-neutral 모양을 갖고 있어야 이후 변경 비용을 줄일 수 있습니다.
 - 영향: `TCliState`, `ITabState`, `StatusManager`, provider detection, `agentSessionId`, `agentSummary`를 바꾸면 `STATUS.md`도 갱신합니다. 새 provider는 registry contract를 통과해야 하며 provider id와 panel type은 중복될 수 없습니다. JSONL watch 유지와 stop hook 지연 같은 provider별 status 동작은 `statusBehavior` contract로 명시합니다.
 
@@ -61,7 +61,7 @@
 ## ADR-007: Electron과 Android는 클라이언트 shell이다
 
 - 상태: 승인
-- 결정: Electron과 Android는 Codex runtime을 재구현하지 않고 codexmux server에 연결하는 shell로 유지합니다.
+- 결정: Electron과 Android는 Codex runtime을 재구현하지 않고 agentmux server에 연결하는 shell로 유지합니다.
 - 이유: Codex와 terminal execution은 server/runtime 계층에 두고, platform shell은 packaging, reconnect, notification, native bridge에 집중해야 합니다.
 - 영향: Windows 전환에서는 Electron이 primary desktop shell입니다. Android는 legacy/mobile reference surface로 취급합니다.
 

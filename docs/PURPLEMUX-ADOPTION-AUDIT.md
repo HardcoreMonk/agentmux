@@ -5,7 +5,7 @@
 > Purplemux 기준: `main@52140216` (`v0.4.5`)
 > Codexmux 감사 baseline: `main@cafc8de9` (`v0.4.16`)
 > 감사 당시 Windows stable release: `v0.4.22@4af02209`
-> 현재 제품/runtime target: ADR-031 Linux 단일 엔진, source/live `0.4.24`, public npm `0.4.23`
+> 현재 제품/runtime target: ADR-031 Linux 단일 엔진, source/live agentmux `0.5.0`, public npm은 legacy `codexmux@0.4.23`
 > 보충 분석: 2026-11-10, agentmux `main@1b7408b4` (`0.5.0`). 아래
 > [보충 분석](#보충-분석-2026-11-10-서비스-기능과-agentmux-차이) 절이 본문보다 우선합니다.
 
@@ -64,8 +64,7 @@
 
 2026-11-15 설계 2-2에서 E 묶음의 desktop Git side panel과 sync 실패 시 agent에게 묻기, 모바일 WebSocket reload 복구 안내를 반영했습니다. 모바일 Git 전체 화면은 사용자 결정(2026-11-15, 지금처럼 탭을 Diff mode로 바꾸는 것으로 충분)에 따라 반영하지 않고 기존 Diff mode를 유지합니다.
 
-`src/lib/providers/claude/`는 agentmux 작업 디렉터리에 빈 디렉터리로만 있고 git이 추적하지 않습니다.
-등록된 provider는 `codexProvider` 하나이고 panel type은 `terminal | codex | web-browser | diff`입니다.
+2026-11-16 현재 A~D 묶음도 반영했습니다. A Claude Code provider(`src/lib/providers/claude/`, 설계 1 단계 2 `f46890ba`, hotfix #48), B 공통 agent UI(PR #49 `ad32559d`), C 위임 안내(PR #50 `14b8da96`, ADR-036/037), D Codex 보조(PR #54 `555feb0b`, #55 `0e887fd4`, ADR-038)입니다. 등록된 provider는 `codexProvider`와 `claudeProvider` 둘이고 panel type은 `terminal | codex | claude | web-browser | diff`입니다. 위 표의 "agentmux에 없는 것"은 2026-11-10 시점 기록입니다. Runtime v2 agent 탭 지원은 아직 후속입니다.
 
 ### 본문 결정의 변경
 

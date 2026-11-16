@@ -1,7 +1,7 @@
 # agentmux
 
 agentmux는 여러 코딩 에이전트 CLI 작업을 workspace, session, tab, timeline, status 단위로
-실행하고 다시 연결하는 코딩 에이전트 웹 세션 매니저입니다 (현재 Codex 지원, Claude Code 지원 예정).
+실행하고 다시 연결하는 코딩 에이전트 웹 세션 매니저입니다 (Codex와 Claude Code 지원).
 Next.js Pages Router UI와 custom Node server를 함께 사용하며, 현재 active runtime은 Linux 단일 엔진 호스트입니다.
 한 Linux host가 Runtime v2 worker, tmux, Codex JSONL, app-owned DB와 등록 project read/governed write를
 소유합니다.
@@ -13,8 +13,9 @@ Windows 설치형 제품 마감은 별도 제품 line인
 
 ## 핵심 기능
 
-- 여러 workspace와 tab에서 terminal 및 Codex session 실행·재개
+- 여러 workspace와 tab에서 terminal, Codex, Claude Code session 실행·재개
 - Codex process와 `~/.codex/sessions/**/*.jsonl` 기반 timeline/status 연결
+- Claude Code는 탭별 `--settings` hook과 `~/.claude/projects` transcript JSONL 기반 timeline/status 연결, Session Catalog는 provider(`codex`, `claude`)별 filter
 - reconnect, approval, notification, session list와 usage projection
 - Session Catalog 검색·replay·annotation과 saved filter
 - Approved Project Root, Managed Project, Project Governance/Knowledge Index와 versioned scaffold
@@ -25,6 +26,10 @@ Windows 설치형 제품 마감은 별도 제품 line인
 - `~/.agentmux/`(legacy 실제 경로 `~/.codexmux/`) 아래의 local-first 상태와 인증된 upload artifact 관리
 - Desktop workspace 오른쪽의 resizable Git side panel(focus 탭 추적, turn 종료 시 즉시 diff 새로고침, sync 실패 시 agent 웹 입력창 채우기)
 - 모바일·Android WebView에서 연속 5회 재연결 실패 시 화면 상단 새로고침 복구 안내
+- agent 위임: agentmux가 띄운 Claude Code·Codex가 `agentmux tab`(`list`, `create`, `send`, `status`, `result`, `close`)으로 다른 agent 탭에 일을 맡기고, 위임 안내와 제한(workspace당 6개 등)을 적용(`docs/CLI.md`)
+- agent 자동 보고: 맡은 탭이 turn을 끝내거나 권한 질문에 막히면 서버가 태그 붙은 보고를 맡긴 agent의 입력창에 입력(ADR-039, 설정 `agentReportsEnabled`)
+- Codex 보조: 한 번 준 hook trust 유지, 시작·update·trust 화면을 웹 카드로 응답, 입력창 준비 여부를 화면으로 판단(ADR-038)
+- 터치 중심 기기(iPad 등)는 모바일 layout을 사용하고 홈 화면 웹 앱으로 설치 가능(`docs/IPAD.md`)
 
 ## 현재 상태
 
@@ -33,7 +38,8 @@ Windows 설치형 제품 마감은 별도 제품 line인
 | source/package.json 버전 | `0.5.0` (`@hardcoremonk/agentmux`) |
 | active 제품/runtime | Linux 단일 엔진 호스트, ADR-031 `Verified` |
 | UI 언어 | 기본 한국어, 지원 한국어·영어 |
-| 현재 live service | `systemd --user` (`agentmux.service`), authenticated `0.0.0.0:8122`, governance writes active |
+| 현재 live service | `systemd --user` (`agentmux.service`), port `8122`, browser 인증, build `f61031a1`(2026-11-16 배포). Governed write는 꺼져 있음(`AGENTMUX_GOVERNANCE_WRITES` 미설정) |
+| 지원 agent CLI | Codex(`0.144.1+`)와 Claude Code(`2.0.0+`); 둘 다 탭으로 실행하고 `agentmux tab`으로 서로 위임(`docs/CLI.md`) |
 | 웹 구조 | Next.js Pages Router + custom Node server |
 | terminal 구조 | Runtime v2 Terminal Worker + Linux tmux adapter (`agentmux-tmux-<socket>.scope` 분리) |
 | 운영 데이터 | `runtime-v2/state.db`, `session-catalog/index.db`, `governance/index.db` |
@@ -45,7 +51,7 @@ Windows 설치형 제품 마감은 별도 제품 line인
 
 ## 시작하기
 
-active Linux engine에는 Node.js `>=20.9.0`, tmux `>=3.0`, Git, Codex CLI가 필요합니다.
+active Linux engine에는 Node.js `>=20.9.0`, tmux `>=3.0`, Git, 사용할 agent CLI(Codex CLI 또는 Claude Code CLI)가 필요합니다.
 공개 npm package로 전역 설치하거나 바로 실행할 수 있습니다.
 
 > `@hardcoremonk/agentmux`는 아직 npm에 배포되지 않았습니다. 배포 전까지는 source checkout으로 실행하세요(`git clone https://github.com/HardcoreMonk/agentmux.git`).
@@ -90,7 +96,7 @@ corepack pnpm dev
 | tmux 소켓 | `-L codexmux`, `codexmux-runtime-v2` (실행 중 세션 보존을 위해 소켓 이름 유지) | 동일 |
 
 Production build와 Linux user service 운영은 [systemd 문서](docs/SYSTEMD.md)를 따릅니다.
-현재 unit과 실제 listener는 `HOST=0.0.0.0`, `PORT=8122`이며 browser 인증이 구성된
+현재 unit은 `PORT=8122`이며 browser 인증이 구성된
 상태로 실행됩니다. 외부 네트워크에서 접근할 때도 인증을 통과해야 합니다.
 
 Windows Electron은 별도 배포면과 선택 client surface로 보존합니다. Windows source
@@ -234,6 +240,7 @@ Pages route로 fallback하지 않습니다.
 | [docs/ARCHITECTURE-LOGIC.md](docs/ARCHITECTURE-LOGIC.md) | server, runtime, storage 흐름 |
 | [docs/SYSTEMD.md](docs/SYSTEMD.md) | Linux 단일 엔진 user service 운영 |
 | [docs/IPAD.md](docs/IPAD.md) | iPad 홈 화면 웹 앱 설치와 한계 |
+| [docs/CLI.md](docs/CLI.md) | `agentmux` CLI, agent 위임 안내와 제한, 자동 보고 |
 | [docs/DATA-DIR.md](docs/DATA-DIR.md) | durable state와 projection 저장 경계 |
 | [docs/PURPLEMUX-ADOPTION-AUDIT.md](docs/PURPLEMUX-ADOPTION-AUDIT.md) | Purplemux 비교와 선택 이식 우선순위 |
 | [docs/TESTING.md](docs/TESTING.md) | test tier와 platform smoke |

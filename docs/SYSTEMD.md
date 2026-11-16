@@ -19,10 +19,10 @@ HOST=0.0.0.0
 PORT=8122
 ```
 
-2026-08-23 현재 이 host의 unit은 enabled/active이며 Navigation Selection Clarity build commit
-`a6a49588`, version `0.4.24`를 `0.0.0.0:8122`에서 제공합니다. Browser 인증과
-`AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환) drop-in이 구성됐고 CLI token 기반 운영 API, Runtime v2와
-Governance `writeState=ready`도 정상입니다.
+2026-11-16 현재 이 host의 unit은 enabled/active이며 build commit `f61031a1`(2026-11-16 15:47 KST 배포),
+version `0.5.0`을 port `8122`에서 제공합니다. Browser 인증이 구성됐고 CLI token 기반 운영 API와 Runtime v2는
+정상입니다. `AGENTMUX_GOVERNANCE_WRITES=1`(legacy `CODEXMUX_GOVERNANCE_WRITES=1` 호환) drop-in은 지금 설치되어 있지 않아
+governed write는 꺼져 있습니다. 2026-08-23 기록은 Navigation Selection Clarity build `a6a49588`, version `0.4.24`입니다.
 
 ## 서비스 파일 예시
 
@@ -172,6 +172,7 @@ corepack pnpm smoke:browser:session-governance
 - `runtime-v2`, `session-catalog`, `governance` 디렉터리는 `0700`, SQLite DB/WAL/SHM은 `0600`인지 확인합니다.
 - `dist/workers/`에 terminal/storage/timeline/status/governance worker bundle이 모두 있어야 합니다.
 - 실제 `systemctl --user restart`는 backup과 운영 승인을 받은 뒤 실행합니다. build/smoke 통과만으로 live service를 재시작하지 않습니다.
+- `corepack pnpm deploy:local`은 `pnpm install --frozen-lockfile`, `tsc --noEmit -p tsconfig.deploy-check.json` 순으로 먼저 검사한 뒤 `.next`(`cache/`, `dev/` 제외)와 `dist`를 `.deploy-backup/`에 snapshot하고 build합니다. build가 실패하면 snapshot을 복원하고 service를 restart하지 않으며, 성공했을 때만 restart와 health 확인을 진행합니다. 복원도 실패하면 `.deploy-backup/`에서 직접 복구합니다.
 
 최초 2026-08-21 배포 전에는 기존 unit, listener와 runtime/catalog/governance DB가 없어서
 backup 대상이 없었습니다. 이후 배포부터는 restart 전에 runtime DB/WAL/SHM을 같은 시점의

@@ -4,6 +4,7 @@
 > Herdr 기준: `herdrdev/herdr` `v0.9.5` (stable, 2026-10-14), local client/server `0.9.5`, protocol 22
 > Codexmux 감사 baseline: `main@fdf8752b` (source `0.4.24`) + 미커밋 workspace activity label 변경
 > 보충 감사: 2026-11-10. 아래 [보충 감사](#보충-감사-2026-11-10) 절이 본문보다 우선합니다.
+> 2026-11-16 현재: 이 감사 뒤 agentmux가 Claude Code provider(ADR-035)를 추가해 "Codex 단일 provider" 전제는 더는 맞지 않습니다. H1은 일부 반영했습니다. `tab send`의 입력 가드(409 `target-needs-input`/`target-not-ready`, PR #50, `docs/CLI.md`), 호출 탭 환경 변수(`AMUX_WORKSPACE_ID`, `AMUX_TAB_ID`)와 `x-agentmux-caller-tab` header, 위임 안내 주입(ADR-036/037), 부모/자식 관계(`createdByTabId`), 자식이 끝나거나 막히면 부모 입력창에 넣는 자동 보고(ADR-039, PR #62, #63)입니다. 비교표의 "입력 가드", "Caller context", "Agent skill" 판정과 보충 감사의 hc 항목 1~3은 이 시점 이전 기준입니다. `tab send --wait`, `tab wait`(`FOLLOW-UP.md` 대안 B), scrollback `tab read`, 역할 template은 아직 없습니다.
 
 ## 결론
 

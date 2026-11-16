@@ -115,6 +115,7 @@ preflight(`agent-unavailable`)를 확인합니다.
    statusLine 하나입니다(`STATUS.md` "Claude Code hook 상태 경로").
 3. `claude --settings '<탭 설정 파일>' --session-id <uuid>`를 보냅니다. 설정의 `claudeModel`,
    `claudePermissionMode`가 있으면 `--model`, `--permission-mode`를 더하고, 없으면 사용자 Claude 설정을 따릅니다.
+   위임 안내가 켜져 있으면 `--append-system-prompt-file <data dir>/delegation/claude.md`를 더하고, 탭 환경 변수(`AMUX_WORKSPACE_ID`, `AMUX_TAB_ID`)와 `<data dir>/bin`을 앞에 붙인 `PATH`를 넣습니다(`CLI.md` "agent 탭의 환경과 위임 안내").
 4. 재개는 transcript가 있으면 `--resume <uuid>`, 없으면 같은 id로 `--session-id`입니다. 시작 시 자동 재개
    (`autoResumeOnStartup`)도 탭 provider의 `buildResumeCommand`를 씁니다.
 5. 탭을 닫으면 provider `cleanupTab`이 탭 설정 파일을 지웁니다.
@@ -143,6 +144,8 @@ Runtime v2 Terminal Worker는 `ITerminalRuntimeAdapter`를 통해 구현을 선�
 | `windows` | Windows node-pty/ConPTY runtime |
 
 `AGENTMUX_RUNTIME_TERMINAL_ADAPTER`(legacy `CODEXMUX_RUNTIME_TERMINAL_ADAPTER` 호환)로 adapter를 명시할 수 있습니다. Unknown value는 fail closed합니다.
+
+Runtime v2 tmux socket 파일이 없어져 tmux가 `error connecting to <socket> (No such file or directory)`를 내면(재부팅 직후 등) session 존재 확인은 "없음"으로 처리합니다. 그래서 시작 reconcile이 stale ready 탭을 failed로 정리합니다. 권한 오류 같은 다른 연결 실패는 확인 실패(`runtime-v2-terminal-presence-check-failed`)로 남습니다.
 
 ## 입력과 단축키
 
@@ -212,7 +215,7 @@ DIFF 패널은 workspace/tab cwd를 기준으로 Git snapshot을 읽습니다. �
 1. Strict config/auth bootstrap과 startup loopback restriction을 확정합니다.
 2. Legacy tmux fallback 또는 runtime v2 adapter를 준비하고, `scanSessions()` 직후(`initWorkspaceStore()`가 누락된 session을 재생성하기 전) `listSessions()`로 시작 시점에 이미 존재하던 tmux session 집합(`preexistingSessions`)을 기록합니다.
 3. Generic terminal route와 typed install route를 분리해 등록합니다.
-4. Workspace/layout state를 읽고, `autoResumeOnStartup({ preexistingSessions })`는 시작 시점에 없던 tmux session에 대해서만 탭 provider(Codex, Claude Code)의 resume 명령을 보냅니다(이미 살아 있던 session은 재개 명령을 보내지 않으며, `/api/tmux/reset` 경로는 빈 집합을 전달해 전체 재개합니다).
+4. Workspace/layout state를 읽고 `ensureDelegationAssets()`로 위임 shim과 Claude 안내 파일을 쓴 뒤(실패해도 warning만 남기고 계속), `autoResumeOnStartup({ preexistingSessions })`는 시작 시점에 없던 tmux session에 대해서만 탭 provider(Codex, Claude Code)의 resume 명령을 보냅니다(이미 살아 있던 session은 재개 명령을 보내지 않으며, `/api/tmux/reset` 경로는 빈 집합을 전달해 전체 재개합니다).
 5. Runtime v2가 켜져 있으면 stale/ready terminal tab을 reconcile합니다.
 
 ## 관련 파일

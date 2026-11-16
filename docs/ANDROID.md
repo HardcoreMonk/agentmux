@@ -41,6 +41,8 @@ Android 앱 버전은 root `package.json` semver를 기준으로 합니다.
 예: `0.4.2`는 `versionName=0.4.2`, `versionCode=402`입니다. 끝의 `.0`은 떼므로 `0.5.0`은
 `versionName=0.5`, `versionCode=500`입니다.
 
+현재 설치된 client는 2026-11-10에 설치한 signed release APK `0.5`입니다. 2026-11-15 사용자가 폰 보안이 USB 디버깅을 막는다며 추가 폰 설치 작업을 취소했습니다. 웹 UI 변경은 서버에서 오므로 앱을 다시 설치하지 않아도 반영됩니다.
+
 현재 앱 ID는 `com.hardcoremonk.codexmux`입니다. 이름 변경 때 기존 설치본을 지우지 않고 업데이트할 수
 있도록 유지했습니다. 표시 이름(`appName`, `app_name`)만 `agentmux`입니다.
 
