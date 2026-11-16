@@ -191,3 +191,8 @@
 - 확인 중 찾은 상태 판정 결함: Codex는 첫 turn에서 `prompt-submit` 뒤에 `session-start` hook을 보내 `busy`를 `idle`로 바꿨고, 짧은 첫 turn이 silent 완료가
   돼 보고가 빠질 수 있었다. `busy`에서는 `session-start`가 상태를 바꾸지 않게 고쳤다.
 - 남은 점은 `docs/FOLLOW-UP.md` "설계 3 후속"에 있다.
+
+## 후속 결정 (2026-11-16)
+
+- 맡은 탭의 직접 `tab send`: 최종 검토에서 맡은 탭 C가 `tab send`로 부모 P에 직접 입력하면 P의 `prompt-submit`이 사람 입력으로 세어져 5회 제한이 0으로 돌아간다는 점이 남았다. 사용자는 "자동 보고 중엔 거절"을 골랐다. 자동 보고가 켜져 있으면(위임 안내와 `agentReportsEnabled` 모두 켜짐) C→P `tab send`는 403 `send-to-parent`로 거절하고 아무것도 입력하지 않는다. 자동 보고가 꺼져 있으면 설계 1 동작을 유지한다. 맡은 탭용 안내 문장(보고 켜짐 문구)에 이 제한을 적는다.
+- 고르지 않은 대안: "보내되 5회 제한에 포함"(보고 대기열이 status 쪽 메모리에 있어 API→대기열 연결이 더 필요), "지금대로 두기".

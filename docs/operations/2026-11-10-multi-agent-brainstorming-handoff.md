@@ -712,6 +712,20 @@ in-place SQL이 기본이고 backup 복원은 마지막 수단이다. 배포 뒤
   3957297, NRestarts 0, 배포 뒤 log 오류 0, live tmux session 목록과 사용자 `~/.codex`·`~/.claude/settings.json` hash 그대로.
 - 이미 떠 있는 agent 탭은 다음 실행이나 재개 때 새 위임 안내를 받는다. 자동 보고는 서버 쪽이라 배포 직후부터 동작한다.
 
+## 설계 3 후속 (2026-11-16)
+
+사용자: "후속 작업 진행". FOLLOW-UP "설계 3 후속" 가운데 결함 3개와 사용자 결정 1개를 branch `fix/design3-followups`에서 처리했다.
+구현은 agy(Gemini 4 Argon 주간 사용량 0%라 순서대로 Gemini 4 Hydrogen으로 바꿈), 원인 조사·brief·검증·문서는 Claude.
+
+| 항목 | 원인 | 수정 |
+| --- | --- | --- |
+| Codex 승인 정책 값 | `codex --help`(0.169.0)의 `--ask-for-approval`은 `on-request`·`never`만 받음 | 선택지를 두 값으로 줄이고 `isCodexApprovalPolicy`로 예전 저장 값은 CLI 기본값으로 실행·표시, 설정 API는 400 |
+| Esc 거절 뒤 Codex `needs-input` | 격리 확인 rollout 마지막 줄이 `event_msg` `turn_aborted`(`interrupted`)였지만, `decideNeedsInputJsonlExit`가 Codex(`leaveNeedsInputOnJsonlGrowth: false`)에서 항상 `none` | `needs-input` 전환보다 늦은 중단이면 provider 공통으로 `idle`(JSONL 증가만으로는 여전히 Codex에서 안 풂) |
+| 맡은 탭의 직접 `tab send` | 부모의 `prompt-submit`이 사람 입력으로 세어져 5회 제한이 0으로 돌아감 | 사용자 선택 "자동 보고 중엔 거절": 403 `send-to-parent`, 맡은 탭용 안내 문장, ADR-039 후속 결정 |
+| 전체 test의 log 쓰기 경쟁 | test가 지운 임시 data dir에 pino-roll이 log 파일을 열려 함 | data dir를 돌리고 지우는 test 8개가 `@/lib/logger`를 mock |
+
+남은 설계 3 후속(재시작 시 대기 보고 유실, `tab wait`, CLI 화면 모양 의존 등)은 FOLLOW-UP에 그대로 둔다.
+
 ## Current Lifecycle Stage
 
 - Multi-agent 설계 1(Claude Code provider + 공통 agent 기반 + 위임 안내): 설계 승인("후속 작업 승인"),

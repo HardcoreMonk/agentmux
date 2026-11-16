@@ -132,6 +132,12 @@ Code는 `Stop` hook을 보내지 않고, JSONL은 `user tool_result(is_error)` �
 hook을 기다리지 않습니다. Assistant 답으로 끝난 정상 turn은 `interrupted: false`라 `Stop` hook → `ready-for-review`가
 그대로입니다.
 
+Codex 탭은 `leaveNeedsInputOnJsonlGrowth`가 꺼져 있어 JSONL이 늘어나는 것만으로는 `needs-input`을 풀지 않습니다. 사람이
+Codex 권한 질문을 Esc로 거절하면 Codex `0.169.0`은 rollout 마지막 줄에 `event_msg` `turn_aborted`(`reason:
+"interrupted"`)를 쓰고, `checkCodexJsonlState`가 `interrupted: true`와 그 줄의 시각을 돌려줍니다.
+`decideNeedsInputJsonlExit`는 중단 시각이 `needs-input` 전환 시각보다 늦으면 이 flag와 관계없이 `idle`로 바꿉니다
+(provider 공통). 중단이 아닌 JSONL 증가로 `busy`가 되는 것은 flag가 켜진 provider(Claude Code)만입니다.
+
 ### Session 다시 묶기
 
 새 탭은 agentmux가 UUID를 만들어 탭의 `agentSessionId`에 먼저 기록한 뒤 `claude --settings <탭 설정 파일>
@@ -292,7 +298,7 @@ UI와 저장 데이터는 역사적 호환성 때문에 `agentSessionId`, `agent
 | `reconcileStateFromJsonl` | JSONL 상태 읽기 결과로 `cliState`를 맞춥니다(`reduceCodexState` 경로). 꺼져 있으면 초기 상태 보정과 cwd 최신 JSONL 채택 판단도 하지 않습니다 | `status-manager.ts` reconcile, `poll-tab-reconciliation.ts`, `scan-tab-bootstrap.ts`, `poll-created-tab-bootstrap.ts`, `timeline/resume-session-service.ts` | `true` | `false` |
 | `recoverPaneInput` | 중단된 prompt나 남은 입력을 pane capture로 확인해 복구합니다 | `status-manager.ts` JSONL 변경 처리, `poll-recovery-service.ts`, `pane-recovery-service.ts`, `scan-tab-bootstrap.ts` | `true` | `false` |
 | `bindSessionFromHook` | hook stdin의 `session_id`가 tab의 `agentSessionId`와 다르면 session과 JSONL 경로를 새 값으로 다시 묶고 JSONL watch를 새 경로로 옮깁니다(`bindSessionHookEvents`가 있으면 그 목록의 event에서만. `/clear`, `/new`, resume 등) | `status-manager.ts` `updateTabFromHook`, `status/hook-session-binding.ts` | `true` (`session-start`만) | `true` |
-| `leaveNeedsInputOnJsonlGrowth` | `needs-input`에서 JSONL이 `needs-input` 전환 시각보다 늦은 entry를 쓰면 terminal에서 직접 응답한 것으로 보고 `busy`(JSONL 검사가 interrupted면 `idle`)로 바꿉니다. Synthetic interrupt 검사보다 먼저 판단합니다 | `status-manager.ts` JSONL 변경 처리, `status/hook-session-binding.ts` | `false` | `true` |
+| `leaveNeedsInputOnJsonlGrowth` | `needs-input`에서 JSONL이 `needs-input` 전환 시각보다 늦은 entry를 쓰면 terminal에서 직접 응답한 것으로 보고 `busy`로 바꿉니다. JSONL 검사가 interrupted(중단된 turn)면 이 flag와 관계없이 `idle`입니다. Synthetic interrupt 검사보다 먼저 판단합니다 | `status-manager.ts` JSONL 변경 처리, `status/hook-session-binding.ts` | `false` | `true` |
 
 - JSONL 상태는 provider의 `readJsonlStatus(jsonlPath)`로 읽습니다. Codex 구현은 기존
   `checkCodexJsonlState` 경로와 rate-limit 관찰을 그대로 씁니다. Provider 공통 tail 검사(`checkJsonlIdle`)와
