@@ -3,7 +3,8 @@
 - 날짜: 2026-11-16
 - 요청: 사용자 "모든 문서 현행화"
 - 범위: root 문서, `docs/` 기준 문서, 진행 중 handoff의 상태 절, 공개 사이트(`landing-src/`) root·`/ko/` guide
-- lifecycle: lightweight(문서만 바꿈, 제품 동작·API·계약 변경 없음)
+- lifecycle: 문서 전용 변경(제품 동작·API·계약 변경 없음). 파일이 많아 Lightweight 조건(1~2개 파일)에는 맞지 않으므로
+  PR, CI, 독립 검증을 거쳤습니다.
 
 ## 기준 상태
 
@@ -77,6 +78,13 @@ custom-css, editor-integration, project-governance, tailscale, web-browser-panel
 | `corepack pnpm check:landing` | 통과(files 400, html 361, local links 23,556, content contracts 7) |
 
 전체 변경: 82개 파일, 612줄 추가, 248줄 삭제(이 handoff 제외).
+
+## 배포
+
+PR #64 CI 통과(`check` 1m26s), main에 local merge(`df826a73`)와 push. main CI 성공, GitHub Pages 배포 workflow
+성공. 공개 사이트 첫 화면(root, `/ko/`), docs 첫 화면, `/ko/docs/quickstart/`가 200이며 "Claude Code"가 보이고
+"지원 예정" 문구는 0건입니다. Runtime 변경이 없어 `deploy:local`은 하지 않았고, live service는 build `f61031a1`,
+같은 PID와 tmux session 10개 그대로입니다. Worktree, local branch와 remote branch는 정리했습니다.
 
 ## Follow-Up
 
