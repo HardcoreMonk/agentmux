@@ -24,10 +24,12 @@ const mocks = vi.hoisted(() => {
     getStatusManager: vi.fn(() => statusManager),
     supervisor,
     getRuntimeSupervisor: vi.fn(() => supervisor),
+    getConfig: vi.fn(),
   };
 });
 
 vi.mock('@/lib/cli-token', () => ({ verifyCliToken: mocks.verifyCliToken }));
+vi.mock('@/lib/config-store', () => ({ getConfig: mocks.getConfig }));
 vi.mock('@/lib/layout-store', () => ({ getLayout: mocks.getLayout }));
 vi.mock('@/lib/workspace-store', () => ({
   getWorkspaces: mocks.getWorkspaces,
@@ -69,6 +71,8 @@ const makeTab = (id: string, extra: Partial<ITab> = {}): ITab => ({
 const TABS: ITab[] = [
   makeTab('tab-codex', { panelType: 'codex', runtimeVersion: 1 }),
   makeTab('tab-claude', { panelType: 'claude', runtimeVersion: 1 }),
+  makeTab('tab-child', { panelType: 'claude', runtimeVersion: 1, createdByTabId: 'tab-codex' }),
+  makeTab('tab-other-child', { panelType: 'claude', runtimeVersion: 1, createdByTabId: 'some-other-tab' }),
   makeTab('tab-term-v1', { panelType: 'terminal', runtimeVersion: 1 }),
   makeTab('tab-term-v2', { sessionName: 'rtv2-ws-a-pane-a-tab-term-v2', panelType: 'terminal', runtimeVersion: 2 }),
 ];
@@ -142,6 +146,7 @@ beforeEach(() => {
   mocks.writeTabInput.mockResolvedValue({ followUpEnterSkipped: false });
   mocks.statusManager.getAllForClient.mockReturnValue({});
   mocks.supervisor.requestStatusLiveSync.mockResolvedValue({ tabs: {} });
+  mocks.getConfig.mockResolvedValue({});
 });
 
 afterEach(() => {
@@ -292,6 +297,55 @@ describe('POST /api/cli/tabs/<id>/send with a caller tab', () => {
     expect(sent.statusCode).toBe(200);
     expect(sent.body).toEqual({ status: 'sent', cliState: 'idle', followUpEnterSkipped: false });
     expect(mocks.writeTabInput).toHaveBeenCalledWith(tabById('tab-codex'), 'run the tests', { guardFollowUpEnter: true });
+  });
+
+  it('refuses a delegated tab sending to its own parent while reports are on with 403 send-to-parent', async () => {
+    mocks.getConfig.mockResolvedValue({});
+
+    const response = await callSend('tab-codex', 'please check', 'tab-child');
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({
+      error: 'send-to-parent',
+      message: 'A tab created by another agent reports to that tab automatically and cannot tab send to it',
+    });
+    expectNothingTyped();
+  });
+
+  it('allows a delegated tab to send to its parent when agentReportsEnabled is false', async () => {
+    mocks.getConfig.mockResolvedValue({ agentReportsEnabled: false });
+
+    const response = await callSend('tab-codex', 'please check', 'tab-child');
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.writeTabInput).toHaveBeenCalledWith(tabById('tab-codex'), 'please check', { guardFollowUpEnter: true });
+  });
+
+  it('allows a delegated tab to send to its parent when agentDelegationGuideEnabled is false', async () => {
+    mocks.getConfig.mockResolvedValue({ agentDelegationGuideEnabled: false });
+
+    const response = await callSend('tab-codex', 'please check', 'tab-child');
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.writeTabInput).toHaveBeenCalledWith(tabById('tab-codex'), 'please check', { guardFollowUpEnter: true });
+  });
+
+  it('allows a delegated tab whose createdByTabId is another tab to send when reports are on', async () => {
+    mocks.getConfig.mockResolvedValue({});
+
+    const response = await callSend('tab-codex', 'hello sibling', 'tab-other-child');
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.writeTabInput).toHaveBeenCalledWith(tabById('tab-codex'), 'hello sibling', { guardFollowUpEnter: true });
+  });
+
+  it('allows a human CLI call (no caller) to send to any tab when reports are on', async () => {
+    mocks.getConfig.mockResolvedValue({});
+
+    const response = await callSend('tab-codex', 'human message');
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.writeTabInput).toHaveBeenCalledWith(tabById('tab-codex'), 'human message', { guardFollowUpEnter: true });
   });
 });
 
